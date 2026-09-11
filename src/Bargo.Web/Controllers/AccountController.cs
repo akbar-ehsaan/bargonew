@@ -35,7 +35,7 @@ public class AccountController(
     private const int OtpResendSeconds = 60;
 
     [HttpGet("login")]
-    public IActionResult Login(string? role, string? returnUrl, int? disabled, string? mode)
+    public IActionResult Login(string? role, string? returnUrl, int? disabled, string? mode, int? forgot)
     {
         if (User.Identity?.IsAuthenticated == true && string.IsNullOrEmpty(returnUrl))
             return Redirect("/" + Roles.AreaOf(User.FindFirstValue(ClaimTypes.Role) ?? ""));
@@ -43,12 +43,28 @@ public class AccountController(
         if (disabled == 1) TempData["err"] = "حساب کاربری شما غیرفعال شده است.";
 
         var r = role is Roles.Driver or Roles.Company or Roles.Admin ? role : Roles.Shipper;
-        // پیش‌فرض ورود «موبایل + کد یکبارمصرف» است (سبک اپ‌های موبایل‌محور)؛
-        // گذرواژه گزینهٔ دوم است و مدیر همیشه با گذرواژه وارد می‌شود
-        ViewBag.Mode = mode == "password" || r == Roles.Admin ? "password" : "otp";
+        // ورود اصلی با گذرواژه و عبارت امنیتی است؛ «ورود با کد پیامکی (بدون رمز)»
+        // گزینهٔ دوم است و مدیر همیشه با گذرواژه وارد می‌شود
+        ViewBag.Mode = mode == "otp" && r != Roles.Admin ? "otp" : "password";
         ViewBag.OtpMobile = TempData["otp_mobile"] as string;
         ViewBag.DevOtp = TempData["dev_otp"] as string;
+        ViewBag.Forgot = forgot == 1;
+        if ((string)ViewBag.Mode == "password") NewCaptcha();
         return View(new LoginVm { Role = r, ReturnUrl = returnUrl });
+    }
+
+    /// <summary>
+    /// عبارت امنیتی سادهٔ حسابی (مثل «۲۰ − ۷») — پاسخ در TempData می‌ماند و یکبارمصرف
+    /// است؛ رفرش صفحه عبارت تازه می‌سازد.
+    /// </summary>
+    private void NewCaptcha()
+    {
+        var a = Random.Shared.Next(11, 30);
+        var b = Random.Shared.Next(2, 10);
+        TempData["cap_ans"] = (a - b).ToString();
+        ViewBag.Captcha = $"{Fa.N(a)} − {Fa.N(b)}";
+        // نسخهٔ لاتین برای اسکریپت‌های آزمون — رندر فارسی به entity تبدیل می‌شود و پارس‌کردنش سخت است
+        ViewBag.CaptchaRaw = $"{a}-{b}";
     }
 
     [HttpPost("login")]
@@ -56,7 +72,12 @@ public class AccountController(
     public async Task<IActionResult> Login(LoginVm vm, CancellationToken ct)
     {
         ViewData["Title"] = "ورود";
-        if (!ModelState.IsValid) return View(vm);
+
+        // عبارت امنیتی: پاسخ درست در TempData ماند و با همین خواندن مصرف می‌شود
+        if (TempData["cap_ans"] as string is not { } capAns || Fa.Latin(vm.Captcha ?? "").Trim() != capAns)
+            ModelState.AddModelError(nameof(vm.Captcha), "پاسخ عبارت امنیتی نادرست است.");
+
+        if (!ModelState.IsValid) { NewCaptcha(); return View(vm); }
 
         var mobile = Fa.NormMobile(vm.Mobile);
         const string wrong = "موبایل یا گذرواژه نادرست است.";
@@ -68,6 +89,7 @@ public class AccountController(
         if (acc is null || !ok)
         {
             ModelState.AddModelError("", wrong);
+            NewCaptcha();
             return View(vm);
         }
 

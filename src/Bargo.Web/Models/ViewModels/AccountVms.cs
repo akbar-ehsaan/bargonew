@@ -13,6 +13,9 @@ public class LoginVm
     [Required(ErrorMessage = "گذرواژه را وارد کنید.")]
     public string Password { get; set; } = "";
 
+    /// <summary>پاسخ عبارت امنیتی (تفریق ساده) — فقط در ورود با گذرواژه.</summary>
+    public string? Captcha { get; set; }
+
     public string? ReturnUrl { get; set; }
 }
 

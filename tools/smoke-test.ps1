@@ -119,8 +119,12 @@ foreach ($role in $accounts.Keys) {
     $client = New-Client
     $login = Get-Page $client "/account/login"
     $token = [regex]::Match($login[2], '__RequestVerificationToken"[^>]*value="([^"]+)"').Groups[1].Value
+    # عبارت امنیتی از همان صفحه خوانده و حل می‌شود (data-cap="a-b" لاتین است)
+    $capM = [regex]::Match($login[2], 'data-cap="(\d+)-(\d+)"')
+    $capAns = [int]$capM.Groups[1].Value - [int]$capM.Groups[2].Value
     $form = New-Object 'System.Collections.Generic.Dictionary[string,string]'
-    $form["Role"] = $acc[0]; $form["Mobile"] = $acc[1]; $form["Password"] = $acc[2]; $form["__RequestVerificationToken"] = $token
+    $form["Role"] = $acc[0]; $form["Mobile"] = $acc[1]; $form["Password"] = $acc[2]
+    $form["Captcha"] = [string]$capAns; $form["__RequestVerificationToken"] = $token
     $post = $client.PostAsync("$Base/account/login", (New-Object System.Net.Http.FormUrlEncodedContent($form))).Result
     Write-Host "== $role  (ورود → $($post.Headers.Location))"
 

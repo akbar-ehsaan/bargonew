@@ -6,46 +6,118 @@
     var otpMode = (ViewBag.Mode as string) == "otp" && !isAdmin;
     var otpMobile = ViewBag.OtpMobile as string;
     var devOtp = ViewBag.DevOtp as string;
+    var forgot = ViewBag.Forgot as bool? == true;
+    var captcha = ViewBag.Captcha as string;
     var returnQs = string.IsNullOrEmpty(Model.ReturnUrl) ? "" : "&returnUrl=" + Uri.EscapeDataString(Model.ReturnUrl);
+    var version = typeof(Program).Assembly.GetName().Version?.ToString(3);
 }
 
 <style>
-    .login-logo{display:flex;flex-direction:column;align-items:center;gap:8px;margin:4px 0 14px}
+    .login-back{display:block;font-size:13px;margin-bottom:6px}
+    .login-logo{display:flex;flex-direction:column;align-items:center;gap:8px;margin:4px 0 16px;text-align:center}
     .login-logo img{width:64px;height:64px}
-    .login-logo b{font-size:20px}
+    .login-logo b{font-size:21px}
     .login-logo span{font-size:12.5px;color:var(--ink-faint)}
-    .biginput{font-size:20px !important;text-align:center;letter-spacing:2px;height:52px}
+    .biginput{font-size:19px !important;text-align:center;letter-spacing:2px;height:50px}
     .code-input{font-size:26px !important;text-align:center;letter-spacing:14px;height:56px;font-variant-numeric:tabular-nums}
-    .role-pick label{cursor:pointer}
+    .pass-wrap{position:relative}
+    .pass-wrap input{padding-inline-end:44px}
+    .pass-eye{position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);border:0;background:none;cursor:pointer;
+      width:34px;height:34px;border-radius:8px;color:var(--ink-faint);font-size:17px}
+    .pass-eye:hover{background:var(--line-soft, #eee)}
+    .cap-row{display:flex;align-items:center;gap:10px}
+    .cap-row .cap-q{flex:none;min-width:96px;text-align:center;font-weight:800;font-size:17px;letter-spacing:2px;
+      padding:10px 14px;border-radius:10px;background:var(--line-soft, #eef1f4);user-select:none;font-variant-numeric:tabular-nums}
+    .cap-row input{flex:1;text-align:center}
+    .cap-row .cap-ref{flex:none;border:0;background:none;cursor:pointer;font-size:17px;color:var(--ink-faint);width:34px;height:34px;border-radius:8px}
+    .cap-row .cap-ref:hover{background:var(--line-soft, #eee)}
+    .or-line{display:flex;align-items:center;gap:10px;margin:14px 0 10px;color:var(--ink-faint);font-size:12px}
+    .or-line::before,.or-line::after{content:"";flex:1;height:1px;background:var(--line, #ddd)}
     .linkrow{text-align:center}
+    .login-ver{margin-top:14px;text-align:center;font-size:11.5px;color:var(--ink-faint)}
 </style>
+
+<a class="lnk login-back" href="/"><i class="bi bi-arrow-right"></i> بازگشت به صفحهٔ اصلی</a>
 
 <div class="login-logo">
     <img src="/img/logo.svg" alt="بارگو" />
-    <b>@(isAdmin ? "ورود مدیر سامانه" : "ورود به بارگو")</b>
+    <b>@(isAdmin ? "ورود مدیر سامانه" : "بارگو")</b>
     <span>
         @if (isAdmin)
         {
             <text>این صفحه مخصوص مدیران بارگوست؛ ورود فقط با موبایل و گذرواژه.</text>
         }
-        else if (otpMode && string.IsNullOrEmpty(otpMobile))
-        {
-            <text>شمارهٔ موبایل خود را وارد کنید؛ کد ورود پیامک می‌شود.</text>
-        }
-        else if (otpMode)
-        {
-            <text>کد پیامک‌شده را وارد کنید.</text>
-        }
         else
         {
-            <text>ورود با موبایل و گذرواژه.</text>
+            <text>سامانهٔ اعلام بار و مدیریت حمل‌ونقل</text>
         }
     </span>
 </div>
 
-@if (otpMode && string.IsNullOrEmpty(otpMobile))
+@if (!otpMode)
 {
-    @* گام یک: شماره را بگیر و کد بفرست — حالت پیش‌فرض *@
+    @* ---------------- ورود اصلی: موبایل + گذرواژه + عبارت امنیتی ---------------- *@
+    <form method="post" action="/account/login">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="ReturnUrl" />
+        <div asp-validation-summary="ModelOnly" class="val-err" style="margin-bottom:10px"></div>
+
+        @if (isAdmin)
+        {
+            <input type="hidden" name="Role" value="admin" />
+        }
+        else
+        {
+            <div class="role-pick" role="radiogroup" aria-label="نقش">
+                <label><input type="radio" name="Role" value="shipper" checked="@(Model.Role == Roles.Shipper)" /><i class="bi bi-box-seam"></i> صاحب بار</label>
+                <label><input type="radio" name="Role" value="driver" checked="@(Model.Role == Roles.Driver)" /><i class="bi bi-truck"></i> راننده</label>
+                <label><input type="radio" name="Role" value="company" checked="@(Model.Role == Roles.Company)" /><i class="bi bi-buildings"></i> شرکت حمل‌ونقل</label>
+            </div>
+        }
+
+        <div class="fld">
+            <label for="Mobile">شمارهٔ موبایل</label>
+            <input asp-for="Mobile" class="biginput" inputmode="tel" autocomplete="username" maxlength="11" placeholder="۰۹۱۲۳۴۵۶۷۸۹" dir="ltr" />
+            <span asp-validation-for="Mobile" class="val-err"></span>
+        </div>
+        <div class="fld">
+            <label for="Password">گذرواژه</label>
+            <div class="pass-wrap">
+                <input asp-for="Password" type="password" autocomplete="current-password" dir="ltr" />
+                <button type="button" class="pass-eye" data-eye="Password" aria-label="نمایش گذرواژه" tabindex="-1"><i class="bi bi-eye"></i></button>
+            </div>
+            <span asp-validation-for="Password" class="val-err"></span>
+        </div>
+        <div class="fld">
+            <label for="Captcha">حاصل عبارت زیر را وارد کنید</label>
+            <div class="cap-row">
+                <span class="cap-q" dir="ltr" data-cap="@(ViewBag.CaptchaRaw as string)">@captcha</span>
+                <input asp-for="Captcha" inputmode="numeric" maxlength="3" placeholder="پاسخ" autocomplete="off" dir="ltr" />
+                <button type="button" class="cap-ref" onclick="location.reload()" title="عبارت تازه" aria-label="عبارت تازه"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
+            <span asp-validation-for="Captcha" class="val-err"></span>
+        </div>
+        <button type="submit" class="btn2 pri lg block"><i class="bi bi-box-arrow-in-left"></i> ورود</button>
+    </form>
+
+    @if (!isAdmin)
+    {
+        <div class="or-line">یا</div>
+        <a class="btn2 ghost block" href="/account/login?mode=otp&role=@Model.Role@returnQs">
+            <i class="bi bi-chat-square-dots"></i> ورود با کد پیامکی (بدون رمز)
+        </a>
+        <div class="linkrow" style="margin-top:10px">
+            <a class="lnk" href="/account/login?mode=otp&forgot=1&role=@Model.Role@returnQs">رمز عبور را فراموش کرده‌اید؟</a>
+        </div>
+    }
+}
+else if (string.IsNullOrEmpty(otpMobile))
+{
+    @* ---------------- کد پیامکی، گام یک: شماره ---------------- *@
+    @if (forgot)
+    {
+        <div class="alert2 info"><i class="bi bi-info-circle"></i><div class="grow">با کد پیامکی وارد شوید و سپس از «پروفایل» گذرواژهٔ تازه بگذارید.</div></div>
+    }
     <form method="post" action="/account/otp/send">
         @Html.AntiForgeryToken()
         <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
@@ -64,13 +136,13 @@
         <button type="submit" class="btn2 pri lg block"><i class="bi bi-send"></i> دریافت کد ورود</button>
     </form>
 
-    <div class="linkrow">
-        <a class="lnk" href="/account/login?mode=password&role=@Model.Role@returnQs"><i class="bi bi-key"></i> ورود با گذرواژه</a>
+    <div class="linkrow" style="margin-top:10px">
+        <a class="lnk" href="/account/login?role=@Model.Role@returnQs"><i class="bi bi-key"></i> ورود با گذرواژه</a>
     </div>
 }
-else if (otpMode)
+else
 {
-    @* گام دو: کد پیامک‌شده *@
+    @* ---------------- کد پیامکی، گام دو: کد ---------------- *@
     @if (!string.IsNullOrEmpty(devOtp))
     {
         <div class="alert2 warn"><i class="bi bi-bug"></i><div class="grow">فقط حالت توسعه (پیامک ارسال نمی‌شود) — کد ورود: <b class="num" dir="ltr">@devOtp</b></div></div>
@@ -101,12 +173,12 @@ else if (otpMode)
     </form>
 
     <div class="linkrow">
-        <a class="lnk" href="/account/login?role=@Model.Role@returnQs"><i class="bi bi-pencil"></i> ویرایش شماره</a> ·
-        <a class="lnk" href="/account/login?mode=password&role=@Model.Role@returnQs">ورود با گذرواژه</a>
+        <a class="lnk" href="/account/login?mode=otp&role=@Model.Role@returnQs"><i class="bi bi-pencil"></i> ویرایش شماره</a> ·
+        <a class="lnk" href="/account/login?role=@Model.Role@returnQs">ورود با گذرواژه</a>
     </div>
 
     <script>
-        // شمارش معکوس ۶۰ ثانیه‌ای دکمهٔ «ارسال دوباره» — مثل اپ‌های موبایل‌محور
+        // شمارش معکوس ۶۰ ثانیه‌ای دکمهٔ «ارسال دوباره»
         (function () {
             var left = 60, btn = document.getElementById('resendBtn'), t = document.getElementById('resendTimer');
             var fa = function (n) { return String(n).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; }); };
@@ -118,54 +190,28 @@ else if (otpMode)
         })();
     </script>
 }
-else
-{
-    @* ورود با گذرواژه — گزینهٔ دوم (و تنها راه مدیر) *@
-    <form method="post" action="/account/login">
-        @Html.AntiForgeryToken()
-        <input type="hidden" asp-for="ReturnUrl" />
-        <div asp-validation-summary="ModelOnly" class="val-err" style="margin-bottom:10px"></div>
-
-        @if (isAdmin)
-        {
-            <input type="hidden" name="Role" value="admin" />
-        }
-        else
-        {
-            <div class="role-pick" role="radiogroup" aria-label="نقش">
-                <label><input type="radio" name="Role" value="shipper" checked="@(Model.Role == Roles.Shipper)" /><i class="bi bi-box-seam"></i> صاحب بار</label>
-                <label><input type="radio" name="Role" value="driver" checked="@(Model.Role == Roles.Driver)" /><i class="bi bi-truck"></i> راننده</label>
-                <label><input type="radio" name="Role" value="company" checked="@(Model.Role == Roles.Company)" /><i class="bi bi-buildings"></i> شرکت حمل‌ونقل</label>
-            </div>
-        }
-
-        <div class="fld">
-            <label for="Mobile">شمارهٔ موبایل</label>
-            <input asp-for="Mobile" class="biginput" inputmode="tel" autocomplete="username" placeholder="۰۹۱۲۳۴۵۶۷۸۹" dir="ltr" />
-            <span asp-validation-for="Mobile" class="val-err"></span>
-        </div>
-        <div class="fld">
-            <label for="Password">گذرواژه</label>
-            <input asp-for="Password" type="password" autocomplete="current-password" dir="ltr" />
-            <span asp-validation-for="Password" class="val-err"></span>
-        </div>
-        <button type="submit" class="btn2 pri lg block"><i class="bi bi-box-arrow-in-left"></i> ورود</button>
-    </form>
-
-    @if (!isAdmin)
-    {
-        <div class="linkrow">
-            <a class="lnk" href="/account/login?role=@Model.Role@returnQs"><i class="bi bi-chat-square-dots"></i> ورود با کد یکبارمصرف</a>
-        </div>
-    }
-}
 
 @if (!isAdmin)
 {
-    <div class="linkrow">
-        حساب ندارید؟
+    <div class="linkrow" style="margin-top:12px">
+        حساب کاربری ندارید؟
         <a class="lnk" href="/account/register?type=shipper">ثبت‌نام صاحب بار</a> ·
         <a class="lnk" href="/account/register?type=driver">راننده</a> ·
         <a class="lnk" href="/account/register?type=company">شرکت</a>
     </div>
 }
+
+<div class="login-ver">نسخهٔ @Fa.Digits(version ?? "0.1.0")</div>
+
+<script>
+    // نمایش/پنهان‌کردن گذرواژه با آیکن چشم
+    document.querySelectorAll('.pass-eye').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var inp = document.getElementById(b.getAttribute('data-eye'));
+            if (!inp) return;
+            var show = inp.type === 'password';
+            inp.type = show ? 'text' : 'password';
+            b.firstElementChild.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+        });
+    });
+</script>
