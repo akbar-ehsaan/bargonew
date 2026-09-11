@@ -50,7 +50,7 @@ else
                     <div class="grid-side">
                         <div>
                             <div class="kvrow"><span>رانندهٔ فعلی</span><b>@(t.Driver?.FullName ?? "—") <span class="num muted">@Fa.Digits(t.Driver?.Mobile)</span></b></div>
-                            <div class="kvrow"><span>خودروی فعلی</span><b>@if (t.Vehicle is not null) { <span class="plate">@t.Vehicle.PlateNo</span> <span class="muted">@t.Vehicle.VehicleType?.Name</span> } else { <text>تعیین نشده</text> }</b></div>
+                            <div class="kvrow"><span>خودروی فعلی</span><b>@if (t.Vehicle is not null) { <partial name="_Plate" model="t.Vehicle.PlateNo" /> <span class="muted">@t.Vehicle.VehicleType?.Name</span> } else { <text>تعیین نشده</text> }</b></div>
                             <div class="kvrow"><span>حرکت</span><b>@Fa.Stamp(t.ScheduledDepartureAt ?? l.LoadingFrom)</b></div>
                             @if (hist.Count > 0)
                             {
@@ -60,7 +60,7 @@ else
                                     {
                                         var rejected = a.PreviousDriverId == a.DriverId;
                                         <li>
-                                            <b>@(rejected ? "رد مأموریت" : a.PreviousDriverId is null ? "تخصیص" : "تعویض")</b> — @(a.Driver?.FullName ?? "—")@if (a.Vehicle is not null) { <text> · </text><span class="plate">@a.Vehicle.PlateNo</span> }
+                                            <b>@(rejected ? "رد مأموریت" : a.PreviousDriverId is null ? "تخصیص" : "تعویض")</b> — @(a.Driver?.FullName ?? "—")@if (a.Vehicle is not null) { <text> · </text><partial name="_Plate" model="a.Vehicle.PlateNo" /> }
                                             @if (!string.IsNullOrEmpty(a.Reason)) { <span class="muted"> — @a.Reason</span> }
                                             <div class="when">@Fa.Stamp(a.CreatedAt) · @(a.ByName ?? "—")</div>
                                         </li>

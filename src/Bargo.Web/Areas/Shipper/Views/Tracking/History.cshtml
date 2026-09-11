@@ -48,7 +48,7 @@
     {
         <div class="bd">
             <div class="kvrow"><span>سفر</span><b><a class="num" href="/Shipper/Orders/Detail/@row.TripId">@row.Code</a> · @Ui.Route(row.From, row.To) · @Ui.TripPill(row.Status)</b></div>
-            <div class="kvrow"><span>حمل‌کننده</span><b>@row.Carrier @if (!string.IsNullOrEmpty(row.PlateNo)) { <span class="plate">@row.PlateNo</span> }</b></div>
+            <div class="kvrow"><span>حمل‌کننده</span><b>@row.Carrier @if (!string.IsNullOrEmpty(row.PlateNo)) { <partial name="_Plate" model="row.PlateNo" /> }</b></div>
             <div class="kvrow"><span>بازهٔ ثبت</span><b>@Fa.Stamp(Model.FirstAt) تا @Fa.Stamp(Model.LastAt)</b></div>
 
             <div class="stats" style="margin:14px 0 0">

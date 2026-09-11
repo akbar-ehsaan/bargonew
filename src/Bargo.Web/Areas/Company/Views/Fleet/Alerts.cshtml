@@ -14,7 +14,8 @@
                 <td>
                     @if (a.SubjectKind == OwnerKind.Vehicle)
                     {
-                        <span class="plate">@a.Subject</span>
+                        @* تابع محلی Rows همگام است و تگ‌هلپر partial در آن نمی‌نشیند؛ رندر مستقیم Plate.Html همان خروجی _Plate است. *@
+                        @Plate.Html(a.Subject)
                     }
                     else
                     {

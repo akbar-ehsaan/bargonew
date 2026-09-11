@@ -63,7 +63,7 @@
                                 <td>
                                     @if (!string.IsNullOrEmpty(o.PlateNo))
                                     {
-                                        <span class="plate">@o.PlateNo</span><span class="sub">@o.VehicleType</span>
+                                        <partial name="_Plate" model="o.PlateNo" /><span class="sub">@o.VehicleType</span>
                                     }
                                     else
                                     {
@@ -99,7 +99,7 @@
                     {
                         var makeModel = string.Join(" ", new[] { v.Brand, v.Model }.Where(x => !string.IsNullOrWhiteSpace(x)));
                         <tr>
-                            <td><span class="plate">@v.PlateNo</span>@if (v.CompanyId is not null) { <span class="sub">خودروی شرکت</span> }</td>
+                            <td><partial name="_Plate" model="v.PlateNo" />@if (v.CompanyId is not null) { <span class="sub">خودروی شرکت</span> }</td>
                             <td>@(v.VehicleType?.Name ?? "—")@if (!string.IsNullOrEmpty(v.VehicleType?.BodyKind)) { <span class="sub">@v.VehicleType.BodyKind</span> }</td>
                             <td>@(makeModel.Length == 0 ? "—" : makeModel)@if (v.Year is int yr) { <span class="sub">@Fa.Digits(yr.ToString())</span> }</td>
                             <td class="nowrap">@ShipperUi.Ton(v.CapacityTon)</td>
@@ -128,7 +128,7 @@
                         <tr data-href="/Shipper/Orders/Detail/@t.TripId">
                             <td><a class="lnk num" href="/Shipper/Orders/Detail/@t.TripId">@t.Code</a><span class="sub">@t.LoadTitle</span></td>
                             <td>@Ui.Route(t.From, t.To)</td>
-                            <td>@if (!string.IsNullOrEmpty(t.PlateNo)) { <span class="plate">@t.PlateNo</span> } else { <span class="muted">—</span> }</td>
+                            <td>@if (!string.IsNullOrEmpty(t.PlateNo)) { <partial name="_Plate" model="t.PlateNo" /> } else { <span class="muted">—</span> }</td>
                             <td class="nowrap">@Fa.Toman(t.Fare)</td>
                             <td>@Ui.TripPill(t.Status)</td>
                             <td class="nowrap">@Fa.Date(t.DeliveredAt ?? t.CancelledAt ?? t.CreatedAt)</td>

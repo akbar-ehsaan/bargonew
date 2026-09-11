@@ -13,9 +13,6 @@ public class LoginVm
     [Required(ErrorMessage = "گذرواژه را وارد کنید.")]
     public string Password { get; set; } = "";
 
-    /// <summary>پاسخ عبارت امنیتی (تفریق ساده) — فقط در ورود با گذرواژه.</summary>
-    public string? Captcha { get; set; }
-
     public string? ReturnUrl { get; set; }
 }
 
@@ -31,8 +28,14 @@ public class RegisterVm
     // مشترک
     public string Mobile { get; set; } = "";
     public string Password { get; set; } = "";
+    /// <summary>تکرار گذرواژه — مثل پت‌اوآیدی، جلوی غلط تایپی رمز را می‌گیرد.</summary>
+    public string? ConfirmPassword { get; set; }
+    /// <summary>خانم | آقا — فقط برای راننده و صاحب بار حقیقی.</summary>
+    public string? Gender { get; set; }
     public int? CityId { get; set; }
     public bool AcceptTerms { get; set; }
+    /// <summary>پاسخ عبارت امنیتی حسابی.</summary>
+    public string? Captcha { get; set; }
 
     // راننده
     public string? FirstName { get; set; }

@@ -104,7 +104,7 @@ else if (needsVerify)
                                 @t.Carrier
                                 @if (!string.IsNullOrEmpty(t.PlateNo))
                                 {
-                                    <span class="sub"><span class="plate">@t.PlateNo</span></span>
+                                    <span class="sub"><partial name="_Plate" model="t.PlateNo" /></span>
                                 }
                             </td>
                             <td>@Ui.TripPill(t.Status)</td>

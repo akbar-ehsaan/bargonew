@@ -1,0 +1,7 @@
+@*
+    نمایش پلاک خودرو. مدل: string? (همان PlateNo خام از پایگاه‌داده).
+    همهٔ منطق در Plate.Html است تا OpsUi.Plate (پنل مدیر) و این partial یک خروجی بدهند؛
+    این‌جا فقط پوستهٔ Razor است که در ویوها با <partial name="_Plate" model="..."/> صدا می‌شود.
+*@
+@model string?
+@Plate.Html(Model)

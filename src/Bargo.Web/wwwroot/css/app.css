@@ -114,8 +114,9 @@ h1,h2,h3{text-wrap:balance;line-height:1.4}
   color:#fff;display:grid;place-items:center;font-size:18px;cursor:pointer;flex:none;position:relative}
 .topbar .burger{display:none}
 .topbar .tb-btn:hover{background:rgba(255,255,255,.2)}
-/* دکمهٔ خروج — قرمز و آشکار، مثل باقی اپ‌ها */
-.topbar .tb-btn.out{background:#d64547;border-color:rgba(255,255,255,.35)}
+/* دکمهٔ خروج — قرمز، با نوشتهٔ «خروج» تا مثل باقی اپ‌ها یک‌نگاهی شناخته شود */
+.topbar .tb-btn.out{background:#d64547;border-color:rgba(255,255,255,.35);
+  width:auto;padding:0 14px;display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800}
 .topbar .tb-btn.out:hover{background:#b93436}
 .topbar .tb-clock{font-size:13.5px;font-weight:800;opacity:.95;white-space:nowrap;font-variant-numeric:tabular-nums}
 .topbar .tb-btn .dot{position:absolute;top:-5px;inset-inline-end:-5px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--signal);
@@ -198,6 +199,36 @@ tr.row-link{cursor:pointer}
 .route i{color:var(--signal);font-size:13px}
 .plate{display:inline-block;direction:rtl;padding:1px 9px;border:1.5px solid #1b2a3a;border-radius:6px;background:#fff;font-weight:800;font-size:12.5px;
   white-space:nowrap;box-shadow:inset 7px 0 0 #1d4f9e}
+
+/* پلاک واقعی: چیدمان مثل خود پلاک چپ‌به‌راست است (نوار آبی، دو رقم/حرف/سه رقم، خانهٔ ایران)؛
+   dir=ltr روی خود نشان می‌آید تا وسط متن RTL آینه نشود. tabular-nums برای هم‌عرضی ارقام در جدول‌ها. */
+.plate-ir{direction:ltr;display:inline-flex;align-items:stretch;height:26px;vertical-align:middle;background:#fff;color:#111;
+  border:1.5px solid #1b2a3a;border-radius:6px;overflow:hidden;white-space:nowrap;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.plate-ir .band{flex:none;width:11px;background:#1d4f9e;display:flex;justify-content:center;padding-top:3px}
+.plate-ir .band i{width:5px;height:9px;border-radius:1px; /* پرچم سه‌رنگ، فقط با CSS */
+  background:linear-gradient(180deg,#2eaf5f 0 33%,#fff 33% 66%,#e03131 66% 100%)}
+.plate-ir .main{display:flex;align-items:center;gap:5px;padding:0 8px;font-size:13.5px}
+.plate-ir .main .l{font-weight:800;font-size:13px}
+.plate-ir .ir{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:26px;
+  padding:1px 5px 0;border-left:1.5px solid #1b2a3a;background:#f6f8fb}
+.plate-ir .ir small{font-size:7px;font-weight:700;line-height:1;color:#33415c}
+.plate-ir .ir b{font-size:11.5px;line-height:1}
+
+/* ورودی تکه‌تکهٔ پلاک (partial ‏_PlateInput): همان شکل نشان، فقط بزرگ‌تر و با چهار خانهٔ تایپ. */
+.plate-input{direction:ltr;display:inline-flex;align-items:stretch;height:42px;max-width:100%;background:#fff;
+  border:1.5px solid #1b2a3a;border-radius:8px;overflow:hidden;vertical-align:middle;font-variant-numeric:tabular-nums}
+.plate-input:focus-within{box-shadow:0 0 0 2px rgba(var(--primary-rgb),.18)}
+.plate-input .band{flex:none;width:14px;background:#1d4f9e;display:flex;justify-content:center;padding-top:5px}
+.plate-input .band i{width:6px;height:12px;border-radius:1px;background:linear-gradient(180deg,#2eaf5f 0 33%,#fff 33% 66%,#e03131 66% 100%)}
+.plate-input input,.plate-input select{border:0;outline:0;background:transparent;text-align:center;font-weight:800;font-size:16px;
+  font-family:inherit;padding:0;min-width:0;border-radius:0}
+.plate-input input.p2{width:44px}
+.plate-input select.pl{width:58px;appearance:auto;border-inline:1px dashed var(--line)}
+.plate-input input.p3{width:56px}
+.plate-input .ir{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  padding:2px 4px 0;border-left:1.5px solid #1b2a3a;background:#f6f8fb}
+.plate-input .ir small{font-size:8px;font-weight:700;line-height:1;color:#33415c}
+.plate-input .ir input.pi{width:34px;font-size:14px;background:transparent}
 
 /* ---------------- دکمه ---------------- */
 .btn2{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 16px;border-radius:var(--radius-sm);border:1px solid transparent;

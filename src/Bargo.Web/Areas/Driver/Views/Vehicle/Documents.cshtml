@@ -55,14 +55,14 @@ else
             <span class="muted small">خودرو:</span>
             @foreach (var v in Model.Vehicles)
             {
-                <a class="btn2 sm @(v.VehicleId == Model.VehicleId ? "soft" : "ghost")" asp-action="Documents" asp-route-kind="@kind" asp-route-vehicleId="@v.VehicleId">@v.PlateNo <small class="muted">· @(v.VehicleType?.Name)</small></a>
+                <a class="btn2 sm @(v.VehicleId == Model.VehicleId ? "soft" : "ghost")" asp-action="Documents" asp-route-kind="@kind" asp-route-vehicleId="@v.VehicleId">@Plate.Pretty(v.PlateNo) <small class="muted">· @(v.VehicleType?.Name)</small></a>
             }
         </div>
     }
 
     <div class="grid-side">
         <div class="card2">
-            <div class="hd"><i class="bi bi-files"></i> نسخه‌های بارگذاری‌شده @(veh is null ? "" : $"— خودروی {veh.PlateNo}")</div>
+            <div class="hd"><i class="bi bi-files"></i> نسخه‌های بارگذاری‌شده @(veh is null ? "" : $"— خودروی {Plate.Pretty(veh.PlateNo)}")</div>
             <div class="tbl-wrap">
                 <table class="tbl">
                     <thead><tr><th>تاریخ بارگذاری</th><th>شماره</th><th>انقضا</th><th>وضعیت</th><th>نظر مدیر</th><th>فایل</th></tr></thead>
@@ -81,7 +81,7 @@ else
                     }
                     @if (Model.Rows.Count == 0)
                     {
-                        <tr><td colspan="6" class="empty"><i class="bi @Icon(kind)"></i>@DocumentKind.Label(kind)@(veh is null ? "" : $" خودروی {veh.PlateNo}") هنوز بارگذاری نشده است. از فرم روبه‌رو تصویر آن را بفرستید.</td></tr>
+                        <tr><td colspan="6" class="empty"><i class="bi @Icon(kind)"></i>@DocumentKind.Label(kind)@(veh is null ? "" : $" خودروی {Plate.Pretty(veh.PlateNo)}") هنوز بارگذاری نشده است. از فرم روبه‌رو تصویر آن را بفرستید.</td></tr>
                     }
                     </tbody>
                 </table>

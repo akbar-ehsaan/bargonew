@@ -147,6 +147,8 @@ public class Driver
     public string PassHash { get; set; } = "";
     [MaxLength(60)] public string FirstName { get; set; } = "";
     [MaxLength(60)] public string LastName { get; set; } = "";
+    /// <summary>male | female — از فرم ثبت‌نام، برای خطاب درست («آقای…»/«خانم…»).</summary>
+    [MaxLength(6)] public string? Gender { get; set; }
     [MaxLength(10)] public string NationalCode { get; set; } = "";
     public DateTime? BirthDate { get; set; }
     public int? CityId { get; set; }
@@ -198,6 +200,8 @@ public class Shipper
     public string PassHash { get; set; } = "";
     /// <summary>person | business</summary>
     [MaxLength(10)] public string Kind { get; set; } = "person";
+    /// <summary>male | female — فقط برای شخص حقیقی.</summary>
+    [MaxLength(6)] public string? Gender { get; set; }
     [MaxLength(100)] public string FullName { get; set; } = "";
     [MaxLength(10)] public string? NationalCode { get; set; }
     [MaxLength(150)] public string? BusinessName { get; set; }

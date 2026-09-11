@@ -64,7 +64,7 @@
             {
                 var busy = Model.Busy.GetValueOrDefault(v.VehicleId);
                 <tr data-href="/Company/Fleet/Edit/@v.VehicleId">
-                    <td><span class="plate">@v.PlateNo</span></td>
+                    <td><partial name="_Plate" model="v.PlateNo" /></td>
                     <td><b>@v.VehicleType?.Name</b><span class="sub">@OpsLabels.Ton(v.CapacityTon) تن</span></td>
                     <td>
                         @if (string.IsNullOrEmpty(v.Brand) && string.IsNullOrEmpty(v.Model) && v.Year is null)

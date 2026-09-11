@@ -40,7 +40,7 @@
                 @if (isChange)
                 {
                     <div class="kvrow"><span>رانندهٔ فعلی</span><b>@t.Driver?.FullName <span class="num muted">@Fa.Digits(t.Driver?.Mobile)</span></b></div>
-                    <div class="kvrow"><span>خودروی فعلی</span><b>@if (t.Vehicle is not null) { <span class="plate">@t.Vehicle.PlateNo</span> <span class="muted">@t.Vehicle.VehicleType?.Name</span> } else { <text>—</text> }</b></div>
+                    <div class="kvrow"><span>خودروی فعلی</span><b>@if (t.Vehicle is not null) { <partial name="_Plate" model="t.Vehicle.PlateNo" /> <span class="muted">@t.Vehicle.VehicleType?.Name</span> } else { <text>—</text> }</b></div>
                     <div style="height:14px"></div>
                 }
                 <partial name="_AssignForm" model="Model.Form" />
@@ -87,7 +87,7 @@
                             <tr>
                                 <td class="nowrap">@Fa.Stamp(a.CreatedAt)</td>
                                 <td>@(a.Driver?.FullName ?? "—") @(rejected ? Ui.Pill("رد مأموریت", "no") : a.PreviousDriverId is null ? Ui.Pill("تخصیص", "ok") : Ui.Pill("تعویض", "wait"))</td>
-                                <td>@if (a.Vehicle is not null) { <span class="plate">@a.Vehicle.PlateNo</span> } else { <span class="muted">—</span> }</td>
+                                <td>@if (a.Vehicle is not null) { <partial name="_Plate" model="a.Vehicle.PlateNo" /> } else { <span class="muted">—</span> }</td>
                                 <td>@(a.ByName ?? "—")</td>
                                 <td class="small">@(a.Reason ?? "—")</td>
                             </tr>

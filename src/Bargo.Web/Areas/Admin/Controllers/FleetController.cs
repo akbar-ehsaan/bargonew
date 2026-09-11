@@ -78,7 +78,7 @@ public class FleetController(
             if (status == AccountStatus.Rejected && note is null)
                 throw new UserError("برای رد خودرو، علت را بنویسید؛ مالک باید بداند چه چیزی را اصلاح کند.");
             if (v.VerifyStatus == status)
-                throw new UserError($"خودروی {v.PlateNo} از قبل «{AccountStatus.Label(status)}» است.");
+                throw new UserError($"خودروی {Plate.Pretty(v.PlateNo)} از قبل «{AccountStatus.Label(status)}» است.");
 
             var from = v.VerifyStatus;
             v.VerifyStatus = status;
@@ -102,16 +102,16 @@ public class FleetController(
                 : ("", 0, "");
             if (ownerId > 0)
                 notify.Add(kind, ownerId,
-                    status == AccountStatus.Approved ? $"خودروی {v.PlateNo} تأیید شد" : $"خودروی {v.PlateNo} تأیید نشد",
+                    status == AccountStatus.Approved ? $"خودروی {Plate.Pretty(v.PlateNo)} تأیید شد" : $"خودروی {Plate.Pretty(v.PlateNo)} تأیید نشد",
                     status == AccountStatus.Approved ? "خودرو می‌تواند در سفرها استفاده شود." + (note is null ? "" : " " + note) : note,
                     link, "document");
 
             audit.Add("Vehicle", id, "verify:" + status,
-                $"خودروی {v.PlateNo} ({v.VehicleType?.Name}): {AccountStatus.Label(from)} ← {AccountStatus.Label(status)}",
+                $"خودروی {Plate.Pretty(v.PlateNo)} ({v.VehicleType?.Name}): {AccountStatus.Label(from)} ← {AccountStatus.Label(status)}",
                 new { from, to = status, note, v.DriverId, v.CompanyId });
             await db.SaveChangesAsync(ct);
 
-            TempData["ok"] = (status == AccountStatus.Approved ? $"خودروی {v.PlateNo} تأیید شد." : $"خودروی {v.PlateNo} رد شد و علت برای مالک ارسال شد.") + hint;
+            TempData["ok"] = (status == AccountStatus.Approved ? $"خودروی {Plate.Pretty(v.PlateNo)} تأیید شد." : $"خودروی {Plate.Pretty(v.PlateNo)} رد شد و علت برای مالک ارسال شد.") + hint;
         }
         catch (UserError e)
         {

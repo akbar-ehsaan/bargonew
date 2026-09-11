@@ -61,7 +61,7 @@ else
                     <td>
                         @if (o.Vehicle is not null)
                         {
-                            <span class="plate">@o.Vehicle.PlateNo</span>
+                            <partial name="_Plate" model="o.Vehicle.PlateNo" />
                         }
                         else
                         {

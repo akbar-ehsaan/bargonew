@@ -55,15 +55,15 @@ public class DriverReadiness(BargoDbContext db, SettingsService settings)
         else
         {
             if (veh.VerifyStatus != AccountStatus.Approved)
-                list.Add(new Issue($"خودروی {veh.PlateNo} هنوز تأیید نشده است.", true, "/Driver/Vehicle"));
+                list.Add(new Issue($"خودروی {Plate.Pretty(veh.PlateNo)} هنوز تأیید نشده است.", true, "/Driver/Vehicle"));
             if (veh.Status != VehicleStatus.Active)
-                list.Add(new Issue($"خودروی {veh.PlateNo} در وضعیت «{VehicleStatus.Label(veh.Status)}» است.", true, "/Driver/Vehicle"));
+                list.Add(new Issue($"خودروی {Plate.Pretty(veh.PlateNo)} در وضعیت «{VehicleStatus.Label(veh.Status)}» است.", true, "/Driver/Vehicle"));
 
             var vehDocs = await db.Documents.AsNoTracking()
                 .Where(x => x.OwnerKind == OwnerKind.Vehicle && x.OwnerId == veh.VehicleId)
                 .ToListAsync(ct);
             foreach (var kind in DocumentKind.ForVehicle)
-                CheckDoc(kind, vehDocs, $" خودروی {veh.PlateNo}", $"/Driver/Vehicle/Documents?kind={kind}");
+                CheckDoc(kind, vehDocs, $" خودروی {Plate.Pretty(veh.PlateNo)}", $"/Driver/Vehicle/Documents?kind={kind}");
         }
 
         return list;

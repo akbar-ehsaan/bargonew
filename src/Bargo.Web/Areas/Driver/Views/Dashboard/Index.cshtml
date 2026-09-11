@@ -120,7 +120,7 @@
                             </div>
                             @if (t.Vehicle is not null)
                             {
-                                <span class="plate">@t.Vehicle.PlateNo</span>
+                                <partial name="_Plate" model="t.Vehicle.PlateNo" />
                             }
                         </div>
                     </div>

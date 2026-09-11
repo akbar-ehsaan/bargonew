@@ -39,7 +39,7 @@
                     <td><a class="lnk num" asp-action="Detail" asp-route-id="@t.TripId">@t.Code</a><span class="sub">@t.Title</span></td>
                     <td>@Ui.Route(t.From, t.To)</td>
                     <td>@(t.CarrierKind == CarrierKind.Company ? "شرکت " + t.CompanyName : "مستقل")</td>
-                    <td>@if (!string.IsNullOrEmpty(t.Plate)) { <span class="plate">@t.Plate</span> } else { <span class="muted">—</span> }</td>
+                    <td>@if (!string.IsNullOrEmpty(t.Plate)) { <partial name="_Plate" model="t.Plate" /> } else { <span class="muted">—</span> }</td>
                     <td class="nowrap">@(t.PlannedKm is double pk ? Fa.N(pk) + " کیلومتر" : "—")@if (t.TravelledKm > 0) { <span class="sub">طی‌شده @Fa.N(t.TravelledKm)</span> }</td>
                     <td class="nowrap"><b>@Fa.Toman(t.MyShare)</b><span class="sub">کرایه @Fa.Toman(t.Fare)</span></td>
                     <td class="nowrap">

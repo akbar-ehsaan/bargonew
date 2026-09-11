@@ -81,7 +81,7 @@ public class VehicleController(BargoDbContext db, CurrentUser me, SettingsServic
 
             var dup = await db.Vehicles.AsNoTracking()
                 .AnyAsync(v => v.PlateNo == plate && v.VehicleId != f.VehicleId && v.Status != VehicleStatus.Suspended, ct);
-            if (dup) throw new UserError($"پلاک {plate} پیش‌تر در سامانه ثبت شده است. اگر خودرو مال شماست با پشتیبانی تماس بگیرید.");
+            if (dup) throw new UserError($"پلاک {Plate.Pretty(plate)} پیش‌تر در سامانه ثبت شده است. اگر خودرو مال شماست با پشتیبانی تماس بگیرید.");
 
             Vehicle v;
             var reverify = false;
@@ -117,10 +117,10 @@ public class VehicleController(BargoDbContext db, CurrentUser me, SettingsServic
             await db.SaveChangesAsync(ct);
 
             TempData["ok"] = f.VehicleId is null
-                ? $"خودروی {plate} ثبت شد. حالا مدارک آن (کارت خودرو، بیمه، معاینه فنی) را بارگذاری کنید تا مدیر تأییدش کند."
+                ? $"خودروی {Plate.Pretty(plate)} ثبت شد. حالا مدارک آن (کارت خودرو، بیمه، معاینه فنی) را بارگذاری کنید تا مدیر تأییدش کند."
                 : reverify
-                    ? $"مشخصات خودروی {plate} ذخیره شد. چون پلاک یا نوع خودرو عوض شد، تأیید مدیر دوباره لازم است."
-                    : $"مشخصات خودروی {plate} ذخیره شد.";
+                    ? $"مشخصات خودروی {Plate.Pretty(plate)} ذخیره شد. چون پلاک یا نوع خودرو عوض شد، تأیید مدیر دوباره لازم است."
+                    : $"مشخصات خودروی {Plate.Pretty(plate)} ذخیره شد.";
             return f.VehicleId is null
                 ? RedirectToAction(nameof(Documents), new { kind = DocumentKind.VehicleCard, vehicleId = v.VehicleId })
                 : RedirectToAction(nameof(Index));
@@ -149,8 +149,8 @@ public class VehicleController(BargoDbContext db, CurrentUser me, SettingsServic
             v.Status = status;
             await db.SaveChangesAsync(ct);
             TempData["ok"] = status == VehicleStatus.Active
-                ? $"خودروی {v.PlateNo} فعال شد و در پیشنهاد قیمت قابل انتخاب است."
-                : $"خودروی {v.PlateNo} به وضعیت «{VehicleStatus.Label(status)}» رفت و تا فعال شدن دوباره، با آن نمی‌توانید بار بگیرید.";
+                ? $"خودروی {Plate.Pretty(v.PlateNo)} فعال شد و در پیشنهاد قیمت قابل انتخاب است."
+                : $"خودروی {Plate.Pretty(v.PlateNo)} به وضعیت «{VehicleStatus.Label(status)}» رفت و تا فعال شدن دوباره، با آن نمی‌توانید بار بگیرید.";
         }
         catch (UserError e)
         {
@@ -199,7 +199,7 @@ public class VehicleController(BargoDbContext db, CurrentUser me, SettingsServic
         }
 
         var current = docs.FirstOrDefault(d => d.Status != AccountStatus.Rejected);
-        var ownerLabel = isVehicle ? $"خودروی {veh?.PlateNo}" : "شما";
+        var ownerLabel = isVehicle ? $"خودروی {Plate.Pretty(veh?.PlateNo)}" : "شما";
         var vm = new DocumentsVm
         {
             Kind = kind,
@@ -335,8 +335,8 @@ public class VehicleController(BargoDbContext db, CurrentUser me, SettingsServic
         };
         foreach (var v in vehicles)
         {
-            fields.Add(new($"بیمه‌نامهٔ {v.PlateNo}", v.InsuranceExpiresAt, $"/Driver/Vehicle/Documents?kind=insurance&vehicleId={v.VehicleId}"));
-            fields.Add(new($"معاینه فنی {v.PlateNo}", v.InspectionExpiresAt, $"/Driver/Vehicle/Documents?kind=inspection&vehicleId={v.VehicleId}"));
+            fields.Add(new($"بیمه‌نامهٔ {Plate.Pretty(v.PlateNo)}", v.InsuranceExpiresAt, $"/Driver/Vehicle/Documents?kind=insurance&vehicleId={v.VehicleId}"));
+            fields.Add(new($"معاینه فنی {Plate.Pretty(v.PlateNo)}", v.InspectionExpiresAt, $"/Driver/Vehicle/Documents?kind=inspection&vehicleId={v.VehicleId}"));
         }
 
         return View(new AlertsVm
@@ -361,13 +361,8 @@ public class VehicleController(BargoDbContext db, CurrentUser me, SettingsServic
     private Task<bool> InLiveTripAsync(int vehicleId, CancellationToken ct) =>
         db.Trips.AnyAsync(t => t.VehicleId == vehicleId && TripStatus.Live.Contains(t.Status), ct);
 
-    /// <summary>پلاک با ارقام فارسی و فاصله‌های تکی ذخیره می‌شود تا در همهٔ پنل‌ها یک‌شکل دیده شود.</summary>
-    private static string NormPlate(string? s)
-    {
-        if (string.IsNullOrWhiteSpace(s)) return "";
-        var parts = s.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return Fa.Digits(string.Join(' ', parts));
-    }
+    /// <summary>پلاک به قالب متعارف «12ب345-67» می‌رود (Plate.Normalize) تا یکتایی و جستجو در همهٔ پنل‌ها یک‌شکل باشد؛ ورودی غیرقابل‌تجزیه دست‌نخورده می‌ماند.</summary>
+    private static string NormPlate(string? s) => Plate.Normalize(s);
 
     private static string? Clean(string? s, int max)
     {

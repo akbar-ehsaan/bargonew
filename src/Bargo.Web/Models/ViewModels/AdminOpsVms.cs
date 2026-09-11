@@ -471,8 +471,8 @@ public static class OpsUi
         return new HtmlString($"<a class=\"lnk nowrap\" href=\"{url}\" target=\"_blank\" rel=\"noopener\"><i class=\"bi bi-file-earmark-pdf\"></i> مشاهدهٔ فایل</a>");
     }
 
-    public static IHtmlContent Plate(string? plate) =>
-        string.IsNullOrEmpty(plate) ? new HtmlString("<span class=\"muted\">—</span>") : new HtmlString($"<span class=\"plate\">{E(plate)}</span>");
+    /// <summary>به رندر مشترک Plate.Html می‌سپارد تا نشان پلاک در پنل مدیر با بقیهٔ پنل‌ها (partial ‏_Plate) یک‌شکل باشد.</summary>
+    public static IHtmlContent Plate(string? plate) => Services.Plate.Html(plate);
 
     public static IHtmlContent Owner(OwnerRef? o)
     {

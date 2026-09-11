@@ -66,7 +66,7 @@ else
                             <div class="muted small">@l.Title · @OpsLabels.Ton(l.WeightTon) تن</div>
                             <div class="small">
                                 @if (t.Driver is not null) { <span>@t.Driver.FullName</span> } else { <span class="chip">بدون راننده</span> }
-                                @if (t.Vehicle is not null) { <span class="plate">@t.Vehicle.PlateNo</span> }
+                                @if (t.Vehicle is not null) { <partial name="_Plate" model="t.Vehicle.PlateNo" /> }
                                 @if (isStale) { @Ui.Pill("بدون موقعیت تازه", "no") }
                             </div>
                         </div>

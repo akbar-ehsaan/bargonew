@@ -78,7 +78,7 @@ else
                                         @(t.Driver?.FullName ?? "—")
                                         @if (t.Vehicle is not null)
                                         {
-                                            <span class="plate">@t.Vehicle.PlateNo</span>
+                                            <partial name="_Plate" model="t.Vehicle.PlateNo" />
                                         }
                                         <span class="muted small">— منتظر قبول از اپ راننده@(Model.AssignedAt.TryGetValue(t.TripId, out var at) ? $" ({Fa.Ago(at)})" : "")</span>
                                     </dd>

@@ -32,7 +32,7 @@
             @foreach (var v in active)
             {
                 <tr>
-                    <td data-label="پلاک"><span class="plate">@v.Plate</span>@if (!v.InCompany) { <span class="sub">دیگر متعلق به شرکت نیست</span> }</td>
+                    <td data-label="پلاک"><partial name="_Plate" model="v.Plate" />@if (!v.InCompany) { <span class="sub">دیگر متعلق به شرکت نیست</span> }</td>
                     <td data-label="نوع">@v.Type</td>
                     <td data-label="وضعیت">@Ui.VehiclePill(v.Status)</td>
                     <td data-label="سفر">
@@ -69,7 +69,7 @@
                 @foreach (var v in idle.OrderByDescending(x => x.IdleDays ?? int.MaxValue))
                 {
                     <tr>
-                        <td data-label="پلاک"><span class="plate">@v.Plate</span></td>
+                        <td data-label="پلاک"><partial name="_Plate" model="v.Plate" /></td>
                         <td data-label="نوع">@v.Type</td>
                         <td data-label="وضعیت">@Ui.VehiclePill(v.Status)</td>
                         <td data-label="آخرین سفر" class="nowrap">@Fa.Date(v.LastTripAt)</td>

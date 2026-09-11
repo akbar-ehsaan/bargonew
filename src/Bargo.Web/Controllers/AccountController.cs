@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using Bargo.Web.Data;
@@ -43,19 +43,18 @@ public class AccountController(
         if (disabled == 1) TempData["err"] = "حساب کاربری شما غیرفعال شده است.";
 
         var r = role is Roles.Driver or Roles.Company or Roles.Admin ? role : Roles.Shipper;
-        // ورود اصلی با گذرواژه و عبارت امنیتی است؛ «ورود با کد پیامکی (بدون رمز)»
-        // گزینهٔ دوم است و مدیر همیشه با گذرواژه وارد می‌شود
+        // صفحهٔ ورود فقط «موبایل و گذرواژه» است — نقش از روی شماره پیدا می‌شود.
+        // «کد پیامکی» فقط از لینک «فراموشی گذرواژه» در دسترس است و مدیر صفحهٔ جدا دارد.
         ViewBag.Mode = mode == "otp" && r != Roles.Admin ? "otp" : "password";
         ViewBag.OtpMobile = TempData["otp_mobile"] as string;
         ViewBag.DevOtp = TempData["dev_otp"] as string;
         ViewBag.Forgot = forgot == 1;
-        if ((string)ViewBag.Mode == "password") NewCaptcha();
         return View(new LoginVm { Role = r, ReturnUrl = returnUrl });
     }
 
     /// <summary>
-    /// عبارت امنیتی سادهٔ حسابی (مثل «۲۰ − ۷») — پاسخ در TempData می‌ماند و یکبارمصرف
-    /// است؛ رفرش صفحه عبارت تازه می‌سازد.
+    /// عبارت امنیتی سادهٔ حسابی (مثل «۲۰ − ۷») برای فرم ثبت‌نام — پاسخ در TempData
+    /// می‌ماند و یکبارمصرف است؛ رفرش صفحه عبارت تازه می‌سازد.
     /// </summary>
     private void NewCaptcha()
     {
@@ -72,28 +71,28 @@ public class AccountController(
     public async Task<IActionResult> Login(LoginVm vm, CancellationToken ct)
     {
         ViewData["Title"] = "ورود";
-
-        // عبارت امنیتی: پاسخ درست در TempData ماند و با همین خواندن مصرف می‌شود
-        if (TempData["cap_ans"] as string is not { } capAns || Fa.Latin(vm.Captcha ?? "").Trim() != capAns)
-            ModelState.AddModelError(nameof(vm.Captcha), "پاسخ عبارت امنیتی نادرست است.");
-
-        if (!ModelState.IsValid) { NewCaptcha(); return View(vm); }
+        if (!ModelState.IsValid) return View(vm);
 
         var mobile = Fa.NormMobile(vm.Mobile);
         const string wrong = "موبایل یا گذرواژه نادرست است.";
 
-        var acc = await FindAccountAsync(vm.Role, mobile, ct);
+        // نقش انتخاب نمی‌شود؛ گذرواژه با حسابِ هر سه نقش سنجیده و اولین تطبیق وارد
+        // می‌شود. صفحهٔ مدیر جداست (?role=admin) و فقط حساب مدیر را می‌سنجد.
+        var candidates = vm.Role == Roles.Admin
+            ? new[] { Roles.Admin }
+            : [Roles.Shipper, Roles.Driver, Roles.Company];
 
-        // هش را حتی برای حساب ناموجود محاسبه می‌کنیم تا زمان پاسخ، وجود شماره را لو ندهد
-        var ok = PasswordHasher.Verify(vm.Password, acc?.Hash ?? "120000.AAAAAAAAAAAAAAAAAAAAAA==.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
-        if (acc is null || !ok)
+        foreach (var role in candidates)
         {
-            ModelState.AddModelError("", wrong);
-            NewCaptcha();
-            return View(vm);
+            var acc = await FindAccountAsync(role, mobile, ct);
+            if (acc is not null && PasswordHasher.Verify(vm.Password, acc.Value.Hash))
+                return await CompleteLoginAsync(role, acc.Value, vm.ReturnUrl, ct);
         }
 
-        return await CompleteLoginAsync(vm.Role, acc.Value, vm.ReturnUrl, ct);
+        // هشِ ساختگی تا زمان پاسخِ «شماره ناموجود» با «گذرواژهٔ غلط» یکی بماند
+        PasswordHasher.Verify(vm.Password, "120000.AAAAAAAAAAAAAAAAAAAAAA==.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+        ModelState.AddModelError("", wrong);
+        return View(vm);
     }
 
     /// <summary>حسابِ یک نقش با این موبایل — همان قواعد ورود (رانندهٔ ردشده و کاربر غیرفعال حساب ندارند).</summary>
@@ -135,22 +134,21 @@ public class AccountController(
     //  ورود با کد یکبارمصرف
     // ------------------------------------------------------------------
 
-    /// <summary>بازگشت به صفحهٔ ورود در حالت کد یکبارمصرف — نقش و مقصد در آدرس می‌مانند.</summary>
-    private IActionResult BackToOtp(string role, string? returnUrl) =>
-        Redirect($"/account/login?mode=otp&role={role}" +
+    /// <summary>بازگشت به صفحهٔ ورود در حالت کد یکبارمصرف — مقصد در آدرس می‌ماند.</summary>
+    private IActionResult BackToOtp(string? returnUrl) =>
+        Redirect("/account/login?mode=otp" +
                  (string.IsNullOrEmpty(returnUrl) ? "" : "&returnUrl=" + Uri.EscapeDataString(returnUrl)));
 
     [HttpPost("otp/send")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SendOtp(string? role, string? mobile, string? returnUrl, CancellationToken ct)
+    public async Task<IActionResult> SendOtp(string? mobile, string? returnUrl, CancellationToken ct)
     {
-        // کد پیامکی فقط برای سه نقش عمومی است؛ مدیر همیشه با گذرواژه وارد می‌شود
-        role = role is Roles.Driver or Roles.Company ? role : Roles.Shipper;
+        // نقش لازم نیست — هنگام تأیید کد، حساب از روی شماره در هر سه نقش پیدا می‌شود
         var m = Fa.NormMobile(mobile);
         if (m.Length == 0)
         {
             TempData["err"] = "شمارهٔ موبایل معتبر نیست (۰۹xxxxxxxxx).";
-            return BackToOtp(role, returnUrl);
+            return BackToOtp(returnUrl);
         }
 
         var now = DateTime.UtcNow;
@@ -161,7 +159,7 @@ public class AccountController(
             var wait = OtpResendSeconds - (int)(now - last).TotalSeconds;
             TempData["err"] = $"کد به‌تازگی فرستاده شده است؛ {Fa.N(Math.Max(wait, 1))} ثانیهٔ دیگر دوباره تلاش کنید.";
             TempData["otp_mobile"] = m; // همان فرم واردکردن کد بماند — شاید کد قبلی رسیده باشد
-            return BackToOtp(role, returnUrl);
+            return BackToOtp(returnUrl);
         }
 
         var code = RandomNumberGenerator.GetInt32(10000, 100000).ToString(CultureInfo.InvariantCulture);
@@ -176,27 +174,26 @@ public class AccountController(
 
         TempData["ok"] = $"کد ورود به شمارهٔ {Fa.Digits(m)} پیامک شد.";
         TempData["otp_mobile"] = m;
-        return BackToOtp(role, returnUrl);
+        return BackToOtp(returnUrl);
     }
 
     [HttpPost("otp/verify")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> VerifyOtp(string? role, string? mobile, string? code, string? returnUrl, CancellationToken ct)
+    public async Task<IActionResult> VerifyOtp(string? mobile, string? code, string? returnUrl, CancellationToken ct)
     {
-        role = role is Roles.Driver or Roles.Company ? role : Roles.Shipper;
         var m = Fa.NormMobile(mobile);
         var c = Fa.Latin(code).Trim();
 
         IActionResult Retry()
         {
             TempData["otp_mobile"] = m;
-            return BackToOtp(role, returnUrl);
+            return BackToOtp(returnUrl);
         }
 
         if (m.Length == 0)
         {
             TempData["err"] = "شمارهٔ موبایل معتبر نیست؛ دوباره کد بگیرید.";
-            return BackToOtp(role, returnUrl);
+            return BackToOtp(returnUrl);
         }
         if (c.Length == 0)
         {
@@ -210,12 +207,12 @@ public class AccountController(
         if (otp is null)
         {
             TempData["err"] = "کد معتبری برای این شماره نیست — یا منقضی شده یا استفاده شده است؛ دوباره کد بگیرید.";
-            return BackToOtp(role, returnUrl);
+            return BackToOtp(returnUrl);
         }
         if (otp.Attempts >= OtpMaxAttempts)
         {
             TempData["err"] = "تعداد تلاش‌های ناموفق بیش از حد مجاز شد؛ کد تازه بگیرید.";
-            return BackToOtp(role, returnUrl);
+            return BackToOtp(returnUrl);
         }
         if (!PasswordHasher.Verify(c, otp.CodeHash))
         {
@@ -224,7 +221,7 @@ public class AccountController(
             if (otp.Attempts >= OtpMaxAttempts)
             {
                 TempData["err"] = "کد نادرست بود و تلاش‌ها تمام شد؛ کد تازه بگیرید.";
-                return BackToOtp(role, returnUrl);
+                return BackToOtp(returnUrl);
             }
             TempData["err"] = $"کد نادرست است ({Fa.N(OtpMaxAttempts - otp.Attempts)} تلاش دیگر باقی است).";
             return Retry();
@@ -233,15 +230,15 @@ public class AccountController(
         otp.UsedAt = now; // یکبارمصرف — حتی اگر حسابی پیدا نشود، همین کد دیگر کار نمی‌کند
         await db.SaveChangesAsync(ct);
 
-        var acc = await FindAccountAsync(role, m, ct);
-        if (acc is null)
+        // حساب از روی شماره در هر سه نقش جسته می‌شود — اولین یافته وارد می‌شود
+        foreach (var role in new[] { Roles.Shipper, Roles.Driver, Roles.Company })
         {
-            TempData["err"] = $"شمارهٔ شما تأیید شد، اما حسابِ «{Roles.Title(role)}» با این شماره پیدا نشد. " +
-                              "اگر تازه‌وارد هستید اول ثبت‌نام کنید، یا نقش دیگری را انتخاب کنید.";
-            return BackToOtp(role, returnUrl);
+            var acc = await FindAccountAsync(role, m, ct);
+            if (acc is not null) return await CompleteLoginAsync(role, acc.Value, returnUrl, ct);
         }
 
-        return await CompleteLoginAsync(role, acc.Value, returnUrl, ct);
+        TempData["err"] = "شمارهٔ شما تأیید شد، اما حسابی با این شماره پیدا نشد. اگر تازه‌وارد هستید اول ثبت‌نام کنید.";
+        return BackToOtp(returnUrl);
     }
 
     private async Task SignInAsync(string role, int id, string name, int? companyId)
@@ -282,6 +279,7 @@ public class AccountController(
     {
         ViewData["Title"] = "ثبت‌نام";
         await FillListsAsync(ct);
+        NewCaptcha();
         return View(new RegisterVm { Type = type is Roles.Driver or Roles.Company ? type : Roles.Shipper });
     }
 
@@ -294,8 +292,13 @@ public class AccountController(
 
         if (mobile.Length == 0) ModelState.AddModelError(nameof(vm.Mobile), "شمارهٔ موبایل معتبر نیست.");
         if ((vm.Password ?? "").Length < 6) ModelState.AddModelError(nameof(vm.Password), "گذرواژه دست‌کم ۶ نویسه باشد.");
+        else if (vm.Password != vm.ConfirmPassword) ModelState.AddModelError(nameof(vm.ConfirmPassword), "تکرار گذرواژه با گذرواژه یکی نیست.");
         if (vm.CityId is null) ModelState.AddModelError(nameof(vm.CityId), "شهر را انتخاب کنید.");
         if (!vm.AcceptTerms) ModelState.AddModelError(nameof(vm.AcceptTerms), "پذیرش قوانین و مقررات لازم است.");
+
+        // عبارت امنیتی — مثل پت‌اوآیدی، ثبت‌نام رباتی را می‌بندد. پاسخ یکبارمصرف است.
+        if (TempData["cap_ans"] as string is not { } capAns || Fa.Latin(vm.Captcha ?? "").Trim() != capAns)
+            ModelState.AddModelError(nameof(vm.Captcha), "پاسخ عبارت امنیتی نادرست است.");
 
         switch (vm.Type)
         {
@@ -335,9 +338,11 @@ public class AccountController(
         if (!ModelState.IsValid)
         {
             await FillListsAsync(ct);
+            NewCaptcha();
             return View(vm);
         }
 
+        var gender = vm.Gender is "male" or "female" ? vm.Gender : null;
         var hash = PasswordHasher.Hash(vm.Password!);
         switch (vm.Type)
         {
@@ -347,6 +352,7 @@ public class AccountController(
                 var d = new Driver
                 {
                     Mobile = mobile, PassHash = hash, FirstName = vm.FirstName!.Trim(), LastName = vm.LastName!.Trim(),
+                    Gender = gender,
                     NationalCode = Fa.Latin(vm.NationalCode), CityId = vm.CityId, LicenseNo = Fa.Latin(vm.LicenseNo), SmartCardNo = Fa.Latin(vm.SmartCardNo)
                 };
                 db.Drivers.Add(d);
@@ -363,6 +369,7 @@ public class AccountController(
                 var s = new Shipper
                 {
                     Mobile = mobile, PassHash = hash, Kind = vm.ShipperKind == "business" ? "business" : "person",
+                    Gender = vm.ShipperKind == "business" ? null : gender,
                     FullName = vm.FullName!.Trim(), BusinessName = vm.BusinessName?.Trim(), CityId = vm.CityId
                 };
                 db.Shippers.Add(s);

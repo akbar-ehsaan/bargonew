@@ -62,7 +62,7 @@
                             <td data-label="مبلغ" class="nowrap"><b>@Fa.Toman(e.Amount)</b></td>
                             <td data-label="مربوط به">
                                 @if (e.TripCode is not null) { <a class="lnk" href="/Company/Trips/Detail/@e.TripId">سفر @Fa.Digits(e.TripCode)</a> }
-                                @if (e.Plate is not null) { <span class="plate">@e.Plate</span> }
+                                @if (e.Plate is not null) { <partial name="_Plate" model="e.Plate" /> }
                                 @if (e.DriverName is not null) { <span class="sub"><i class="bi bi-person"></i> @e.DriverName</span> }
                                 @if (e.TripCode is null && e.Plate is null && e.DriverName is null) { <span class="muted">عمومی</span> }
                             </td>

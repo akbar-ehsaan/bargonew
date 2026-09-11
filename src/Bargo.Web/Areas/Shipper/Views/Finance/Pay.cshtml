@@ -41,7 +41,7 @@
                         @trip.Carrier
                         @if (!string.IsNullOrEmpty(trip.PlateNo))
                         {
-                            <span class="sub">@trip.PlateNo</span>
+                            <span class="sub"><partial name="_Plate" model="trip.PlateNo" /></span>
                         }
                     </td>
                     <td>@Ui.TripPill(trip.Status)</td>

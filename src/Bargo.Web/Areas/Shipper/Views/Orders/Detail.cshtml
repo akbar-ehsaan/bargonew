@@ -307,7 +307,7 @@
                 }
                 @if (t.Vehicle is { } carrierVeh)
                 {
-                    <div class="kvrow"><span>خودرو</span><b><span class="plate">@carrierVeh.PlateNo</span></b></div>
+                    <div class="kvrow"><span>خودرو</span><b><partial name="_Plate" model="carrierVeh.PlateNo" /></b></div>
                     <div class="kvrow"><span>نوع خودرو</span><b>@(carrierVeh.VehicleType?.Name ?? "—") · @ShipperUi.Ton(carrierVeh.CapacityTon)</b></div>
                 }
                 else

@@ -21,7 +21,7 @@
     </div>
     <div class="fld">
         <label>پلاک <span class="req">*</span></label>
-        <input name="PlateNo" value="@Model.PlateNo" maxlength="30" required placeholder="۱۲ ع ۳۴۵ ایران ۶۷" />
+        <partial name="_PlateInput" model="(string?)Model.PlateNo" />
         <span class="hint">همان قالب پلاک: دو رقم، حرف، سه رقم، «ایران»، کد استان.</span>
     </div>
     <div class="fld">

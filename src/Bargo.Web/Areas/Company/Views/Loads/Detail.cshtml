@@ -125,7 +125,7 @@
                                 <td>
                                     @if (o.Vehicle is not null)
                                     {
-                                        <span class="plate">@o.Vehicle.PlateNo</span><span class="sub">@o.Vehicle.VehicleType?.Name</span>
+                                        <partial name="_Plate" model="o.Vehicle.PlateNo" /><span class="sub">@o.Vehicle.VehicleType?.Name</span>
                                     }
                                     else
                                     {
@@ -186,7 +186,7 @@
                                     @(t.Driver?.FullName ?? "—")
                                     @if (t.Vehicle is not null)
                                     {
-                                        <span class="sub"><span class="plate">@t.Vehicle.PlateNo</span></span>
+                                        <span class="sub"><partial name="_Plate" model="t.Vehicle.PlateNo" /></span>
                                     }
                                 </td>
                                 <td class="num">@Fa.Toman(t.Fare)</td>
@@ -289,7 +289,7 @@
                                         <option value="">هنگام تخصیص</option>
                                         @foreach (var v in Model.Vehicles)
                                         {
-                                            <option value="@v.VehicleId" selected="@(Model.MyPendingOffer?.VehicleId == v.VehicleId)">@v.PlateNo · @v.VehicleType?.Name (@OpsLabels.Ton(v.CapacityTon) تن)</option>
+                                            <option value="@v.VehicleId" selected="@(Model.MyPendingOffer?.VehicleId == v.VehicleId)">@Plate.Pretty(v.PlateNo) · @v.VehicleType?.Name (@OpsLabels.Ton(v.CapacityTon) تن)</option>
                                         }
                                     </select>
                                 </div>

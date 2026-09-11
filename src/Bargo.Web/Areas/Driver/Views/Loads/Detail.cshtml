@@ -138,7 +138,7 @@
                                 <td class="nowrap">@Fa.Stamp(o.CreatedAt)</td>
                                 <td class="num"><b>@Fa.Toman(o.Amount)</b></td>
                                 <td>@(o.EtaHours is int eh ? Fa.N(eh) + " ساعت" : "—")</td>
-                                <td>@if (o.Vehicle is not null) { <span class="plate">@o.Vehicle.PlateNo</span> } else { <span class="muted">—</span> }</td>
+                                <td>@if (o.Vehicle is not null) { <partial name="_Plate" model="o.Vehicle.PlateNo" /> } else { <span class="muted">—</span> }</td>
                                 <td>@Ui.OfferPill(o.Status) @if (o.RespondedAt is DateTime ra) { <span class="sub">@Fa.Ago(ra)</span> }</td>
                                 <td>
                                     @if (Model.TripByOffer.TryGetValue(o.OfferId, out var tripId))
@@ -201,7 +201,7 @@
                                     <option value="">انتخاب نشده</option>
                                     @foreach (var v in Model.Vehicles)
                                     {
-                                        <option value="@v.VehicleId" selected="@(Model.DefaultVehicleId == v.VehicleId)">@v.PlateNo · @v.VehicleType?.Name (@Fa.N(v.CapacityTon, 1) تن)@(v.Status == VehicleStatus.Active ? "" : " — " + VehicleStatus.Label(v.Status))</option>
+                                        <option value="@v.VehicleId" selected="@(Model.DefaultVehicleId == v.VehicleId)">@Plate.Pretty(v.PlateNo) · @v.VehicleType?.Name (@Fa.N(v.CapacityTon, 1) تن)@(v.Status == VehicleStatus.Active ? "" : " — " + VehicleStatus.Label(v.Status))</option>
                                     }
                                 </select>
                                 @if (Model.Vehicles.Count == 0)

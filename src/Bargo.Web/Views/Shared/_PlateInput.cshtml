@@ -1,0 +1,84 @@
+@*
+    ورودی تکه‌تکهٔ پلاک. مدل: string? (مقدار فعلی PlateNo؛ برای فرم تازه null).
+    قرارداد: این partial همیشه فیلدی به نام «PlateNo» به فرم دربرگیرنده POST می‌کند —
+    یک input مخفی که اسکریپت پایین، آن را با قالب متعارف «12ب345-67» همگام نگه می‌دارد؛
+    پس اکشن سرور هیچ تغییری نمی‌خواهد و Plate.Normalize فقط نقش تور ایمنی را دارد.
+
+    اگر مقدار فعلی پر ولی غیرقابل‌تجزیه باشد (دادهٔ قدیمیِ آزاد)، به‌جای چهار خانه یک
+    ورودی متنی ساده می‌آید تا کاربر مقدار قبلی‌اش را ببیند و چیزی بی‌صدا گم نشود.
+*@
+@model string?
+@{
+    var parts = Plate.TryParse(Model);
+    var raw = (Model ?? "").Trim();
+}
+@if (raw.Length > 0 && parts is null)
+{
+    <input name="PlateNo" value="@raw" maxlength="30" required placeholder="۱۲ ع ۳۴۵ ایران ۶۷" />
+    <span class="hint">قالب این پلاک شناخته نشد؛ به شکل «۱۲ ع ۳۴۵ ایران ۶۷» اصلاحش کنید.</span>
+}
+else
+{
+    <span class="plate-input" dir="ltr">
+        <span class="band"><i></i></span>
+        <input class="p2" type="text" inputmode="numeric" autocomplete="off" maxlength="2" required
+               value="@(parts?.TwoDigits)" placeholder="۱۲" aria-label="دو رقم نخست پلاک" />
+        <select class="pl" required aria-label="حرف پلاک">
+            <option value=""></option>
+            @foreach (var l in Plate.Letters)
+            {
+                <option value="@l" selected="@(parts?.Letter == l)">@l</option>
+            }
+        </select>
+        <input class="p3" type="text" inputmode="numeric" autocomplete="off" maxlength="3" required
+               value="@(parts?.ThreeDigits)" placeholder="۳۴۵" aria-label="سه رقم پلاک" />
+        <span class="ir"><small>ایران</small><input class="pi" type="text" inputmode="numeric" autocomplete="off" maxlength="2" required
+               value="@(parts?.Iran)" placeholder="۶۷" aria-label="کد استان (ایران)" /></span>
+        <input type="hidden" name="PlateNo" value="@(parts is null ? "" : Plate.Normalize(Model))" />
+    </span>
+    <script>
+        // یک بار برای کل صفحه ثبت می‌شود (پرچم روی window) و با delegation کار می‌کند؛
+        // پس چند نمونه از این partial در یک صفحه هم بدون تداخل جواب می‌دهد.
+        if (!window.__plateInputWired) {
+            window.__plateInputWired = true;
+            (function () {
+                var FA = '۰۱۲۳۴۵۶۷۸۹', AR = '٠١٢٣٤٥٦٧٨٩';
+                function latinDigits(s) {
+                    return (s || '').replace(/./g, function (ch) {
+                        var i = FA.indexOf(ch); if (i >= 0) return String(i);
+                        i = AR.indexOf(ch); if (i >= 0) return String(i);
+                        return /[0-9]/.test(ch) ? ch : ''; // هرچه رقم نیست دور ریخته می‌شود
+                    });
+                }
+                function sync(root) {
+                    var v2 = root.querySelector('.p2').value,
+                        vl = root.querySelector('.pl').value,
+                        v3 = root.querySelector('.p3').value,
+                        vi = root.querySelector('.pi').value;
+                    // خانه‌های ناقص هم عمداً در PlateNo می‌ریزند تا اعتبارسنجی سرور
+                    // (طول کمتر از ۵) پیام «پلاک را کامل وارد کنید» بدهد، نه ذخیرهٔ خالی.
+                    var v = v2 + vl + v3 + (vi ? '-' + vi : '');
+                    root.querySelector('input[name=PlateNo]').value = (v2 || vl || v3 || vi) ? v : '';
+                }
+                function handler(e) {
+                    var root = e.target.closest ? e.target.closest('.plate-input') : null;
+                    if (!root) return;
+                    var next = { p2: '.pl', pl: '.p3', p3: '.pi' };
+                    if (e.target.matches('input.p2,input.p3,input.pi')) {
+                        var max = parseInt(e.target.getAttribute('maxlength'), 10);
+                        var v = latinDigits(e.target.value).slice(0, max);
+                        if (v !== e.target.value) e.target.value = v;
+                        for (var k in next) // پر شد؟ برو خانهٔ بعد — مثل تجربهٔ اپ‌های بومی
+                            if (e.target.classList.contains(k) && v.length >= max) { var n = root.querySelector(next[k]); if (n) n.focus(); }
+                    }
+                    else if (e.type === 'change' && e.target.matches('select.pl') && e.target.value) {
+                        var n3 = root.querySelector('.p3'); if (n3 && !n3.value) n3.focus();
+                    }
+                    sync(root);
+                }
+                document.addEventListener('input', handler);
+                document.addEventListener('change', handler);
+            })();
+        }
+    </script>
+}

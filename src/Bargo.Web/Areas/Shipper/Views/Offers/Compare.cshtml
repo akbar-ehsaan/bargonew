@@ -148,7 +148,7 @@
                         }
                         else if (!string.IsNullOrEmpty(r.PlateNo))
                         {
-                            <span class="plate">@r.PlateNo</span>
+                            <partial name="_Plate" model="r.PlateNo" />
                             <span class="sub">@(r.VehicleType ?? "—")@(string.IsNullOrEmpty(r.BodyKind) ? "" : " · " + r.BodyKind)</span>
                             @if (r.CapacityTon is decimal cap)
                             {

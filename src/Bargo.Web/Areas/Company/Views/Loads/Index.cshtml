@@ -90,7 +90,7 @@ else if (Model.Trips is not null)
                             }
                             @if (t.Vehicle is not null)
                             {
-                                <span class="sub"><span class="plate">@t.Vehicle.PlateNo</span></span>
+                                <span class="sub"><partial name="_Plate" model="t.Vehicle.PlateNo" /></span>
                             }
                         </td>
                         <td class="num">@Fa.Toman(t.Fare)</td>

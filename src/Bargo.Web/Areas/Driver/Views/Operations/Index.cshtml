@@ -109,7 +109,7 @@ else
                     <div class="kvrow"><span>مقصد</span><b>@l.DestCity?.Name@(string.IsNullOrWhiteSpace(l.DestAddress) ? "" : " — " + l.DestAddress)</b></div>
                     @if (t.Vehicle is not null)
                     {
-                        <div class="kvrow"><span>خودرو</span><span class="plate">@t.Vehicle.PlateNo</span></div>
+                        <div class="kvrow"><span>خودرو</span><partial name="_Plate" model="t.Vehicle.PlateNo" /></div>
                     }
                     <div class="kvrow"><span>سهم شما</span><b>@Fa.Toman(vm.MyShare)</b></div>
                 </div>

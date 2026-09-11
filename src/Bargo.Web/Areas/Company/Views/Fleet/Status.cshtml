@@ -52,7 +52,7 @@
                 var busy = Model.Busy.GetValueOrDefault(v.VehicleId);
                 var hardBusy = busy is { Hard: true };
                 <tr>
-                    <td><a asp-action="Edit" asp-route-id="@v.VehicleId"><span class="plate">@v.PlateNo</span></a></td>
+                    <td><a asp-action="Edit" asp-route-id="@v.VehicleId"><partial name="_Plate" model="v.PlateNo" /></a></td>
                     <td><b>@v.VehicleType?.Name</b><span class="sub">@OpsLabels.Ton(v.CapacityTon) تن</span></td>
                     <td>@Ui.VehiclePill(v.Status)</td>
                     <td>@Ui.AccountPill(v.VerifyStatus)</td>
@@ -77,7 +77,7 @@
                                 @foreach (var s in settable)
                                 {
                                     var blocked = s.Key != VehicleStatus.Active && hardBusy;
-                                    <form method="post" asp-action="SetStatus" class="inline" data-confirm="@(s.Key == VehicleStatus.Active ? null : $"خودرو {v.PlateNo} «{s.Label}» شود؟ تا فعال‌شدن دوباره در تخصیص پیشنهاد نمی‌شود.")">
+                                    <form method="post" asp-action="SetStatus" class="inline" data-confirm="@(s.Key == VehicleStatus.Active ? null : $"خودرو {Plate.Pretty(v.PlateNo)} «{s.Label}» شود؟ تا فعال‌شدن دوباره در تخصیص پیشنهاد نمی‌شود.")">
                                         <input type="hidden" name="id" value="@v.VehicleId" />
                                         <input type="hidden" name="status" value="@s.Key" />
                                         <button class="btn2 @(s.Key == VehicleStatus.Active ? "grn" : "ghost") sm" disabled="@(v.Status == s.Key || blocked)" title="@(blocked ? "خودرو در سفر است" : "")">

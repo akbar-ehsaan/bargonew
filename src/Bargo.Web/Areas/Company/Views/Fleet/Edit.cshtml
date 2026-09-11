@@ -16,7 +16,7 @@
 }
 <div class="page-head">
     <div>
-        <h1><i class="bi bi-truck-front"></i> <span class="plate">@v.PlateNo</span> @Ui.VehiclePill(v.Status) @Ui.Pill("تأیید: " + AccountStatus.Label(v.VerifyStatus), AccountStatus.Tone(v.VerifyStatus))</h1>
+        <h1><i class="bi bi-truck-front"></i> <partial name="_Plate" model="v.PlateNo" /> @Ui.VehiclePill(v.Status) @Ui.Pill("تأیید: " + AccountStatus.Label(v.VerifyStatus), AccountStatus.Tone(v.VerifyStatus))</h1>
         <p>@v.VehicleType?.Name · @OpsLabels.Ton(v.CapacityTon) تن@(string.IsNullOrEmpty(v.Brand) ? "" : " · " + v.Brand)@(string.IsNullOrEmpty(v.Model) ? "" : " " + v.Model) · ثبت @Fa.Date(v.CreatedAt)</p>
     </div>
     <div class="actions">

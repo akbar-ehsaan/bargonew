@@ -61,9 +61,12 @@ public class FleetController(BargoDbContext db, CurrentUser me, SettingsService 
         if (typeId is int tid) list = list.Where(v => v.VehicleTypeId == tid);
         if (vm.Q is not null)
         {
+            // پلاک متعارف با ارقام لاتین و بی‌فاصله ذخیره می‌شود؛ پس جستجوی تکه‌ای («۱۲ ع») هم
+            // باید بعد از لاتین‌کردن ارقام و حذف فاصله با آن مقایسه شود، نه متن خام کاربر.
             var plate = CompanyOps.NormPlate(vm.Q);
+            var latin = Fa.Latin(vm.Q).Replace(" ", "");
             var term = vm.Q;
-            list = list.Where(v => v.PlateNo.Contains(plate) || (v.Brand != null && v.Brand.Contains(term)) || (v.Model != null && v.Model.Contains(term)));
+            list = list.Where(v => v.PlateNo.Contains(plate) || v.PlateNo.Contains(latin) || (v.Brand != null && v.Brand.Contains(term)) || (v.Model != null && v.Model.Contains(term)));
         }
 
         vm.Page = await PageVm<Vehicle>.FromAsync(

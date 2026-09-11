@@ -38,13 +38,14 @@ public class TripsController(BargoDbContext db, TripFlow flow, AuditService audi
         _ => q.Where(t => TripStatus.Upcoming.Contains(t.Status) || TripStatus.Live.Contains(t.Status))
     };
 
-    /// <summary>پلاک ممکن است با ارقام فارسی ذخیره شده باشد؛ هر دو شکلِ عبارت جستجو می‌شود.</summary>
+    /// <summary>پلاک قدیمی ممکن است با ارقام فارسی و پلاک متعارف با ارقام لاتین بی‌فاصله ذخیره شده باشد؛ هر سه شکلِ عبارت جستجو می‌شود.</summary>
     private static IQueryable<Trip> Search(IQueryable<Trip> q, string term)
     {
         if (term.Length == 0) return q;
         var fa = Fa.Digits(term);
+        var la = Fa.Latin(term).Replace(" ", "");
         return q.Where(t => t.Code.Contains(term) || t.Load!.Code.Contains(term) ||
-                            (t.Vehicle != null && (t.Vehicle.PlateNo.Contains(term) || t.Vehicle.PlateNo.Contains(fa))) ||
+                            (t.Vehicle != null && (t.Vehicle.PlateNo.Contains(term) || t.Vehicle.PlateNo.Contains(fa) || t.Vehicle.PlateNo.Contains(la))) ||
                             (t.Driver != null && ((t.Driver.FirstName + " " + t.Driver.LastName).Contains(term) || t.Driver.Mobile.Contains(term))) ||
                             (t.Company != null && t.Company.Name.Contains(term)) ||
                             t.Load!.OriginCity!.Name.Contains(term) || t.Load.DestCity!.Name.Contains(term));

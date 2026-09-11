@@ -73,7 +73,7 @@
                         <td>
                             @if (!string.IsNullOrEmpty(o.PlateNo))
                             {
-                                <span class="plate">@o.PlateNo</span>
+                                <partial name="_Plate" model="o.PlateNo" />
                                 <span class="sub">@o.VehicleType@(o.CapacityTon is decimal cap ? " · " + ShipperUi.Ton(cap) : "")</span>
                             }
                             else

@@ -69,7 +69,7 @@ else
                                 <td><b>@l.Title</b><span class="sub">@OpsLabels.Ton(l.WeightTon) تن@(l.VehicleType is not null ? " · " + l.VehicleType.Name : "")</span></td>
                                 <td>
                                     @if (t.Driver is not null) { <span>@t.Driver.FullName</span> } else { <span class="chip">بدون راننده</span> }
-                                    @if (t.Vehicle is not null) { <span class="sub"><span class="plate">@t.Vehicle.PlateNo</span></span> }
+                                    @if (t.Vehicle is not null) { <span class="sub"><partial name="_Plate" model="t.Vehicle.PlateNo" /></span> }
                                 </td>
                                 <td>@Ui.TripPill(t.Status)</td>
                                 <td>

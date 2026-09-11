@@ -29,7 +29,7 @@
             {
                 var v = r.Vehicle;
                 <tr>
-                    <td><span class="plate">@v.PlateNo</span>@if (r.InLiveTrip) { <span class="sub"><i class="bi bi-broadcast"></i> در سفر زنده</span> }</td>
+                    <td><partial name="_Plate" model="v.PlateNo" />@if (r.InLiveTrip) { <span class="sub"><i class="bi bi-broadcast"></i> در سفر زنده</span> }</td>
                     <td><b>@(v.VehicleType?.Name ?? "—")</b><span class="sub">@(string.Join(" · ", new[] { v.Brand, v.Model, v.Year is int y ? Fa.N(y) : null }.Where(s => !string.IsNullOrEmpty(s))))</span></td>
                     <td class="num">@Fa.N(v.CapacityTon, 1) تن</td>
                     <td>@Ui.VehiclePill(v.Status)</td>
@@ -67,7 +67,7 @@
 @if (Model.Editing || canAdd)
 {
     <div class="card2">
-        <div class="hd"><i class="bi @(Model.Editing ? "bi-pencil-square" : "bi-plus-square")"></i> @(Model.Editing ? $"ویرایش خودروی {f.PlateNo}" : "ثبت خودروی تازه")</div>
+        <div class="hd"><i class="bi @(Model.Editing ? "bi-pencil-square" : "bi-plus-square")"></i> @(Model.Editing ? $"ویرایش خودروی {Plate.Pretty(f.PlateNo)}" : "ثبت خودروی تازه")</div>
         <div class="bd">
             @if (Model.Editing)
             {
@@ -88,8 +88,8 @@
                     </div>
                     <div class="fld">
                         <label>شمارهٔ پلاک <span class="req">*</span></label>
-                        <input name="PlateNo" value="@f.PlateNo" maxlength="30" required placeholder="۱۲ ع ۳۴۵ ایران ۶۷" />
-                        <span class="hint">همان‌طور که روی پلاک نوشته شده، با فاصله</span>
+                        <partial name="_PlateInput" model="(string?)f.PlateNo" />
+                        <span class="hint">هر خانه را همان‌طور که روی پلاک نوشته شده پر کنید</span>
                     </div>
                     <div class="fld">
                         <label>ظرفیت بارگیری (تن) <span class="req">*</span></label>

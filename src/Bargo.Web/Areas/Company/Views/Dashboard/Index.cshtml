@@ -148,7 +148,7 @@
                                 @(t.Driver?.FullName ?? "—")
                                 @if (t.Vehicle is not null)
                                 {
-                                    <span class="sub"><span class="plate">@t.Vehicle.PlateNo</span></span>
+                                    <span class="sub"><partial name="_Plate" model="t.Vehicle.PlateNo" /></span>
                                 }
                             </td>
                             <td>@Ui.TripPill(t.Status)</td>

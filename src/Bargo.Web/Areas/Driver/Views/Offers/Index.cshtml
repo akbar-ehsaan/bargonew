@@ -38,7 +38,7 @@
                         <span class="sub">@PriceMode.Label(o.PriceMode)@(o.LoadPrice is long lp && lp != o.Amount ? " · اعلامی " + Fa.Toman(lp) : "")</span>
                     </td>
                     <td>@(o.EtaHours is int eh ? Fa.N(eh) + " ساعت" : "—")</td>
-                    <td>@if (!string.IsNullOrEmpty(o.Plate)) { <span class="plate">@o.Plate</span> } else { <span class="muted">—</span> }</td>
+                    <td>@if (!string.IsNullOrEmpty(o.Plate)) { <partial name="_Plate" model="o.Plate" /> } else { <span class="muted">—</span> }</td>
                     <td>
                         @Ui.OfferPill(o.Status)
                         <span class="sub">@(o.RespondedAt is DateTime ra ? "پاسخ " + Fa.Ago(ra) : "ثبت " + Fa.Ago(o.CreatedAt))</span>

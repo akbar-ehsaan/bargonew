@@ -226,7 +226,7 @@
                     }
                     @if (trip.Vehicle is { } tve)
                     {
-                        <div class="kvrow"><span>خودرو</span><b><span class="plate">@tve.PlateNo</span></b></div>
+                        <div class="kvrow"><span>خودرو</span><b><partial name="_Plate" model="tve.PlateNo" /></b></div>
                         <div class="kvrow"><span>نوع</span><b>@(tve.VehicleType?.Name ?? "—") · @ShipperUi.Ton(tve.CapacityTon)</b></div>
                     }
                     else

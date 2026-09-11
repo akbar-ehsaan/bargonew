@@ -60,9 +60,8 @@ internal static class CompanyOps
             .Select(e => e.ErrorMessage.Any(ch => ch is >= '؀' and <= 'ۿ') ? e.ErrorMessage : "یکی از مقادیر فرم معتبر نیست.")
             .Distinct().ToList();
 
-    /// <summary>پلاک با فاصله‌های یکسان و ارقام فارسی — تا «12 ع 345» و «۱۲ ع ۳۴۵» یکی شمرده شوند.</summary>
-    public static string NormPlate(string? plate) =>
-        Fa.Digits(string.Join(' ', Fa.Latin(plate).Split(' ', StringSplitOptions.RemoveEmptyEntries)));
+    /// <summary>پلاک به قالب متعارف «12ب345-67» (Plate.Normalize) — تا «12 ع 345 67» و «۱۲ ع ۳۴۵ ایران ۶۷» یکی شمرده شوند و با ذخیرهٔ همهٔ پنل‌ها بخواند.</summary>
+    public static string NormPlate(string? plate) => Plate.Normalize(plate);
 
     // ------------------------------------------------------------------ دسترسی
 

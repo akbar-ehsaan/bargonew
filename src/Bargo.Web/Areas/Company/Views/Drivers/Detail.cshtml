@@ -185,7 +185,7 @@
                             <td>
                                 @if (t.Vehicle is not null)
                                 {
-                                    <span class="plate">@t.Vehicle.PlateNo</span>
+                                    <partial name="_Plate" model="t.Vehicle.PlateNo" />
                                 }
                                 else
                                 {
@@ -256,7 +256,7 @@
                     <div class="kvrow"><span>مسیر</span>@Ui.Route(ct2.Load?.OriginCity?.Name, ct2.Load?.DestCity?.Name)</div>
                     @if (ct2.Vehicle is not null)
                     {
-                        <div class="kvrow"><span>خودرو</span><span class="plate">@ct2.Vehicle.PlateNo</span></div>
+                        <div class="kvrow"><span>خودرو</span><partial name="_Plate" model="ct2.Vehicle.PlateNo" /></div>
                     }
                     @if (ct2.LastPointAt is DateTime lp)
                     {

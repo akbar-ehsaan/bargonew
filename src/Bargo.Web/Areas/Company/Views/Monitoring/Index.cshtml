@@ -73,7 +73,7 @@ else
                     <tr data-href="/Company/Trips/Detail/@t.TripId">
                         <td><a class="num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a><span class="sub">@l.Title</span></td>
                         <td>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</td>
-                        <td>@(t.Driver?.FullName ?? "—")@if (t.Vehicle is not null) { <span class="sub"><span class="plate">@t.Vehicle.PlateNo</span></span> }</td>
+                        <td>@(t.Driver?.FullName ?? "—")@if (t.Vehicle is not null) { <span class="sub"><partial name="_Plate" model="t.Vehicle.PlateNo" /></span> }</td>
                         <td>@Ui.TripPill(t.Status)</td>
                         <td>
                             @if (t.LastPointAt is DateTime at) { @Ui.Pill(Fa.Ago(at), isStale ? "no" : "ok") }

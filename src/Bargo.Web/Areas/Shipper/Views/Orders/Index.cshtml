@@ -60,7 +60,7 @@
                         <span>@r.Carrier</span>
                         @if (!string.IsNullOrEmpty(r.PlateNo))
                         {
-                            <span class="sub"><span class="plate">@r.PlateNo</span></span>
+                            <span class="sub"><partial name="_Plate" model="r.PlateNo" /></span>
                         }
                         else if (r.DriverId is null && r.Status != TripStatus.Cancelled)
                         {

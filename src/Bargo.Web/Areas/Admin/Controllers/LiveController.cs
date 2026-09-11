@@ -82,10 +82,11 @@ public class LiveController(BargoDbContext db) : Controller
         var since = now.AddHours(-24);
         var term = AdminOps.Term(q);
         var fa = Fa.Digits(term);
+        var la = Fa.Latin(term).Replace(" ", ""); // پلاک متعارف با ارقام لاتین و بی‌فاصله ذخیره می‌شود
 
         var src = db.Vehicles.AsNoTracking().Where(v => v.LastSeenAt >= since);
         if (term.Length > 0)
-            src = src.Where(v => v.PlateNo.Contains(term) || v.PlateNo.Contains(fa) ||
+            src = src.Where(v => v.PlateNo.Contains(term) || v.PlateNo.Contains(fa) || v.PlateNo.Contains(la) ||
                                  (v.Driver != null && ((v.Driver.FirstName + " " + v.Driver.LastName).Contains(term) || v.Driver.Mobile.Contains(term))) ||
                                  (v.Company != null && v.Company.Name.Contains(term)));
 

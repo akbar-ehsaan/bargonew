@@ -65,15 +65,12 @@ function Post($client, [string]$url, [hashtable]$fields, [string]$tokenPage) {
 }
 
 function Login([string]$role, [string]$mobile, [string]$pass) {
+    # صفحهٔ ورود فقط موبایل و گذرواژه است؛ نقش از روی شماره در سرور پیدا می‌شود
     $c = New-Client
-    # توکن و عبارت امنیتی باید از «یک» بار خواندن صفحه بیایند — پاسخ کپچا یکبارمصرف است
     $body = $c.GetAsync("$Base/account/login").Result.Content.ReadAsStringAsync().Result
     $token = [regex]::Match($body, '__RequestVerificationToken"[^>]*value="([^"]+)"').Groups[1].Value
-    $cap = [regex]::Match($body, 'data-cap="(\d+)-(\d+)"')
-    $ans = [int]$cap.Groups[1].Value - [int]$cap.Groups[2].Value
     $form = New-Object 'System.Collections.Generic.Dictionary[string,string]'
-    $form["Role"] = $role; $form["Mobile"] = $mobile; $form["Password"] = $pass
-    $form["Captcha"] = [string]$ans; $form["__RequestVerificationToken"] = $token
+    $form["Mobile"] = $mobile; $form["Password"] = $pass; $form["__RequestVerificationToken"] = $token
     $r = $c.PostAsync("$Base/account/login", (New-Object System.Net.Http.FormUrlEncodedContent($form))).Result
     return @($c, [string]$r.Headers.Location)
 }

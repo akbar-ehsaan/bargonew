@@ -64,7 +64,7 @@
                     <div class="kvrow"><span>وضعیت</span>@Ui.TripPill(t.Status)</div>
                     <div class="kvrow"><span>مسیر</span><b>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</b></div>
                     <div class="kvrow"><span>راننده</span><b>@(t.Driver?.FullName ?? "—")</b></div>
-                    <div class="kvrow"><span>خودرو</span><b>@if (t.Vehicle is not null) { <span class="plate">@t.Vehicle.PlateNo</span> } else { <text>—</text> }</b></div>
+                    <div class="kvrow"><span>خودرو</span><b>@if (t.Vehicle is not null) { <partial name="_Plate" model="t.Vehicle.PlateNo" /> } else { <text>—</text> }</b></div>
                     <div class="kvrow"><span>نقاط ثبت‌شده</span><b>@Fa.N(Model.PointCount)</b></div>
                     <div class="kvrow"><span>اولین نقطه</span><b>@Fa.Stamp(Model.FirstPoint)</b></div>
                     <div class="kvrow"><span>آخرین نقطه</span><b>@(Model.LastPoint is DateTime lp ? $"{Fa.Stamp(lp)} ({Fa.Ago(lp)})" : "—")</b></div>

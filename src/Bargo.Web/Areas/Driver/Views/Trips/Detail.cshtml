@@ -155,7 +155,7 @@
                     <dd>
                         @if (t.Vehicle is not null)
                         {
-                            <span class="plate">@t.Vehicle.PlateNo</span> <span class="muted small">@t.Vehicle.VehicleType?.Name</span>
+                            <partial name="_Plate" model="t.Vehicle.PlateNo" /> <span class="muted small">@t.Vehicle.VehicleType?.Name</span>
                         }
                         else
                         {

@@ -27,7 +27,7 @@
                 <dt>زمان تقریبی رسیدن</dt><dd>@(Model.EtaAt is null ? "—" : Fa.Stamp(Model.EtaAt))</dd>
                 <dt>آخرین موقعیت</dt><dd>@(Model.LastPointAt is null ? "—" : Fa.Ago(Model.LastPointAt.Value))</dd>
                 <dt>راننده</dt><dd>@(Model.Driver?.FirstName ?? "—")</dd>
-                <dt>خودرو</dt><dd>@if (Model.Vehicle is not null) { <span class="plate">@Model.Vehicle.PlateNo</span> } else { <text>—</text> }</dd>
+                <dt>خودرو</dt><dd>@if (Model.Vehicle is not null) { <partial name="_Plate" model="Model.Vehicle.PlateNo" /> } else { <text>—</text> }</dd>
             </dl>
             <p class="muted small" style="margin-top:12px">پس از تحویل کامل بار، کد تحویلی را که برایتان پیامک شده به راننده بدهید.</p>
         </div>

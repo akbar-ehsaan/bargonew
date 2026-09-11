@@ -60,7 +60,7 @@
                         @if (mine)
                         {
                             if (t.Driver is not null) { <span>@t.Driver.FullName</span> } else { <span class="chip">بدون راننده</span> }
-                            if (t.Vehicle is not null) { <span class="sub"><span class="plate">@t.Vehicle.PlateNo</span></span> }
+                            if (t.Vehicle is not null) { <span class="sub"><partial name="_Plate" model="t.Vehicle.PlateNo" /></span> }
                         }
                         else
                         {

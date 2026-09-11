@@ -61,7 +61,7 @@
                 @foreach (var x in Model.Page.Rows)
                 {
                     <tr>
-                        <td><a asp-action="Edit" asp-route-id="@x.OwnerId"><span class="plate">@Model.Owners.GetValueOrDefault(x.OwnerId, "—")</span></a></td>
+                        <td><a asp-action="Edit" asp-route-id="@x.OwnerId"><partial name="_Plate" model="Model.Owners.GetValueOrDefault(x.OwnerId)" /></a></td>
                         <td><b>@DocumentKind.Label(x.Kind)</b></td>
                         <td class="num">@(x.Number is null ? "—" : Fa.Digits(x.Number))</td>
                         <td>@(DocumentKind.Expiring.Contains(x.Kind) ? Ui.Expiry(x.ExpiresAt, Model.WarnDays) : Ui.Pill("بدون انقضا", "mut"))</td>

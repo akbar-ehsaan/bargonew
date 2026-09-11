@@ -119,7 +119,7 @@
                             <tr>
                                 <td class="nowrap">@Fa.Stamp(a.CreatedAt)</td>
                                 <td>@(a.Driver?.FullName ?? "—") @(rejected ? Ui.Pill("رد مأموریت", "no") : a.PreviousDriverId is null ? Ui.Pill("تخصیص", "ok") : Ui.Pill("تعویض", "wait"))</td>
-                                <td>@if (a.Vehicle is not null) { <span class="plate">@a.Vehicle.PlateNo</span> } else { <span class="muted">—</span> }</td>
+                                <td>@if (a.Vehicle is not null) { <partial name="_Plate" model="a.Vehicle.PlateNo" /> } else { <span class="muted">—</span> }</td>
                                 <td>@(a.ByName ?? "—")</td>
                                 <td class="small">@(a.Reason ?? "—")</td>
                             </tr>
@@ -283,7 +283,7 @@
                     }
                     @if (t.Vehicle is { } veh)
                     {
-                        <div class="kvrow"><span>خودرو</span><b><span class="plate">@veh.PlateNo</span></b></div>
+                        <div class="kvrow"><span>خودرو</span><b><partial name="_Plate" model="veh.PlateNo" /></b></div>
                         <div class="kvrow"><span>نوع</span><b>@veh.VehicleType?.Name · @OpsLabels.Ton(veh.CapacityTon) تن</b></div>
                     }
                     else
