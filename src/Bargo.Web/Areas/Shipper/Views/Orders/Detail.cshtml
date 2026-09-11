@@ -7,7 +7,7 @@
     var isDone = TripStatus.Done.Contains(t.Status);
     var isCancelled = t.Status == TripStatus.Cancelled;
     var canPay = !t.IsPaid && !isCancelled;
-    var shortfall = Math.Max(0L, t.Fare - Model.WalletBalance);
+    var shortfall = Math.Max(0L, t.TotalPayable - Model.WalletBalance);
     var here = Url.Action("Detail", new { id = t.TripId }) ?? "";
     var backTab = isDone ? "done" : isCancelled ? "cancelled" : "current";
     var receiverMobile = ld.ReceiverMobile ?? ld.Shipper?.Mobile;
@@ -53,7 +53,7 @@
 {
     <div class="alert2 warn">
         <i class="bi bi-credit-card"></i>
-        <div class="grow">کرایهٔ این سفر (@Fa.Toman(t.Fare)) هنوز پرداخت نشده است. مبلغ پرداختی تا تحویل بار نزد بارگو امانت می‌ماند.</div>
+        <div class="grow">کرایه و هزینه‌های این سفر (@Fa.Toman(t.TotalPayable)) هنوز پرداخت نشده است. مبلغ پرداختی تا تحویل بار نزد بارگو امانت می‌ماند.</div>
         <a class="btn2 soft sm" href="#pay">پرداخت کرایه</a>
     </div>
 }
@@ -178,6 +178,26 @@
             <div class="hd"><i class="bi bi-cash-stack"></i> کرایه و پرداخت</div>
             <div class="bd">
                 <div class="kvrow"><span>کرایهٔ توافق‌شده</span><b>@Fa.Toman(t.Fare)</b></div>
+                @if (t.LoadingFee > 0)
+                {
+                    <div class="kvrow"><span>هزینهٔ بارگیری</span><b>@Fa.Toman(t.LoadingFee)</b></div>
+                }
+                @if (t.UnloadingFee > 0)
+                {
+                    <div class="kvrow"><span>هزینهٔ تخلیه</span><b>@Fa.Toman(t.UnloadingFee)</b></div>
+                }
+                @if (t.WaybillFee > 0)
+                {
+                    <div class="kvrow"><span>هزینهٔ بارنامه</span><b>@Fa.Toman(t.WaybillFee)</b></div>
+                }
+                @if (t.Vat > 0)
+                {
+                    <div class="kvrow"><span>ارزش افزوده (@Fa.N(t.VatPercent, 1)٪)</span><b>@Fa.Toman(t.Vat)</b></div>
+                }
+                @if (t.TotalPayable != t.Fare)
+                {
+                    <div class="kvrow"><span>جمع قابل پرداخت</span><b>@Fa.Toman(t.TotalPayable)</b></div>
+                }
                 <div class="kvrow">
                     <span>وضعیت پرداخت</span>
                     @if (t.IsPaid)
@@ -203,7 +223,7 @@
                     <div class="kvrow"><span>موجودی کیف پول</span><b>@Fa.Toman(Model.WalletBalance)</b></div>
                     @if (shortfall == 0)
                     {
-                        <form method="post" asp-controller="Finance" asp-action="Pay" data-confirm="کرایهٔ سفر @t.Code به مبلغ @Fa.Toman(t.Fare) از کیف پول پرداخت شود؟">
+                        <form method="post" asp-controller="Finance" asp-action="Pay" data-confirm="کرایه و هزینه‌های سفر @t.Code به مبلغ @Fa.Toman(t.TotalPayable) از کیف پول پرداخت شود؟">
                             <input type="hidden" name="tripId" value="@t.TripId" />
                             <input type="hidden" name="returnUrl" value="@here" />
                             <div class="form-actions"><button type="submit" class="btn2 pri block"><i class="bi bi-wallet2"></i> پرداخت از کیف پول</button></div>
@@ -258,6 +278,17 @@
             <div class="hd"><i class="bi bi-person-badge"></i> حمل‌کننده</div>
             <div class="bd">
                 <div class="kvrow"><span>نوع</span><b>@CarrierKind.Label(t.CarrierKind)</b></div>
+                @if (!t.IsPaid)
+                {
+                    <div class="alert2 info"><i class="bi bi-incognito"></i>
+                        <div class="grow">@Privacy.HiddenNote</div>
+                    </div>
+                    <div class="form-actions" style="margin-top:12px">
+                        <a class="btn2 ghost sm" href="@threadUrl"><i class="bi bi-chat-dots"></i> پیام به حمل‌کننده</a>
+                    </div>
+                }
+                else
+                {
                 @if (t.Company is { } carrierCo)
                 {
                     <div class="kvrow"><span>شرکت</span><b>@carrierCo.Name</b></div>
@@ -294,6 +325,7 @@
                 <div class="form-actions" style="margin-top:12px">
                     <a class="btn2 ghost sm" href="@threadUrl"><i class="bi bi-chat-dots"></i> پیام به حمل‌کننده</a>
                 </div>
+                }
             </div>
         </div>
 
@@ -383,7 +415,7 @@
                             <label>علت لغو <span class="req">*</span></label>
                             <textarea name="reason" rows="2" required maxlength="500"></textarea>
                         </div>
-                        <p class="muted small">با لغو، بار <span class="num">@ld.Code</span> هم لغو می‌شود و حمل‌کننده باخبر می‌شود.@(t.IsPaid ? $" کرایهٔ پرداخت‌شده ({Fa.Toman(t.Fare)}) بی‌درنگ به کیف پول شما برمی‌گردد." : "")</p>
+                        <p class="muted small">با لغو، بار <span class="num">@ld.Code</span> هم لغو می‌شود و حمل‌کننده باخبر می‌شود.@(t.IsPaid ? $" مبلغ پرداخت‌شده ({Fa.Toman(t.TotalPayable)}) بی‌درنگ به کیف پول شما برمی‌گردد." : "")</p>
                         <div class="form-actions"><button type="submit" class="btn2 red block"><i class="bi bi-x-octagon"></i> لغو سفارش</button></div>
                     </form>
                 </div>

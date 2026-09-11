@@ -58,7 +58,7 @@
                     <dd>
                         @if (l.Shipper is not null)
                         {
-                            @l.Shipper.DisplayName @Ui.Stars(l.Shipper.RatingAvg, l.Shipper.RatingCount)
+                            @(l.Shipper.Kind == "business" ? "صاحب بار (کسب‌وکار)" : "صاحب بار (حقیقی)") @Ui.Stars(l.Shipper.RatingAvg, l.Shipper.RatingCount)
                         }
                         else if (Model.IsOwn)
                         {
@@ -66,7 +66,7 @@
                         }
                         else
                         {
-                            @l.Company?.Name @Ui.Stars(l.Company?.RatingAvg ?? 0, l.Company?.RatingCount ?? 0)
+                            <text>شرکت حمل‌ونقل</text> @Ui.Stars(l.Company?.RatingAvg ?? 0, l.Company?.RatingCount ?? 0)
                         }
                     </dd>
                     @if (showPrivate)

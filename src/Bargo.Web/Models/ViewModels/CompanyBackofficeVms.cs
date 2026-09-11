@@ -280,6 +280,8 @@ public sealed class CompanyTripRow
     public string CargoTitle { get; init; } = "";
     public string Status { get; init; } = "";
     public long Fare { get; init; }
+    /// <summary>کل مبلغ پرداختی صاحب بار = کرایه + هزینه‌ها + ارزش افزوده.</summary>
+    public long Total { get; init; }
     public long Commission { get; init; }
     public long CarrierShare { get; init; }
     public long? DriverShare { get; init; }

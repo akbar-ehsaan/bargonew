@@ -92,6 +92,19 @@ public class Trip
     public long CarrierShare { get; set; }
     /// <summary>فقط برای سفر شرکتی: سهم رانندهٔ شرکت.</summary>
     public long? DriverShare { get; set; }
+    /// <summary>هزینهٔ بارگیری — در تسویه به حمل‌کننده می‌رسد.</summary>
+    public long LoadingFee { get; set; }
+    /// <summary>هزینهٔ تخلیه — در تسویه به حمل‌کننده می‌رسد.</summary>
+    public long UnloadingFee { get; set; }
+    /// <summary>هزینهٔ صدور بارنامه — در تسویه به بارگو می‌رسد.</summary>
+    public long WaybillFee { get; set; }
+    /// <summary>درصد ارزش افزوده در لحظهٔ ساخت سفر (۰ = غیرفعال بود).</summary>
+    public decimal VatPercent { get; set; }
+    /// <summary>مبلغ ارزش افزوده روی کرایه و هزینه‌ها — در تسویه به بارگو می‌رسد.</summary>
+    public long Vat { get; set; }
+    /// <summary>کل مبلغی که صاحب بار می‌پردازد = کرایه + هزینه‌ها + ارزش افزوده.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public long TotalPayable => Fare + LoadingFee + UnloadingFee + WaybillFee + Vat;
     /// <summary>کرایه از صاحب بار دریافت شده (کیف پول/درگاه) و نزد بارگو امانت است.</summary>
     public bool IsPaid { get; set; }
     /// <summary>شرکت سهم راننده را از کیف پول خودش به کیف پول راننده منتقل کرد.</summary>

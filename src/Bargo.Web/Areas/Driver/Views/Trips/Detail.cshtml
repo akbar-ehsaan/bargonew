@@ -9,7 +9,8 @@
     if (dLat is double dla && dLng is double dlg) markers.Add(new { lat = dla, lng = dlg, kind = "dest", label = "مقصد: " + l.DestCity?.Name });
     if (t.LastLat is double tla && t.LastLng is double tlg && TripStatus.Live.Contains(t.Status))
         markers.Add(new { lat = tla, lng = tlg, kind = "truck", label = "آخرین موقعیت شما · " + Fa.Ago(t.LastPointAt ?? DateTime.UtcNow) });
-    var showContacts = t.Status != TripStatus.Cancelled;
+    // تماس‌ها و نام گیرنده تا پرداخت کرایه توسط صاحب بار مخفی‌اند (Privacy)
+    var showContacts = t.Status != TripStatus.Cancelled && t.IsPaid;
     var docKinds = new[] { TripDocumentKind.LoadingReceipt, TripDocumentKind.DeliveryReceipt, TripDocumentKind.Photo };
     ViewData["back"] = null;
 }

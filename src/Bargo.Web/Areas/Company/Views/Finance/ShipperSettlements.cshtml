@@ -40,7 +40,8 @@
                     <td data-label="حمل‌کننده">@t.Party</td>
                     <td data-label="مسیر">@Ui.Route(t.Origin, t.Dest)<span class="sub">@t.CargoTitle</span></td>
                     <td data-label="وضعیت">@Ui.TripPill(t.Status)</td>
-                    <td data-label="کرایه" class="nowrap"><b>@Fa.Toman(t.Fare)</b></td>
+                    <td data-label="کرایه" class="nowrap"><b>@Fa.Toman(t.Total)</b>@if (t.Total != t.Fare)
+                        {<span class="sub">کرایه @Fa.Toman(t.Fare) + هزینه‌ها</span>}</td>
                     <td data-label="پرداخت">
                         @if (t.IsPaid) { @Ui.Pill(t.Status == TripStatus.Settled ? "تسویه‌شده" : "پرداخت‌شده — امانت نزد بارگو", "ok") }
                         else if (t.Status == TripStatus.Cancelled) { @Ui.Pill("لغو — بدون پرداخت", "mut") }
@@ -49,8 +50,8 @@
                     <td>
                         @if (payable)
                         {
-                            <form method="post" asp-action="PayFare" asp-route-tripId="@t.TripId" class="inline" data-confirm="کرایهٔ سفر @Fa.Digits(t.Code) به مبلغ @Fa.Toman(t.Fare) از کیف پول شرکت پرداخت شود؟">
-                                <button class="btn2 pri sm" disabled="@(t.Fare > Model.Balance)"><i class="bi bi-credit-card"></i> پرداخت کرایه</button>
+                            <form method="post" asp-action="PayFare" asp-route-tripId="@t.TripId" class="inline" data-confirm="کرایه و هزینه‌های سفر @Fa.Digits(t.Code) به مبلغ @Fa.Toman(t.Total) از کیف پول شرکت پرداخت شود؟">
+                                <button class="btn2 pri sm" disabled="@(t.Total > Model.Balance)"><i class="bi bi-credit-card"></i> پرداخت کرایه</button>
                             </form>
                         }
                     </td>

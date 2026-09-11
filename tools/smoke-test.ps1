@@ -10,6 +10,7 @@
 # ---------------------------------------------------------------------------
 param(
     [string]$Base = "http://localhost:5810",
+    [string]$SqlServer = $(if ($env:BARGO_SQL) { $env:BARGO_SQL } else { "." }),
     [switch]$NoStart
 )
 
@@ -35,7 +36,7 @@ if (-not $NoStart) {
 }
 
 function Q([string]$sql) {
-    $r = sqlcmd -S . -E -d BargoDb -h -1 -W -Q "SET NOCOUNT ON; $sql" | Where-Object { $_ -match '\S' } | Select-Object -First 1
+    $r = sqlcmd -S $SqlServer -E -C -d BargoDb -h -1 -W -Q "SET NOCOUNT ON; $sql" | Where-Object { $_ -match '\S' } | Select-Object -First 1
     if ($r) { $r.Trim() } else { "0" }
 }
 

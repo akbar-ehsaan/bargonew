@@ -33,7 +33,7 @@
             <tbody>
             @foreach (var trip in Model.Unpaid)
             {
-                var enough = Model.Balance >= trip.Fare;
+                var enough = Model.Balance >= trip.Total;
                 <tr>
                     <td><a class="lnk" href="/Shipper/Orders/Detail/@trip.TripId">@trip.Code</a><span class="sub">@trip.LoadTitle</span></td>
                     <td>@Ui.Route(trip.From, trip.To)</td>
@@ -46,19 +46,20 @@
                     </td>
                     <td>@Ui.TripPill(trip.Status)</td>
                     <td class="nowrap">@(trip.ScheduledDepartureAt is null ? "تعیین نشده" : Fa.Stamp(trip.ScheduledDepartureAt))</td>
-                    <td class="nowrap"><b class="num">@Fa.Toman(trip.Fare)</b></td>
+                    <td class="nowrap"><b class="num">@Fa.Toman(trip.Total)</b>@if (trip.Total != trip.Fare)
+                        {<span class="sub">کرایه @Fa.Toman(trip.Fare) + هزینه‌ها</span>}</td>
                     <td>
                         @if (enough)
                         {
-                            <form method="post" asp-action="Pay" data-confirm="@($"کرایهٔ سفر {trip.Code} به مبلغ {Fa.Toman(trip.Fare)} از کیف پول پرداخت شود؟")">
+                            <form method="post" asp-action="Pay" data-confirm="@($"کرایه و هزینه‌های سفر {trip.Code} به مبلغ {Fa.Toman(trip.Total)} از کیف پول پرداخت شود؟")">
                                 <input type="hidden" name="tripId" value="@trip.TripId" />
                                 <input type="hidden" name="returnUrl" value="@here" />
-                                <button class="btn2 pri sm"><i class="bi bi-credit-card"></i> پرداخت @Fa.Toman(trip.Fare)</button>
+                                <button class="btn2 pri sm"><i class="bi bi-credit-card"></i> پرداخت @Fa.Toman(trip.Total)</button>
                             </form>
                         }
                         else
                         {
-                            <a class="btn2 soft sm" asp-action="Index" asp-fragment="charge"><i class="bi bi-plus-circle"></i> شارژ @Fa.Toman(trip.Fare - Model.Balance) کسری</a>
+                            <a class="btn2 soft sm" asp-action="Index" asp-fragment="charge"><i class="bi bi-plus-circle"></i> شارژ @Fa.Toman(trip.Total - Model.Balance) کسری</a>
                         }
                     </td>
                 </tr>

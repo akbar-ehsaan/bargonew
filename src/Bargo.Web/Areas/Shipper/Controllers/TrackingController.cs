@@ -67,7 +67,8 @@ public class TrackingController(BargoDbContext db, CurrentUser me, TripFlow flow
         if (lastLat is double tla && lastLng is double tlg && trip.Status != TripStatus.Cancelled)
         {
             var stale = trip.LastPointAt is DateTime lp && DateTime.UtcNow - lp > TimeSpan.FromMinutes(30);
-            var label = $"{trip.Vehicle?.PlateNo ?? trip.Driver?.FullName ?? "خودرو"}\nآخرین موقعیت: {(trip.LastPointAt is DateTime at ? Fa.Ago(at) : "—")}";
+            var who = trip.IsPaid ? trip.Vehicle?.PlateNo ?? trip.Driver?.FullName ?? "خودرو" : "خودروی حامل بار";
+            var label = $"{who}\nآخرین موقعیت: {(trip.LastPointAt is DateTime at ? Fa.Ago(at) : "—")}";
             markers.Add(new { lat = tla, lng = tlg, kind = TripStatus.Live.Contains(trip.Status) ? (stale ? "stale" : "truck") : "idle", label });
         }
 

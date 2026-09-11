@@ -331,6 +331,12 @@ public class TripFlow(
         var min = await settings.GetLongAsync(SettingsService.Keys.CommissionMinRial, ct);
         var commission = Math.Min(offer.Amount, Math.Max(min, (long)Math.Round(offer.Amount * pct / 100m)));
 
+        var loadingFee = await settings.GetLongAsync(SettingsService.Keys.LoadingFeeRial, ct);
+        var unloadingFee = await settings.GetLongAsync(SettingsService.Keys.UnloadingFeeRial, ct);
+        var waybillFee = await settings.GetLongAsync(SettingsService.Keys.WaybillFeeRial, ct);
+        var vatPct = await settings.GetBoolAsync(SettingsService.Keys.VatEnabled, ct)
+            ? await settings.GetDecimalAsync(SettingsService.Keys.VatPercent, ct) : 0m;
+
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
         var isCompany = offer.CarrierKind == CarrierKind.Company;
@@ -346,6 +352,11 @@ public class TripFlow(
             CommissionPercent = pct,
             Commission = commission,
             CarrierShare = offer.Amount - commission,
+            LoadingFee = loadingFee,
+            UnloadingFee = unloadingFee,
+            WaybillFee = waybillFee,
+            VatPercent = vatPct,
+            Vat = (long)Math.Round((offer.Amount + loadingFee + unloadingFee + waybillFee) * vatPct / 100m),
             // رانندهٔ مستقل با دادن پیشنهاد، مأموریت را از پیش پذیرفته است
             Status = isCompany ? TripStatus.AwaitingAssignment : TripStatus.Accepted,
             ScheduledDepartureAt = load.LoadingFrom,
@@ -506,7 +517,10 @@ public class TripFlow(
                 if (trip.PlannedKm is double km) trip.EtaAt = Geo.EtaUtc(km);
                 break;
             case TripStatus.Unloaded:
-                if (await settings.GetBoolAsync(SettingsService.Keys.DeliveryOtp, ct))
+                // اگر کد تحویل هنگام ثبت بار صادر شده، گیرنده آن را دارد و ارسال دوباره لازم نیست
+                var unloadedLoad = trip.Load ?? await db.Loads.FirstAsync(l => l.LoadId == trip.LoadId, ct);
+                if (await settings.GetBoolAsync(SettingsService.Keys.DeliveryOtp, ct) &&
+                    trip.DeliveryOtpHash is null && unloadedLoad.DeliveryCodeHash is null)
                     await IssueDeliveryOtpAsync(trip, ct);
                 break;
             case TripStatus.Delivered:
@@ -574,6 +588,27 @@ public class TripFlow(
     private static string HashOtp(Trip trip, string code) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(trip.TrackToken + ":" + code)));
 
+    private static string HashLoadCode(Load load, string code) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(load.Code + ":" + code)));
+
+    /// <summary>
+    /// کد تحویل هنگام ثبت بار: همان لحظه ساخته و به گیرنده (یا صاحب بار) پیامک می‌شود
+    /// تا هنگام رسیدن بار آن را به راننده بدهد. باید پس از تعیین Load.Code صدا شود.
+    /// اگر بعداً «ارسال دوبارهٔ کد» زده شود، کد تازهٔ سفر جایگزین این کد می‌شود.
+    /// </summary>
+    public async Task<string> IssueLoadDeliveryCodeAsync(Load load, CancellationToken ct = default)
+    {
+        var code = RandomNumberGenerator.GetInt32(10000, 100000).ToString();
+        load.DeliveryCodeHash = HashLoadCode(load, code);
+
+        var mobile = load.ReceiverMobile;
+        if (string.IsNullOrEmpty(mobile) && load.ShipperId is int sid)
+            mobile = await db.Shippers.AsNoTracking().Where(s => s.ShipperId == sid).Select(s => s.Mobile).FirstOrDefaultAsync(ct);
+        if (!string.IsNullOrEmpty(mobile))
+            await sms.SendAsync(mobile, $"بارگو — کد تحویل بار {load.Code}: {code}\nاین کد را فقط پس از تحویل کامل و سالم بار به راننده بدهید تا در سامانه ثبت کند.", "delivery", ct);
+        return code;
+    }
+
     /// <summary>
     /// کد پنج‌رقمی برای گیرنده. کد به گیرنده (یا صاحب بار) پیامک و در اعلانِ صاحب بار
     /// نمایش داده می‌شود؛ هرگز به راننده نشان داده نمی‌شود — کل معنای کد همین است.
@@ -599,7 +634,9 @@ public class TripFlow(
         if (!CanMove(trip.Status, TripStatus.Delivered, actor.Kind))
             throw new UserError("سفر هنوز به مرحلهٔ تحویل نرسیده است؛ ابتدا تخلیه را تأیید کنید.");
 
-        if (trip.DeliveryOtpHash is null)
+        // کد معتبر: کد سفر (اگر دوباره ارسال شده) وگرنه کدِ صادرشده هنگام ثبت بار
+        var load = trip.Load ?? await db.Loads.FirstAsync(l => l.LoadId == trip.LoadId, ct);
+        if (trip.DeliveryOtpHash is null && load.DeliveryCodeHash is null)
         {
             await IssueDeliveryOtpAsync(trip, ct);
             await db.SaveChangesAsync(ct);
@@ -608,8 +645,9 @@ public class TripFlow(
         if (trip.DeliveryOtpAttempts >= 5)
             throw new UserError("تعداد تلاش نادرست زیاد شد. از «ارسال دوبارهٔ کد» استفاده کنید.");
 
-        var expected = Convert.FromHexString(trip.DeliveryOtpHash);
-        var actual = Convert.FromHexString(HashOtp(trip, Fa.Latin(code)));
+        var latin = Fa.Latin(code);
+        var expected = Convert.FromHexString(trip.DeliveryOtpHash ?? load.DeliveryCodeHash!);
+        var actual = Convert.FromHexString(trip.DeliveryOtpHash is not null ? HashOtp(trip, latin) : HashLoadCode(load, latin));
         if (!CryptographicOperations.FixedTimeEquals(expected, actual))
         {
             trip.DeliveryOtpAttempts++;
@@ -634,14 +672,14 @@ public class TripFlow(
 
         var (kind, id) = actor.Kind == Roles.Company ? (OwnerKind.Company, actor.CompanyId!.Value) : (OwnerKind.Shipper, actor.Id);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        await wallet.PostAsync(kind, id, -trip.Fare, WalletTxnKind.FarePayment, trip.TripId, $"کرایهٔ سفر {trip.Code}", ct);
+        await wallet.PostAsync(kind, id, -trip.TotalPayable, WalletTxnKind.FarePayment, trip.TripId, $"کرایه و هزینه‌های سفر {trip.Code}", ct);
         db.Payments.Add(new Payment
         {
-            PayerKind = kind, PayerId = id, TripId = trip.TripId, Amount = trip.Fare,
+            PayerKind = kind, PayerId = id, TripId = trip.TripId, Amount = trip.TotalPayable,
             Method = "wallet", Purpose = "fare", Status = PaymentStatus.Paid, PaidAt = DateTime.UtcNow
         });
         trip.IsPaid = true;
-        AddEvent(trip, trip.Status, trip.Status, actor, $"پرداخت کرایه {Fa.Toman(trip.Fare)} از کیف پول");
+        AddEvent(trip, trip.Status, trip.Status, actor, $"پرداخت {Fa.Toman(trip.TotalPayable)} (کرایه و هزینه‌ها) از کیف پول");
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
@@ -675,10 +713,17 @@ public class TripFlow(
             await wallet.PostAsync(carrierKind, carrierId, trip.CarrierShare, WalletTxnKind.FareIncome, trip.TripId, $"سهم کرایهٔ سفر {trip.Code}", ct);
             await wallet.PostAsync(OwnerKind.Platform, 0, trip.Commission, WalletTxnKind.Commission, trip.TripId, $"کمیسیون سفر {trip.Code}", ct);
 
-            var vatPct = await settings.GetDecimalAsync(SettingsService.Keys.VatPercent, ct);
+            // هزینه‌های جانبی: بارگیری و تخلیه به حمل‌کننده (خودش انجام می‌دهد)،
+            // هزینهٔ بارنامه و ارزش افزوده به بارگو (صدور بارنامه و پرداخت مالیات با بارگوست)
+            if (trip.LoadingFee + trip.UnloadingFee > 0)
+                await wallet.PostAsync(carrierKind, carrierId, trip.LoadingFee + trip.UnloadingFee, WalletTxnKind.Fees, trip.TripId, $"هزینهٔ بارگیری و تخلیهٔ سفر {trip.Code}", ct);
+            if (trip.WaybillFee + trip.Vat > 0)
+                await wallet.PostAsync(OwnerKind.Platform, 0, trip.WaybillFee + trip.Vat, WalletTxnKind.Fees, trip.TripId, $"هزینهٔ بارنامه و مالیات سفر {trip.Code}", ct);
+
             var (payerKind, payerId) = load.ShipperId is int s ? (OwnerKind.Shipper, s) : (OwnerKind.Company, load.CompanyId ?? 0);
-            db.Invoices.Add(NewInvoice("F", trip, payerKind, payerId, "freight", trip.Fare, vatPct));
-            db.Invoices.Add(NewInvoice("C", trip, carrierKind, carrierId, "commission", trip.Commission, vatPct));
+            db.Invoices.Add(NewInvoice("F", trip, payerKind, payerId, "freight",
+                trip.Fare + trip.LoadingFee + trip.UnloadingFee + trip.WaybillFee, trip.VatPercent));
+            db.Invoices.Add(NewInvoice("C", trip, carrierKind, carrierId, "commission", trip.Commission, trip.VatPercent));
         }
 
         var from = trip.Status;
@@ -760,8 +805,8 @@ public class TripFlow(
         if (trip.IsPaid)
         {
             var (k, id) = load.ShipperId is int s ? (OwnerKind.Shipper, s) : (OwnerKind.Company, load.CompanyId ?? 0);
-            await wallet.PostAsync(k, id, trip.Fare, WalletTxnKind.Refund, trip.TripId, $"استرداد کرایهٔ سفر لغوشده {trip.Code}", ct);
-            db.Refunds.Add(new Refund { TripId = trip.TripId, OwnerKind = k, OwnerId = id, Amount = trip.Fare, Reason = reason, Status = "done", DoneAt = DateTime.UtcNow });
+            await wallet.PostAsync(k, id, trip.TotalPayable, WalletTxnKind.Refund, trip.TripId, $"استرداد کرایه و هزینه‌های سفر لغوشده {trip.Code}", ct);
+            db.Refunds.Add(new Refund { TripId = trip.TripId, OwnerKind = k, OwnerId = id, Amount = trip.TotalPayable, Reason = reason, Status = "done", DoneAt = DateTime.UtcNow });
             trip.IsPaid = false;
         }
 

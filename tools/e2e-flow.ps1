@@ -9,7 +9,10 @@
 #  ⚠️ یک بار و یک سفر واقعی به دادهٔ نمایشی اضافه می‌کند؛ فقط روی پایگاه‌دادهٔ توسعه.
 #     powershell -ExecutionPolicy Bypass -File tools\e2e-flow.ps1
 # ---------------------------------------------------------------------------
-param([string]$Base = "http://localhost:5810")
+param(
+    [string]$Base = "http://localhost:5810",
+    [string]$SqlServer = $(if ($env:BARGO_SQL) { $env:BARGO_SQL } else { "." })
+)
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -30,7 +33,7 @@ for ($i = 0; $i -lt 60; $i++) {
 if (-not $up) { Write-Host "APP DID NOT START"; exit 1 }
 
 function Q([string]$sql) {
-    $r = sqlcmd -S . -E -d BargoDb -h -1 -W -Q "SET NOCOUNT ON; $sql" | Where-Object { $_ -match '\S' } | Select-Object -First 1
+    $r = sqlcmd -S $SqlServer -E -C -d BargoDb -h -1 -W -Q "SET NOCOUNT ON; $sql" | Where-Object { $_ -match '\S' } | Select-Object -First 1
     if ($r) { $r.Trim() } else { "" }
 }
 

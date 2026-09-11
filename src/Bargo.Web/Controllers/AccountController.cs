@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Bargo.Web.Data;
 using Bargo.Web.Models.Entities;
 using Bargo.Web.Models.ViewModels;
@@ -15,19 +17,37 @@ namespace Bargo.Web.Controllers;
 /// ورود و ثبت‌نام چهار نقش. ورود با موبایل + گذرواژه و انتخاب نقش، چون یک شماره
 /// می‌تواند هم راننده باشد و هم صاحب بار (دو حسابِ مستقل).
 ///
-/// TODO: ورود با کد پیامکی (جدول Otps آماده است) و محدودیت تعداد تلاش ناموفق.
+/// ورود با کد پیامکی (جدول Otps) هم هست: کد ۵ رقمی، ۳ دقیقه اعتبار، یکبارمصرف،
+/// حداکثر ۵ تلاش ناموفق و دست‌کم ۶۰ ثانیه فاصله بین دو ارسال برای هر شماره.
+/// گزینهٔ «مدیر سامانه» در صفحهٔ عمومی نیست و فقط با ?role=admin باز می‌شود.
 /// </summary>
 [Route("account")]
-public class AccountController(BargoDbContext db, NotificationService notify) : Controller
+public class AccountController(
+    BargoDbContext db,
+    NotificationService notify,
+    ISmsSender sms,
+    SettingsService settings,
+    IWebHostEnvironment env) : Controller
 {
+    private const string OtpPurpose = "login";
+    private const int OtpTtlMinutes = 3;
+    private const int OtpMaxAttempts = 5;
+    private const int OtpResendSeconds = 60;
+
     [HttpGet("login")]
-    public IActionResult Login(string? role, string? returnUrl, int? disabled)
+    public IActionResult Login(string? role, string? returnUrl, int? disabled, string? mode)
     {
         if (User.Identity?.IsAuthenticated == true && string.IsNullOrEmpty(returnUrl))
             return Redirect("/" + Roles.AreaOf(User.FindFirstValue(ClaimTypes.Role) ?? ""));
         ViewData["Title"] = "ورود";
         if (disabled == 1) TempData["err"] = "حساب کاربری شما غیرفعال شده است.";
-        return View(new LoginVm { Role = role is Roles.Driver or Roles.Company or Roles.Admin ? role : Roles.Shipper, ReturnUrl = returnUrl });
+
+        var r = role is Roles.Driver or Roles.Company or Roles.Admin ? role : Roles.Shipper;
+        // حالت «کد یکبارمصرف» فقط برای سه نقش عمومی؛ مدیر همیشه با گذرواژه وارد می‌شود
+        ViewBag.Mode = mode == "otp" && r != Roles.Admin ? "otp" : "password";
+        ViewBag.OtpMobile = TempData["otp_mobile"] as string;
+        ViewBag.DevOtp = TempData["dev_otp"] as string;
+        return View(new LoginVm { Role = r, ReturnUrl = returnUrl });
     }
 
     [HttpPost("login")]
@@ -40,23 +60,7 @@ public class AccountController(BargoDbContext db, NotificationService notify) : 
         var mobile = Fa.NormMobile(vm.Mobile);
         const string wrong = "موبایل یا گذرواژه نادرست است.";
 
-        (int Id, string Name, string Hash, int? CompanyId)? acc = vm.Role switch
-        {
-            Roles.Driver => await db.Drivers.Where(x => x.Mobile == mobile)
-                .Select(x => new { x.DriverId, Name = x.FirstName + " " + x.LastName, x.PassHash, x.Status })
-                .FirstOrDefaultAsync(ct) is { } d && d.Status != AccountStatus.Rejected
-                ? (d.DriverId, d.Name, d.PassHash, null) : null,
-            Roles.Shipper => await db.Shippers.Where(x => x.Mobile == mobile)
-                .Select(x => new { x.ShipperId, x.FullName, x.PassHash })
-                .FirstOrDefaultAsync(ct) is { } s ? (s.ShipperId, s.FullName, s.PassHash, null) : null,
-            Roles.Company => await db.CompanyUsers.Where(x => x.Mobile == mobile && x.IsActive)
-                .Select(x => new { x.CompanyUserId, x.Name, x.PassHash, x.CompanyId })
-                .FirstOrDefaultAsync(ct) is { } c ? (c.CompanyUserId, c.Name, c.PassHash, c.CompanyId) : null,
-            Roles.Admin => await db.Admins.Where(x => x.Mobile == mobile && x.IsActive)
-                .Select(x => new { x.AdminId, x.Name, x.PassHash })
-                .FirstOrDefaultAsync(ct) is { } a ? (a.AdminId, a.Name, a.PassHash, null) : null,
-            _ => null
-        };
+        var acc = await FindAccountAsync(vm.Role, mobile, ct);
 
         // هش را حتی برای حساب ناموجود محاسبه می‌کنیم تا زمان پاسخ، وجود شماره را لو ندهد
         var ok = PasswordHasher.Verify(vm.Password, acc?.Hash ?? "120000.AAAAAAAAAAAAAAAAAAAAAA==.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
@@ -66,17 +70,155 @@ public class AccountController(BargoDbContext db, NotificationService notify) : 
             return View(vm);
         }
 
-        await SignInAsync(vm.Role, acc.Value.Id, acc.Value.Name, acc.Value.CompanyId);
+        return await CompleteLoginAsync(vm.Role, acc.Value, vm.ReturnUrl, ct);
+    }
 
-        if (vm.Role == Roles.Company)
-            await db.CompanyUsers.Where(x => x.CompanyUserId == acc.Value.Id).ExecuteUpdateAsync(s => s.SetProperty(x => x.LastLoginAt, DateTime.UtcNow), ct);
-        if (vm.Role == Roles.Admin)
-            await db.Admins.Where(x => x.AdminId == acc.Value.Id).ExecuteUpdateAsync(s => s.SetProperty(x => x.LastLoginAt, DateTime.UtcNow), ct);
+    /// <summary>حسابِ یک نقش با این موبایل — همان قواعد ورود (رانندهٔ ردشده و کاربر غیرفعال حساب ندارند).</summary>
+    private async Task<(int Id, string Name, string Hash, int? CompanyId)?> FindAccountAsync(string role, string mobile, CancellationToken ct) => role switch
+    {
+        Roles.Driver => await db.Drivers.Where(x => x.Mobile == mobile)
+            .Select(x => new { x.DriverId, Name = x.FirstName + " " + x.LastName, x.PassHash, x.Status })
+            .FirstOrDefaultAsync(ct) is { } d && d.Status != AccountStatus.Rejected
+            ? (d.DriverId, d.Name, d.PassHash, null) : null,
+        Roles.Shipper => await db.Shippers.Where(x => x.Mobile == mobile)
+            .Select(x => new { x.ShipperId, x.FullName, x.PassHash })
+            .FirstOrDefaultAsync(ct) is { } s ? (s.ShipperId, s.FullName, s.PassHash, null) : null,
+        Roles.Company => await db.CompanyUsers.Where(x => x.Mobile == mobile && x.IsActive)
+            .Select(x => new { x.CompanyUserId, x.Name, x.PassHash, x.CompanyId })
+            .FirstOrDefaultAsync(ct) is { } c ? (c.CompanyUserId, c.Name, c.PassHash, c.CompanyId) : null,
+        Roles.Admin => await db.Admins.Where(x => x.Mobile == mobile && x.IsActive)
+            .Select(x => new { x.AdminId, x.Name, x.PassHash })
+            .FirstOrDefaultAsync(ct) is { } a ? (a.AdminId, a.Name, a.PassHash, null) : null,
+        _ => null
+    };
 
-        if (!string.IsNullOrEmpty(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl) &&
-            vm.ReturnUrl.StartsWith("/" + Roles.AreaOf(vm.Role), StringComparison.OrdinalIgnoreCase))
-            return Redirect(vm.ReturnUrl);
-        return Redirect("/" + Roles.AreaOf(vm.Role));
+    /// <summary>کوکی، ثبت آخرین ورود و هدایت به پنل — مشترک بین ورود با گذرواژه و کد پیامکی.</summary>
+    private async Task<IActionResult> CompleteLoginAsync(string role, (int Id, string Name, string Hash, int? CompanyId) acc, string? returnUrl, CancellationToken ct)
+    {
+        await SignInAsync(role, acc.Id, acc.Name, acc.CompanyId);
+
+        if (role == Roles.Company)
+            await db.CompanyUsers.Where(x => x.CompanyUserId == acc.Id).ExecuteUpdateAsync(s => s.SetProperty(x => x.LastLoginAt, DateTime.UtcNow), ct);
+        if (role == Roles.Admin)
+            await db.Admins.Where(x => x.AdminId == acc.Id).ExecuteUpdateAsync(s => s.SetProperty(x => x.LastLoginAt, DateTime.UtcNow), ct);
+
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) &&
+            returnUrl.StartsWith("/" + Roles.AreaOf(role), StringComparison.OrdinalIgnoreCase))
+            return Redirect(returnUrl);
+        return Redirect("/" + Roles.AreaOf(role));
+    }
+
+    // ------------------------------------------------------------------
+    //  ورود با کد یکبارمصرف
+    // ------------------------------------------------------------------
+
+    /// <summary>بازگشت به صفحهٔ ورود در حالت کد یکبارمصرف — نقش و مقصد در آدرس می‌مانند.</summary>
+    private IActionResult BackToOtp(string role, string? returnUrl) =>
+        Redirect($"/account/login?mode=otp&role={role}" +
+                 (string.IsNullOrEmpty(returnUrl) ? "" : "&returnUrl=" + Uri.EscapeDataString(returnUrl)));
+
+    [HttpPost("otp/send")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendOtp(string? role, string? mobile, string? returnUrl, CancellationToken ct)
+    {
+        // کد پیامکی فقط برای سه نقش عمومی است؛ مدیر همیشه با گذرواژه وارد می‌شود
+        role = role is Roles.Driver or Roles.Company ? role : Roles.Shipper;
+        var m = Fa.NormMobile(mobile);
+        if (m.Length == 0)
+        {
+            TempData["err"] = "شمارهٔ موبایل معتبر نیست (۰۹xxxxxxxxx).";
+            return BackToOtp(role, returnUrl);
+        }
+
+        var now = DateTime.UtcNow;
+        var lastAt = await db.Otps.Where(o => o.Mobile == m && o.Purpose == OtpPurpose)
+            .OrderByDescending(o => o.CreatedAt).Select(o => (DateTime?)o.CreatedAt).FirstOrDefaultAsync(ct);
+        if (lastAt is DateTime last && now - last < TimeSpan.FromSeconds(OtpResendSeconds))
+        {
+            var wait = OtpResendSeconds - (int)(now - last).TotalSeconds;
+            TempData["err"] = $"کد به‌تازگی فرستاده شده است؛ {Fa.N(Math.Max(wait, 1))} ثانیهٔ دیگر دوباره تلاش کنید.";
+            TempData["otp_mobile"] = m; // همان فرم واردکردن کد بماند — شاید کد قبلی رسیده باشد
+            return BackToOtp(role, returnUrl);
+        }
+
+        var code = RandomNumberGenerator.GetInt32(10000, 100000).ToString(CultureInfo.InvariantCulture);
+        db.Otps.Add(new Otp { Mobile = m, Purpose = OtpPurpose, CodeHash = PasswordHasher.Hash(code), ExpiresAt = now.AddMinutes(OtpTtlMinutes) });
+        await sms.SendAsync(m, $"بارگو\nکد ورود شما: {code}\nاین کد تا {Fa.N(OtpTtlMinutes)} دقیقه معتبر است.", "otp-login", ct);
+        await db.SaveChangesAsync(ct); // ردیف Otp و SmsLog — ارسال‌کننده خودش ذخیره نمی‌کند
+
+        // فقط در حالت توسعه و وقتی پیامک واقعاً ارسال نمی‌شود، کد برای آزمون روی صفحه می‌آید
+        if (env.IsDevelopment() &&
+            (await settings.GetAsync(SettingsService.Keys.SmsProvider, ct)).Trim().ToLowerInvariant() == "log")
+            TempData["dev_otp"] = code;
+
+        TempData["ok"] = $"کد ورود به شمارهٔ {Fa.Digits(m)} پیامک شد.";
+        TempData["otp_mobile"] = m;
+        return BackToOtp(role, returnUrl);
+    }
+
+    [HttpPost("otp/verify")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> VerifyOtp(string? role, string? mobile, string? code, string? returnUrl, CancellationToken ct)
+    {
+        role = role is Roles.Driver or Roles.Company ? role : Roles.Shipper;
+        var m = Fa.NormMobile(mobile);
+        var c = Fa.Latin(code).Trim();
+
+        IActionResult Retry()
+        {
+            TempData["otp_mobile"] = m;
+            return BackToOtp(role, returnUrl);
+        }
+
+        if (m.Length == 0)
+        {
+            TempData["err"] = "شمارهٔ موبایل معتبر نیست؛ دوباره کد بگیرید.";
+            return BackToOtp(role, returnUrl);
+        }
+        if (c.Length == 0)
+        {
+            TempData["err"] = "کد پیامک‌شده را وارد کنید.";
+            return Retry();
+        }
+
+        var now = DateTime.UtcNow;
+        var otp = await db.Otps.Where(o => o.Mobile == m && o.Purpose == OtpPurpose && o.UsedAt == null && o.ExpiresAt > now)
+            .OrderByDescending(o => o.OtpId).FirstOrDefaultAsync(ct);
+        if (otp is null)
+        {
+            TempData["err"] = "کد معتبری برای این شماره نیست — یا منقضی شده یا استفاده شده است؛ دوباره کد بگیرید.";
+            return BackToOtp(role, returnUrl);
+        }
+        if (otp.Attempts >= OtpMaxAttempts)
+        {
+            TempData["err"] = "تعداد تلاش‌های ناموفق بیش از حد مجاز شد؛ کد تازه بگیرید.";
+            return BackToOtp(role, returnUrl);
+        }
+        if (!PasswordHasher.Verify(c, otp.CodeHash))
+        {
+            otp.Attempts++;
+            await db.SaveChangesAsync(ct);
+            if (otp.Attempts >= OtpMaxAttempts)
+            {
+                TempData["err"] = "کد نادرست بود و تلاش‌ها تمام شد؛ کد تازه بگیرید.";
+                return BackToOtp(role, returnUrl);
+            }
+            TempData["err"] = $"کد نادرست است ({Fa.N(OtpMaxAttempts - otp.Attempts)} تلاش دیگر باقی است).";
+            return Retry();
+        }
+
+        otp.UsedAt = now; // یکبارمصرف — حتی اگر حسابی پیدا نشود، همین کد دیگر کار نمی‌کند
+        await db.SaveChangesAsync(ct);
+
+        var acc = await FindAccountAsync(role, m, ct);
+        if (acc is null)
+        {
+            TempData["err"] = $"شمارهٔ شما تأیید شد، اما حسابِ «{Roles.Title(role)}» با این شماره پیدا نشد. " +
+                              "اگر تازه‌وارد هستید اول ثبت‌نام کنید، یا نقش دیگری را انتخاب کنید.";
+            return BackToOtp(role, returnUrl);
+        }
+
+        return await CompleteLoginAsync(role, acc.Value, returnUrl, ct);
     }
 
     private async Task SignInAsync(string role, int id, string name, int? companyId)

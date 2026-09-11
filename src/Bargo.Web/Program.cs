@@ -72,8 +72,10 @@ builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<SettingsService>();
 builder.Services.AddScoped<WalletService>();
 builder.Services.AddScoped<NotificationService>();
-// پیامک «فقط ثبت» — برای اتصال به سرویس واقعی کلاس دیگری با ISmsSender ثبت کنید
-builder.Services.AddScoped<ISmsSender, LogSmsSender>();
+// پیامک: Sms.Provider=log فقط ثبت می‌کند؛ ictx واقعاً می‌فرستد (تنظیمات پنل مدیر)
+builder.Services.AddScoped<ISmsSender, SmsSender>();
+// درگاه زرین‌پال — فعال وقتی Gateway.Provider=zarinpal و شناسهٔ پذیرنده تنظیم شده باشد
+builder.Services.AddScoped<ZarinPalService>();
 builder.Services.AddScoped<DocumentStorage>();
 builder.Services.AddScoped<DriverReadiness>();
 // گردش کار بار ← سفر ← تحویل ← تسویه؛ تنها جایی که وضعیت‌ها عوض می‌شوند

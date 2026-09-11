@@ -94,7 +94,13 @@
                     </div>
                     <div class="fld">
                         <label>عنوان بار</label>
-                        <input name="Title" value="@Model.Title" maxlength="150" placeholder="مثلاً: ۲۰ تن برنج کیسه‌ای" />
+                        <input name="Title" value="@Model.Title" maxlength="150" list="titleSuggestions" placeholder="انتخاب یا تایپ کنید — مثلاً: برنج کیسه‌ای" />
+                        <datalist id="titleSuggestions">
+                            @foreach (var ts in ShipperLoadForm.TitleSuggestions)
+                            {
+                                <option value="@ts"></option>
+                            }
+                        </datalist>
                         <span class="hint">اگر خالی بماند، از نوع بار و مسیر ساخته می‌شود.</span>
                         @Err("Title")
                     </div>
@@ -283,6 +289,24 @@
                             }
                             برای بیمه، «ارزش تقریبی بار» را در بخش کرایه وارد کنید.
                         </span>
+                    </div>
+                    <div class="fld">
+                        <label>نوع بیمه</label>
+                        <select name="InsuranceType">
+                            <option value="">انتخاب کنید</option>
+                            @foreach (var it in ShipperLoadForm.InsuranceTypes)
+                            {
+                                <option value="@it" selected="@(Model.InsuranceType == it)">@it</option>
+                            }
+                        </select>
+                        <span class="hint">در بارنامه ثبت می‌شود.</span>
+                        @Err("InsuranceType")
+                    </div>
+                    <div class="fld">
+                        <label>مبلغ بیمه (تومان)</label>
+                        <input name="InsuranceAmountToman" class="money" inputmode="numeric" value="@Model.InsuranceAmountToman" placeholder="حق بیمه یا سرمایهٔ بیمه" />
+                        <span class="hint">اختیاری — در بارنامه ثبت می‌شود.</span>
+                        @Err("InsuranceAmountToman")
                     </div>
                 </div>
             </div>

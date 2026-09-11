@@ -132,7 +132,7 @@ public class OrdersController(BargoDbContext db, CurrentUser me, TripFlow flow) 
             var wasPaid = trip.IsPaid;
             await flow.CancelAsync(trip, me.ToActor(), reason?.Trim() ?? "", ct);
             TempData["ok"] = wasPaid
-                ? $"سفر {trip.Code} لغو شد و کرایهٔ {Fa.Toman(trip.Fare)} به کیف پول شما برگشت."
+                ? $"سفر {trip.Code} لغو شد و {Fa.Toman(trip.TotalPayable)} به کیف پول شما برگشت."
                 : $"سفر {trip.Code} لغو شد.";
         }
         catch (UserError e)

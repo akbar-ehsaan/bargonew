@@ -336,10 +336,10 @@ public class TripsController(BargoDbContext db, TripFlow flow, AuditService audi
             var r = AdminOps.Note(reason, 500) ?? throw new UserError("علت لغو را بنویسید؛ برای صاحب بار و حمل‌کننده ارسال می‌شود.");
             await flow.CancelAsync(trip, me.ToActor(), r, ct);
             audit.Add("Trip", id, "cancel", $"لغو سفر {trip.Code} توسط مدیر از مرحلهٔ «{TripStatus.Label(from)}»: {r}",
-                new { from, reason = r, refunded = wasPaid ? trip.Fare : 0, problem = trip.IsProblem });
+                new { from, reason = r, refunded = wasPaid ? trip.TotalPayable : 0, problem = trip.IsProblem });
             await db.SaveChangesAsync(ct);
             TempData["ok"] = $"سفر {trip.Code} لغو شد." +
-                             (wasPaid ? $" {Fa.Toman(trip.Fare)} به کیف پول صاحب بار مسترد شد." : "") +
+                             (wasPaid ? $" {Fa.Toman(trip.TotalPayable)} به کیف پول صاحب بار مسترد شد." : "") +
                              (trip.IsProblem ? " چون بار روی خودرو بود، سفر در صف مشکل‌دار ماند تا تکلیف بار روشن شود." : " بار دوباره در بازار قرار گرفت.");
         }
         catch (UserError e)

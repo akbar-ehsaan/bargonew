@@ -112,10 +112,20 @@ public class Load
     /// <summary>ارزش تقریبی بار به ریال — مبنای بیمه.</summary>
     public long? DeclaredValue { get; set; }
     public bool InsuranceRequested { get; set; }
+    /// <summary>نوع بیمهٔ بار (باربری داخلی، تمام‌خطر، …) — در بارنامه ثبت می‌شود.</summary>
+    [MaxLength(40)] public string? InsuranceType { get; set; }
+    /// <summary>مبلغ/حق بیمه به ریال — در بارنامه ثبت می‌شود.</summary>
+    public long? InsuranceAmount { get; set; }
 
     public string? Description { get; set; }
     [MaxLength(100)] public string? ReceiverName { get; set; }
     [MaxLength(11)] public string? ReceiverMobile { get; set; }
+
+    /// <summary>
+    /// هش کد تحویل (SHA256 با نمکِ Code). کد هنگام ثبت بار ساخته و به گیرنده پیامک
+    /// می‌شود؛ گیرنده هنگام رسیدن بار آن را به راننده می‌دهد تا در سامانه ثبت کند.
+    /// </summary>
+    public string? DeliveryCodeHash { get; set; }
 
     public double? DistanceKm { get; set; }
 

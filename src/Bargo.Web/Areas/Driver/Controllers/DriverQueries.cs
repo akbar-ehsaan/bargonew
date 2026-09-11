@@ -153,18 +153,20 @@ internal static class DriverQueries
         pts.Reverse();
         vm.Line = pts.Select(p => new[] { Math.Round(p.Lat, 5), Math.Round(p.Lng, 5) }).ToList();
 
+        // هویت صاحب بار تا پرداخت کرایه از حمل‌کننده مخفی است (Privacy)
+        var revealed = trip.IsPaid;
         if (l.Shipper is not null)
         {
-            vm.OwnerName = l.Shipper.DisplayName;
-            vm.OwnerMobile = l.Shipper.Mobile;
+            vm.OwnerName = Privacy.Name(l.Shipper.DisplayName, revealed);
+            vm.OwnerMobile = Privacy.Optional(l.Shipper.Mobile, revealed);
         }
         else if (l.CompanyId is int cid)
         {
             var c = await db.Companies.AsNoTracking().Where(x => x.CompanyId == cid)
                 .Select(x => new { x.Name, x.Mobile, x.Phone }).FirstOrDefaultAsync(ct);
-            vm.OwnerName = c?.Name ?? "";
-            vm.OwnerMobile = c?.Mobile;
-            vm.OwnerPhone = c?.Phone;
+            vm.OwnerName = Privacy.Name(c?.Name, revealed);
+            vm.OwnerMobile = Privacy.Optional(c?.Mobile, revealed);
+            vm.OwnerPhone = Privacy.Optional(c?.Phone, revealed);
             vm.OwnerIsCompany = true;
         }
 

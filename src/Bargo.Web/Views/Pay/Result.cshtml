@@ -1,0 +1,33 @@
+@model Payment
+@{
+    Layout = "~/Views/Home/_PublicLayout.cshtml";
+    var ok = Model.Status == PaymentStatus.Paid;
+    ViewData["Title"] = ok ? "پرداخت موفق" : "پرداخت ناموفق";
+    var wallet = Model.PayerKind switch
+    {
+        OwnerKind.Driver => "/Driver/Finance",
+        OwnerKind.Company => "/Company/Finance",
+        _ => "/Shipper/Finance"
+    };
+}
+<div class="card2"><div class="bd empty-state">
+    @if (ok)
+    {
+        <i class="bi bi-check-circle-fill" style="color:var(--ok, #2e7d32)"></i>
+        <b>پرداخت با موفقیت انجام شد</b>
+        <p>
+            @Fa.Toman(Model.Amount) به کیف پول شما اضافه شد.
+            @if (!string.IsNullOrEmpty(Model.RefId))
+            {
+                <span class="num">کد پیگیری بانک: @Fa.Digits(Model.RefId)</span>
+            }
+        </p>
+    }
+    else
+    {
+        <i class="bi bi-x-circle-fill" style="color:var(--no, #c62828)"></i>
+        <b>پرداخت انجام نشد</b>
+        <p>@(Model.FailReason ?? "پرداخت لغو شد یا ناتمام ماند.") اگر مبلغی از حساب شما کسر شده باشد، بانک آن را تا ۷۲ ساعت آینده برمی‌گرداند.</p>
+    }
+    <a class="btn2 pri" href="@wallet">بازگشت به کیف پول</a>
+</div></div>

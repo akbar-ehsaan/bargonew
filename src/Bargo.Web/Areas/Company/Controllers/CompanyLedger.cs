@@ -1,6 +1,7 @@
 using Bargo.Web.Data;
 using Bargo.Web.Models.Entities;
 using Bargo.Web.Models.ViewModels;
+using Bargo.Web.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bargo.Web.Areas.CompanyPanel.Controllers;
@@ -85,9 +86,11 @@ internal static class CompanyLedger
         {
             TripId = t.TripId, Code = t.Code, LoadCode = t.Load!.Code,
             Origin = t.Load.OriginCity!.Name, Dest = t.Load.DestCity!.Name, CargoTitle = t.Load.Title,
-            Status = t.Status, Fare = t.Fare, Commission = t.Commission, CarrierShare = t.CarrierShare, DriverShare = t.DriverShare,
+            Status = t.Status, Fare = t.Fare, Total = t.Fare + t.LoadingFee + t.UnloadingFee + t.WaybillFee + t.Vat,
+            Commission = t.Commission, CarrierShare = t.CarrierShare, DriverShare = t.DriverShare,
             IsPaid = t.IsPaid, CreatedAt = t.CreatedAt, DeliveredAt = t.DeliveredAt, SettledAt = t.SettledAt, DriverSharePaidAt = t.DriverSharePaidAt,
-            Party = t.Company != null ? t.Company.Name : t.Driver != null ? t.Driver.FirstName + " " + t.Driver.LastName : "—",
+            Party = !t.IsPaid ? Privacy.HiddenName
+                : t.Company != null ? t.Company.Name : t.Driver != null ? t.Driver.FirstName + " " + t.Driver.LastName : "—",
             DriverId = t.DriverId,
             DriverName = t.Driver != null ? t.Driver.FirstName + " " + t.Driver.LastName : null
         })
@@ -95,11 +98,13 @@ internal static class CompanyLedger
         {
             TripId = t.TripId, Code = t.Code, LoadCode = t.Load!.Code,
             Origin = t.Load.OriginCity!.Name, Dest = t.Load.DestCity!.Name, CargoTitle = t.Load.Title,
-            Status = t.Status, Fare = t.Fare, Commission = t.Commission, CarrierShare = t.CarrierShare, DriverShare = t.DriverShare,
+            Status = t.Status, Fare = t.Fare, Total = t.Fare + t.LoadingFee + t.UnloadingFee + t.WaybillFee + t.Vat,
+            Commission = t.Commission, CarrierShare = t.CarrierShare, DriverShare = t.DriverShare,
             IsPaid = t.IsPaid, CreatedAt = t.CreatedAt, DeliveredAt = t.DeliveredAt, SettledAt = t.SettledAt, DriverSharePaidAt = t.DriverSharePaidAt,
             Party = t.Load.Shipper != null
-                ? (t.Load.Shipper.Kind == "business" && t.Load.Shipper.BusinessName != null && t.Load.Shipper.BusinessName != ""
-                    ? t.Load.Shipper.BusinessName : t.Load.Shipper.FullName)
+                ? (!t.IsPaid ? Privacy.HiddenName
+                    : t.Load.Shipper.Kind == "business" && t.Load.Shipper.BusinessName != null && t.Load.Shipper.BusinessName != ""
+                        ? t.Load.Shipper.BusinessName : t.Load.Shipper.FullName)
                 : "بار مشتریِ شرکت",
             DriverId = t.DriverId,
             DriverName = t.Driver != null ? t.Driver.FirstName + " " + t.Driver.LastName : null

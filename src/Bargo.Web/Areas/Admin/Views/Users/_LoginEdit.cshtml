@@ -1,0 +1,31 @@
+@model LoginEditVm
+@* تغییر نام کاربری (موبایل) و گذرواژه — در پروندهٔ راننده و صاحب بار. *@
+<div class="card2">
+    <div class="hd"><i class="bi bi-person-lock"></i> نام کاربری و گذرواژه</div>
+    <div class="bd">
+        <form method="post" asp-area="Admin" asp-controller="Users" asp-action="SetMobile"
+              data-confirm="شمارهٔ موبایل (نام کاربری) «@Model.Name» تغییر کند؟ از این پس ورود فقط با شمارهٔ تازه ممکن است.">
+            <input type="hidden" name="kind" value="@Model.Kind" />
+            <input type="hidden" name="id" value="@Model.Id" />
+            <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+            <div class="fld">
+                <label>موبایل (نام کاربری)</label>
+                <input name="mobile" value="@Model.Mobile" dir="ltr" inputmode="numeric" placeholder="09xxxxxxxxx" required />
+            </div>
+            <div class="form-actions"><button class="btn2 ghost"><i class="bi bi-phone"></i> تغییر شماره</button></div>
+        </form>
+
+        <form method="post" asp-area="Admin" asp-controller="Users" asp-action="SetPassword"
+              data-confirm="گذرواژهٔ «@Model.Name» عوض شود؟">
+            <input type="hidden" name="kind" value="@Model.Kind" />
+            <input type="hidden" name="id" value="@Model.Id" />
+            <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+            <div class="fld">
+                <label>گذرواژهٔ تازه</label>
+                <input name="password" type="password" minlength="8" required autocomplete="new-password" />
+                <span class="hint">دست‌کم ۸ نویسه. نشست‌های فعلی این کاربر بسته نمی‌شود.</span>
+            </div>
+            <div class="form-actions"><button class="btn2 ghost"><i class="bi bi-arrow-repeat"></i> تغییر گذرواژه</button></div>
+        </form>
+    </div>
+</div>

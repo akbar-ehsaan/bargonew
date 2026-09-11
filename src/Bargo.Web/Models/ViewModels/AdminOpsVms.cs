@@ -232,6 +232,17 @@ public sealed class AccountActionVm
     public string? ReturnUrl { get; set; }
 }
 
+/// <summary>فرم تغییر نام کاربری (موبایل) و گذرواژه در پروندهٔ کاربر — Users/_LoginEdit.</summary>
+public sealed class LoginEditVm
+{
+    /// <summary>driver | shipper | companyuser</summary>
+    public string Kind { get; set; } = "";
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public string Mobile { get; set; } = "";
+    public string? ReturnUrl { get; set; }
+}
+
 public sealed class DriverDetailVm
 {
     public Driver Driver { get; set; } = null!;

@@ -87,11 +87,15 @@ else if (l.Status == LoadStatus.Expired)
                     <partial name="_TripSteps" model="trip" />
                     <div class="grid2" style="margin-top:14px">
                         <div>
-                            <div class="kvrow"><span>حمل‌کننده</span><b>@CarrierKind.Label(trip.CarrierKind)@(trip.Company is null ? "" : " — " + trip.Company.Name)</b></div>
+                            <div class="kvrow"><span>حمل‌کننده</span><b>@CarrierKind.Label(trip.CarrierKind)@(trip.IsPaid && trip.Company is not null ? " — " + trip.Company.Name : "")</b></div>
                             <div class="kvrow">
                                 <span>راننده</span>
                                 <b>
-                                    @if (trip.Driver is not null)
+                                    @if (!trip.IsPaid)
+                                    {
+                                        <span class="muted">@Privacy.HiddenName</span>
+                                    }
+                                    else if (trip.Driver is not null)
                                     {
                                         <a class="lnk" href="/Shipper/Offers/Driver/@trip.Driver.DriverId">@trip.Driver.FullName</a>
                                         @Ui.Stars(trip.Driver.RatingAvg, trip.Driver.RatingCount)
@@ -105,9 +109,13 @@ else if (l.Status == LoadStatus.Expired)
                             <div class="kvrow">
                                 <span>خودرو</span>
                                 <b>
-                                    @if (trip.Vehicle is not null)
+                                    @if (trip.IsPaid && trip.Vehicle is not null)
                                     {
                                         <span class="plate">@trip.Vehicle.PlateNo</span> <span class="muted small">@trip.Vehicle.VehicleType?.Name</span>
+                                    }
+                                    else if (trip.Vehicle is not null)
+                                    {
+                                        <span class="muted small">@trip.Vehicle.VehicleType?.Name</span>
                                     }
                                     else
                                     {

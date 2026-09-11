@@ -9,6 +9,7 @@ public static class WalletTxnKind
     public const string FareIncome = "fare_income";     // سهم حمل‌کننده (+)
     public const string DriverShare = "driver_share";   // سهم رانندهٔ شرکت (+ راننده، − شرکت)
     public const string Commission = "commission";      // کمیسیون بارگو (+ پلتفرم)
+    public const string Fees = "fees";                  // هزینه‌های جانبی: بارگیری/تخلیه (+ حمل‌کننده)، بارنامه و مالیات (+ پلتفرم)
     public const string Payout = "payout";              // برداشت به حساب بانکی (−)
     public const string Refund = "refund";              // استرداد (+)
     public const string Subscription = "subscription";  // خرید اشتراک (−)
@@ -21,6 +22,7 @@ public static class WalletTxnKind
         FareIncome => "درآمد کرایه",
         DriverShare => "سهم راننده",
         Commission => "کمیسیون بارگو",
+        Fees => "هزینه‌های جانبی",
         Payout => "برداشت",
         Refund => "استرداد",
         Subscription => "اشتراک",

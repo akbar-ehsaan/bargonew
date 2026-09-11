@@ -145,7 +145,7 @@ public class OffersController(BargoDbContext db, CurrentUser me, TripFlow flow, 
         try
         {
             var trip = await flow.AcceptOfferAsync(id, me.ToActor(), ct);
-            TempData["ok"] = $"پیشنهاد پذیرفته شد و سفارش {trip.Code} ساخته شد. برای قطعی شدن حمل، کرایهٔ {Fa.Toman(trip.Fare)} را از کیف پول پرداخت کنید.";
+            TempData["ok"] = $"پیشنهاد پذیرفته شد و سفارش {trip.Code} ساخته شد. برای قطعی شدن حمل، {Fa.Toman(trip.TotalPayable)} (کرایه و هزینه‌ها) را از کیف پول پرداخت کنید.";
             return RedirectToAction("Detail", "Orders", new { id = trip.TripId });
         }
         catch (UserError e)
@@ -191,7 +191,10 @@ public class OffersController(BargoDbContext db, CurrentUser me, TripFlow flow, 
         var d = await db.Drivers.AsNoTracking().Include(x => x.City).Include(x => x.Company)
             .FirstOrDefaultAsync(x => x.DriverId == id, ct);
         if (d is null) return NotFound();
-        ViewData["Title"] = $"مشخصات راننده — {d.FullName}";
+
+        // هویت راننده فقط وقتی آشکار است که سفرِ پرداخت‌شده‌ای با او داشته باشیم (Privacy)
+        var revealed = await db.Trips.AsNoTracking().VisibleTo(me.ToActor()).AnyAsync(t => t.DriverId == id && t.IsPaid, ct);
+        ViewData["Title"] = revealed ? $"مشخصات راننده — {d.FullName}" : "مشخصات راننده";
 
         var vehicles = await db.Vehicles.AsNoTracking().Include(v => v.VehicleType)
             .Where(v => v.DriverId == id).OrderByDescending(v => v.Status == VehicleStatus.Active).ThenByDescending(v => v.VehicleId)
@@ -233,12 +236,15 @@ public class OffersController(BargoDbContext db, CurrentUser me, TripFlow flow, 
             .Include(o => o.Driver).Include(o => o.Vehicle).ThenInclude(v => v!.VehicleType)
             .ToListAsync(ct);
 
+        if (!revealed)
+            foreach (var v in vehicles) v.PlateNo = "———"; // فقط نمایش؛ ردیف‌ها AsNoTracking هستند
+
         return View(new ShipperDriverProfileVm
         {
             DriverId = d.DriverId,
-            Name = d.FullName,
+            Name = Privacy.Name(d.FullName, revealed),
             City = d.City?.Name,
-            CompanyName = d.Company?.Name,
+            CompanyName = Privacy.Optional(d.Company?.Name, revealed),
             Status = d.Status,
             RatingAvg = d.RatingAvg,
             RatingCount = d.RatingCount,
@@ -255,6 +261,11 @@ public class OffersController(BargoDbContext db, CurrentUser me, TripFlow flow, 
 
     // ------------------------------------------------------------------ ساخت ردیف‌ها
 
+    /// <summary>
+    /// هویت پیشنهاددهنده در مرحلهٔ پیشنهاد همیشه مخفی است (Privacy): نه نام، نه نام
+    /// شرکت، نه پلاک — صاحب بار با امتیاز، سابقه، خودرو و مدارک مقایسه می‌کند و پس از
+    /// پذیرش و پرداخت کرایه، حمل‌کننده را در صفحهٔ سفارش می‌بیند.
+    /// </summary>
     private static OfferCompareRow BasicRow(Offer o) => new()
     {
         OfferId = o.OfferId,
@@ -262,8 +273,8 @@ public class OffersController(BargoDbContext db, CurrentUser me, TripFlow flow, 
         CarrierKind = o.CarrierKind,
         DriverId = o.DriverId,
         CompanyId = o.CompanyId,
-        CarrierName = o.CarrierName,
-        DriverCompany = o.Driver?.Company?.Name,
+        CarrierName = o.CarrierKind == CarrierKind.Company ? "شرکت حمل‌ونقل" : "راننده",
+        DriverCompany = o.Driver?.Company is null ? null : "عضو شرکت حمل‌ونقل",
         Amount = o.Amount,
         EtaHours = o.EtaHours,
         Note = o.Note,
@@ -275,7 +286,7 @@ public class OffersController(BargoDbContext db, CurrentUser me, TripFlow flow, 
         VehicleFromOffer = o.Vehicle is not null,
         VehicleType = o.Vehicle?.VehicleType?.Name,
         BodyKind = o.Vehicle?.VehicleType?.BodyKind,
-        PlateNo = o.Vehicle?.PlateNo,
+        PlateNo = null, // پلاک شناساننده است و تا تأیید نهایی نمایش داده نمی‌شود
         CapacityTon = o.Vehicle?.CapacityTon,
         Brand = o.Vehicle?.Brand,
         VehicleModel = o.Vehicle?.Model,
@@ -352,7 +363,6 @@ public class OffersController(BargoDbContext db, CurrentUser me, TripFlow flow, 
                 {
                     row.VehicleType = av.VehicleType?.Name;
                     row.BodyKind = av.VehicleType?.BodyKind;
-                    row.PlateNo = av.PlateNo;
                     row.CapacityTon = av.CapacityTon;
                     row.Brand = av.Brand;
                     row.VehicleModel = av.Model;

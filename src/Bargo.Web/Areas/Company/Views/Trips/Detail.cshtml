@@ -81,12 +81,13 @@
                     }
                     <dt>صاحب بار</dt>
                     <dd>
-                        @if (l.Shipper is not null) { @l.Shipper.DisplayName <span class="num muted">@Fa.Digits(l.Shipper.Mobile)</span> }
+                        @if (l.Shipper is not null && !t.IsPaid) { <span class="muted">@Privacy.HiddenName</span> }
+                        else if (l.Shipper is not null) { @l.Shipper.DisplayName <span class="num muted">@Fa.Digits(l.Shipper.Mobile)</span> }
                         else if (Model.Customer is not null) { @Model.Customer.Name <span class="num muted">@Fa.Digits(Model.Customer.Mobile)</span> }
                         else if (Model.IsLoadOwner) { <text>مشتری شرکت</text> }
                         else { @(l.Company?.Name ?? "—") }
                     </dd>
-                    <dt>گیرنده</dt><dd>@(l.ReceiverName ?? "—") <span class="num">@Fa.Digits(l.ReceiverMobile)</span></dd>
+                    <dt>گیرنده</dt><dd>@(l.Shipper is not null && !t.IsPaid ? Privacy.HiddenName : (l.ReceiverName ?? "—")) <span class="num">@(l.Shipper is not null && !t.IsPaid ? "" : Fa.Digits(l.ReceiverMobile))</span></dd>
                     @if (!string.IsNullOrEmpty(l.Description))
                     {
                         <dt>توضیحات</dt><dd>@l.Description</dd>

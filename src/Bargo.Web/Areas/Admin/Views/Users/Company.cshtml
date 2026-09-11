@@ -93,7 +93,7 @@
             <div class="hd"><i class="bi bi-person-gear"></i> کاربران پنل شرکت</div>
             <div class="tbl-wrap">
                 <table class="tbl">
-                    <thead><tr><th>نام</th><th>موبایل</th><th>نقش</th><th>وضعیت</th><th>آخرین ورود</th></tr></thead>
+                    <thead><tr><th>نام</th><th>موبایل</th><th>نقش</th><th>وضعیت</th><th>آخرین ورود</th><th>نام کاربری و گذرواژه</th></tr></thead>
                     <tbody>
                     @foreach (var u in Model.Users)
                     {
@@ -103,11 +103,31 @@
                             <td>@TitleLabel(u.Title)</td>
                             <td>@(u.IsActive ? Ui.Pill("فعال", "ok") : Ui.Pill("غیرفعال", "mut"))</td>
                             <td class="nowrap">@(u.LastLoginAt is DateTime ll ? Fa.Ago(ll) : "هرگز")</td>
+                            <td>
+                                <div class="row-actions" style="gap:6px">
+                                    <form method="post" asp-action="SetMobile" class="row-actions" style="gap:4px"
+                                          data-confirm="شمارهٔ ورود «@u.Name» تغییر کند؟ از این پس ورود فقط با شمارهٔ تازه ممکن است.">
+                                        <input type="hidden" name="kind" value="companyuser" />
+                                        <input type="hidden" name="id" value="@u.CompanyUserId" />
+                                        <input type="hidden" name="returnUrl" value="@ret" />
+                                        <input name="mobile" value="@u.Mobile" dir="ltr" inputmode="numeric" style="width:125px" required />
+                                        <button class="btn2 sm ghost" title="تغییر موبایل (نام کاربری)"><i class="bi bi-phone"></i></button>
+                                    </form>
+                                    <form method="post" asp-action="SetPassword" class="row-actions" style="gap:4px"
+                                          data-confirm="گذرواژهٔ «@u.Name» عوض شود؟">
+                                        <input type="hidden" name="kind" value="companyuser" />
+                                        <input type="hidden" name="id" value="@u.CompanyUserId" />
+                                        <input type="hidden" name="returnUrl" value="@ret" />
+                                        <input name="password" type="password" minlength="8" placeholder="گذرواژهٔ تازه" style="width:125px" required autocomplete="new-password" />
+                                        <button class="btn2 sm ghost" title="تغییر گذرواژه (دست‌کم ۸ نویسه)"><i class="bi bi-key"></i></button>
+                                    </form>
+                                </div>
+                            </td>
                         </tr>
                     }
                     @if (Model.Users.Count == 0)
                     {
-                        <tr><td colspan="5" class="empty"><i class="bi bi-person-x"></i>کاربری برای این شرکت تعریف نشده است — کسی نمی‌تواند وارد پنل شود.</td></tr>
+                        <tr><td colspan="6" class="empty"><i class="bi bi-person-x"></i>کاربری برای این شرکت تعریف نشده است — کسی نمی‌تواند وارد پنل شود.</td></tr>
                     }
                     </tbody>
                 </table>

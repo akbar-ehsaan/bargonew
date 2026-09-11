@@ -97,8 +97,8 @@ public class WaybillsController(BargoDbContext db, CurrentUser me, TripFlow flow
                 From = t.Load!.OriginCity!.Name,
                 To = t.Load!.DestCity!.Name,
                 Status = t.Status,
-                ReceiverName = t.Load!.ReceiverName,
-                ReceiverMobile = t.Load!.ReceiverMobile,
+                ReceiverName = t.IsPaid ? t.Load!.ReceiverName : null,
+                ReceiverMobile = t.IsPaid ? t.Load!.ReceiverMobile : null,
                 DeliveredAt = t.DeliveredAt,
                 WaybillNo = t.Waybill!.Number
             });

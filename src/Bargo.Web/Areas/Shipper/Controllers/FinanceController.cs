@@ -31,7 +31,7 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
         {
             Balance = await wallet.BalanceAsync(OwnerKind.Shipper, me.Id, ct),
             UnpaidCount = await unpaid.CountAsync(ct),
-            UnpaidTotal = await unpaid.SumAsync(t => (long?)t.Fare, ct) ?? 0,
+            UnpaidTotal = await unpaid.SumAsync(t => (long?)(t.Fare + t.LoadingFee + t.UnloadingFee + t.WaybillFee + t.Vat), ct) ?? 0,
             PaidThisMonth = -(await db.WalletTransactions.AsNoTracking().Of(me.Owner)
                 .Where(t => t.Kind == WalletTxnKind.FarePayment && t.CreatedAt >= monthStart)
                 .SumAsync(t => (long?)t.Amount, ct) ?? 0),
@@ -43,33 +43,6 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
                 .OrderByDescending(p => p.PaymentId).Take(5).ToListAsync(ct)
         };
         return View(vm);
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> Charge(string? amountToman, CancellationToken ct)
-    {
-        var rial = Fa.ParseToman(amountToman);
-        if (rial is null or <= 0)
-        {
-            TempData["err"] = "مبلغ شارژ را به تومان و فقط با رقم وارد کنید.";
-            return RedirectToAction(nameof(Index));
-        }
-        if (rial > MaxChargeRial)
-        {
-            TempData["err"] = $"حداکثر مبلغ هر شارژ {Fa.Toman(MaxChargeRial)} است.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        try
-        {
-            var pay = await wallet.ChargeAsync(OwnerKind.Shipper, me.Id, rial.Value, ct);
-            TempData["ok"] = $"کیف پول {Fa.Toman(rial.Value)} شارژ شد (پرداخت آزمایشی · کد پیگیری {pay.RefId}).";
-        }
-        catch (UserError e)
-        {
-            TempData["err"] = e.Message;
-        }
-        return RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
@@ -87,12 +60,12 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
         try
         {
             await flow.PayFareFromWalletAsync(trip, me.ToActor(), ct);
-            TempData["ok"] = $"کرایهٔ سفر {trip.Code} ({Fa.Toman(trip.Fare)}) پرداخت شد. مبلغ تا تحویل بار نزد بارگو امانت می‌ماند.";
+            TempData["ok"] = $"کرایه و هزینه‌های سفر {trip.Code} ({Fa.Toman(trip.TotalPayable)}) پرداخت شد. مبلغ تا تحویل بار نزد بارگو امانت می‌ماند.";
         }
         catch (UserError e)
         {
             TempData["err"] = e.Message.Contains("موجودی")
-                ? $"{e.Message} برای پرداخت {Fa.Toman(trip.Fare)} ابتدا کیف پول را شارژ کنید."
+                ? $"{e.Message} برای پرداخت {Fa.Toman(trip.TotalPayable)} ابتدا کیف پول را شارژ کنید."
                 : e.Message;
         }
         return !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl) : RedirectToAction(nameof(Pay));

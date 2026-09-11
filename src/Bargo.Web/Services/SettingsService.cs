@@ -19,7 +19,11 @@ public class SettingsService(BargoDbContext db, IMemoryCache cache)
         public const string CommissionPercent = "Finance.CommissionPercent";
         public const string CommissionMinRial = "Finance.CommissionMinRial";
         public const string MinPayoutRial = "Finance.MinPayoutRial";
+        public const string VatEnabled = "Finance.VatEnabled";
         public const string VatPercent = "Finance.VatPercent";
+        public const string LoadingFeeRial = "Finance.LoadingFeeRial";
+        public const string UnloadingFeeRial = "Finance.UnloadingFeeRial";
+        public const string WaybillFeeRial = "Finance.WaybillFeeRial";
 
         public const string DeliveryOtp = "Trip.DeliveryOtp";
         public const string RequireWaybill = "Trip.RequireWaybill";
@@ -35,6 +39,8 @@ public class SettingsService(BargoDbContext db, IMemoryCache cache)
         public const string SmsProvider = "Sms.Provider";
         public const string SmsApiKey = "Sms.ApiKey";
         public const string SmsLine = "Sms.Line";
+        public const string SmsUrl = "Sms.Url";
+        public const string SmsUsername = "Sms.Username";
 
         public const string GatewayProvider = "Gateway.Provider";
         public const string GatewayMerchant = "Gateway.MerchantId";
@@ -55,7 +61,11 @@ public class SettingsService(BargoDbContext db, IMemoryCache cache)
         [Keys.CommissionPercent] = new("8", "درصد کمیسیون بارگو از کرایه", "finance"),
         [Keys.CommissionMinRial] = new("500000", "حداقل کمیسیون هر سفر (ریال)", "finance"),
         [Keys.MinPayoutRial] = new("1000000", "حداقل مبلغ درخواست برداشت (ریال)", "finance"),
-        [Keys.VatPercent] = new("0", "درصد مالیات بر ارزش افزوده روی فاکتور", "finance"),
+        [Keys.VatEnabled] = new("false", "مالیات بر ارزش افزوده اعمال شود", "finance"),
+        [Keys.VatPercent] = new("10", "درصد مالیات بر ارزش افزوده", "finance"),
+        [Keys.LoadingFeeRial] = new("0", "هزینهٔ بارگیری هر سفر (ریال)", "finance"),
+        [Keys.UnloadingFeeRial] = new("0", "هزینهٔ تخلیه هر سفر (ریال)", "finance"),
+        [Keys.WaybillFeeRial] = new("0", "هزینهٔ صدور بارنامه هر سفر (ریال)", "finance"),
 
         [Keys.DeliveryOtp] = new("true", "تحویل فقط با کد یکبارمصرف گیرنده", "waybill"),
         [Keys.RequireWaybill] = new("true", "ثبت بارنامه پیش از شروع سفر الزامی است", "waybill"),
@@ -70,11 +80,13 @@ public class SettingsService(BargoDbContext db, IMemoryCache cache)
         [Keys.MapTileUrl] = new("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", "آدرس کاشی نقشه", "map"),
         [Keys.NeshanKey] = new("", "کلید نقشهٔ نشان (اختیاری)", "map"),
 
-        [Keys.SmsProvider] = new("log", "سرویس پیامک (log = فقط ثبت، بدون ارسال)", "sms"),
+        [Keys.SmsProvider] = new("log", "سرویس پیامک (log = فقط ثبت | ictx = ارسال واقعی)", "sms"),
         [Keys.SmsApiKey] = new("", "کلید API پیامک", "sms"),
         [Keys.SmsLine] = new("", "شماره خط ارسال", "sms"),
+        [Keys.SmsUrl] = new("https://sms.ictx.ir/api/rest/sms/send", "آدرس وب‌سرویس پیامک", "sms"),
+        [Keys.SmsUsername] = new("", "نام کاربری پنل پیامک (اختیاری)", "sms"),
 
-        [Keys.GatewayProvider] = new("demo", "درگاه پرداخت (demo = آزمایشی)", "gateway"),
+        [Keys.GatewayProvider] = new("demo", "درگاه پرداخت (demo = آزمایشی | zarinpal = زرین‌پال)", "gateway"),
         [Keys.GatewayMerchant] = new("", "شناسهٔ پذیرنده (Merchant ID)", "gateway"),
         [Keys.GatewaySandbox] = new("true", "حالت آزمایشی درگاه", "gateway"),
 

@@ -204,6 +204,12 @@
             <div class="card2">
                 <div class="hd"><i class="bi bi-person-badge"></i> حمل‌کننده</div>
                 <div class="bd">
+                    @if (!trip.IsPaid)
+                    {
+                        <div class="alert2 info"><i class="bi bi-incognito"></i><div class="grow">@Privacy.HiddenNote</div></div>
+                    }
+                    else
+                    {
                     @if (trip.Company is { } tco)
                     {
                         <div class="kvrow"><span>شرکت</span><b>@tco.Name</b></div>
@@ -226,6 +232,7 @@
                     else
                     {
                         <div class="kvrow"><span>خودرو</span><b class="chip">هنوز تعیین نشده</b></div>
+                    }
                     }
                     <div class="form-actions" style="margin-top:12px">
                         <a class="btn2 ghost sm" href="@Url.Action("Thread", "Messages", new { key = "trip:" + trip.TripId })"><i class="bi bi-chat-dots"></i> پیام به حمل‌کننده</a>

@@ -239,7 +239,7 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
         return View(new CompanyReceivablesVm
         {
             Unpaid = await PageVm<CompanyTripRow>.FromAsync(unpaid.OrderBy(t => t.CreatedAt).AsRows(partyIsCarrier: false), page, PageLink.For(Request), ct: ct),
-            UnpaidTotal = await unpaid.SumAsync(t => (long?)t.Fare, ct) ?? 0,
+            UnpaidTotal = await unpaid.SumAsync(t => (long?)(t.Fare + t.LoadingFee + t.UnloadingFee + t.WaybillFee + t.Vat), ct) ?? 0,
             UnpaidShare = await unpaid.SumAsync(t => (long?)t.CarrierShare, ct) ?? 0,
             Offline = await offline.OrderByDescending(t => t.DeliveredAt).Take(50).AsRows(partyIsCarrier: false).ToListAsync(ct),
             OfflineTotal = await offline.SumAsync(t => (long?)t.Fare, ct) ?? 0
@@ -260,7 +260,7 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
             DriverShares = await shares.OrderBy(t => t.SettledAt).AsRows(partyIsCarrier: false).ToListAsync(ct),
             DriverSharesTotal = await shares.SumAsync(t => (long?)t.DriverShare, ct) ?? 0,
             Fares = await fares.OrderBy(t => t.CreatedAt).AsRows(partyIsCarrier: true).ToListAsync(ct),
-            FaresTotal = await fares.SumAsync(t => (long?)t.Fare, ct) ?? 0
+            FaresTotal = await fares.SumAsync(t => (long?)(t.Fare + t.LoadingFee + t.UnloadingFee + t.WaybillFee + t.Vat), ct) ?? 0
         });
     }
 
@@ -392,7 +392,7 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
             Tab = tab,
             Rows = await PageVm<CompanyTripRow>.FromAsync(list.AsRows(partyIsCarrier: true), page, PageLink.For(Request), ct: ct),
             UnpaidCount = await unpaid.CountAsync(ct),
-            UnpaidTotal = await unpaid.SumAsync(t => (long?)t.Fare, ct) ?? 0,
+            UnpaidTotal = await unpaid.SumAsync(t => (long?)(t.Fare + t.LoadingFee + t.UnloadingFee + t.WaybillFee + t.Vat), ct) ?? 0,
             PaidCount = await all.CountAsync(t => t.IsPaid, ct),
             PaidThisMonth = -(await db.WalletTransactions.AsNoTracking().Of(me.Owner)
                 .Where(t => t.Kind == WalletTxnKind.FarePayment && t.CreatedAt >= monthStart).SumAsync(t => (long?)t.Amount, ct) ?? 0)
@@ -407,12 +407,12 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
         try
         {
             await flow.PayFareFromWalletAsync(trip, me.ToActor(), ct);
-            TempData["ok"] = $"کرایهٔ سفر {trip.Code} ({Fa.Toman(trip.Fare)}) از کیف پول شرکت پرداخت شد و تا تحویل بار نزد بارگو امانت می‌ماند.";
+            TempData["ok"] = $"کرایه و هزینه‌های سفر {trip.Code} ({Fa.Toman(trip.TotalPayable)}) از کیف پول شرکت پرداخت شد و تا تحویل بار نزد بارگو امانت می‌ماند.";
         }
         catch (UserError e)
         {
             TempData["err"] = e.Message.Contains("موجودی")
-                ? $"{e.Message} برای پرداخت {Fa.Toman(trip.Fare)} ابتدا کیف پول شرکت را شارژ کنید."
+                ? $"{e.Message} برای پرداخت {Fa.Toman(trip.TotalPayable)} ابتدا کیف پول شرکت را شارژ کنید."
                 : e.Message;
         }
         return RedirectToAction(nameof(ShipperSettlements));

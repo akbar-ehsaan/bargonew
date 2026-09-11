@@ -112,6 +112,8 @@ public class LoadsController(BargoDbContext db, CurrentUser me, TripFlow flow, D
                 DeclaredValueToman = ShipperUi.TomanBox(l.DeclaredValue),
                 Description = l.Description,
                 InsuranceRequested = l.InsuranceRequested,
+                InsuranceType = l.InsuranceType,
+                InsuranceAmountToman = ShipperUi.TomanBox(l.InsuranceAmount),
                 ReceiverName = l.ReceiverName, ReceiverMobile = l.ReceiverMobile,
                 TargetCompanyId = l.TargetCompanyId
             };
@@ -215,6 +217,15 @@ public class LoadsController(BargoDbContext db, CurrentUser me, TripFlow flow, D
         if (vm.InsuranceRequested && declared is null or 0 && !ModelState.ContainsKey(nameof(vm.DeclaredValueToman)))
             ModelState.AddModelError(nameof(vm.DeclaredValueToman), "برای بیمهٔ بار، ارزش تقریبی بار را وارد کنید.");
 
+        // ---- بیمه: نوع و مبلغ — در بارنامه ثبت می‌شود ----
+        var insuranceType = vm.InsuranceType?.Trim();
+        if (insuranceType is { Length: > 40 }) ModelState.AddModelError(nameof(vm.InsuranceType), "نوع بیمه حداکثر ۴۰ نویسه باشد.");
+        if (vm.InsuranceRequested && !draft && string.IsNullOrEmpty(insuranceType))
+            ModelState.AddModelError(nameof(vm.InsuranceType), "نوع بیمهٔ بار را انتخاب کنید.");
+        var insuranceAmount = Fa.ParseToman(vm.InsuranceAmountToman);
+        if (!string.IsNullOrWhiteSpace(vm.InsuranceAmountToman) && insuranceAmount is null)
+            ModelState.AddModelError(nameof(vm.InsuranceAmountToman), "مبلغ بیمه را فقط با رقم بنویسید.");
+
         // ---- توضیحات، گیرنده، شرکت ----
         var description = vm.Description?.Trim();
         if (description is { Length: > 2000 }) ModelState.AddModelError(nameof(vm.Description), "توضیحات حداکثر ۲۰۰۰ نویسه باشد.");
@@ -273,6 +284,8 @@ public class LoadsController(BargoDbContext db, CurrentUser me, TripFlow flow, D
             VehicleTypeId = vType?.VehicleTypeId,
             LoadingFrom = loadingFrom, LoadingTo = loadingTo,
             PriceMode = mode, Price = price, DeclaredValue = declared, InsuranceRequested = vm.InsuranceRequested,
+            InsuranceType = string.IsNullOrEmpty(insuranceType) ? null : insuranceType,
+            InsuranceAmount = insuranceAmount,
             Description = string.IsNullOrWhiteSpace(description) ? null : description,
             ReceiverName = string.IsNullOrWhiteSpace(receiverName) ? null : receiverName,
             ReceiverMobile = receiverMobile,
@@ -296,7 +309,12 @@ public class LoadsController(BargoDbContext db, CurrentUser me, TripFlow flow, D
                 if (path is not null) db.LoadPhotos.Add(new LoadPhoto { LoadId = load.LoadId, FilePath = path });
             }
 
-            if (!draft) await AnnounceAsync(load, targetName, ct);
+            if (!draft)
+            {
+                await AnnounceAsync(load, targetName, ct);
+                // کد تحویل همین حالا ساخته و به گیرنده پیامک می‌شود؛ هنگام رسیدن بار به راننده می‌دهد
+                await flow.IssueLoadDeliveryCodeAsync(load, ct);
+            }
             await db.SaveChangesAsync(ct);
         }
         catch (UserError e)
@@ -409,9 +427,10 @@ public class LoadsController(BargoDbContext db, CurrentUser me, TripFlow flow, D
             ? await db.Companies.Where(c => c.CompanyId == cid).Select(c => c.Name).FirstOrDefaultAsync(ct)
             : null;
         await AnnounceAsync(load, targetName, ct);
+        if (load.DeliveryCodeHash is null) await flow.IssueLoadDeliveryCodeAsync(load, ct);
         await db.SaveChangesAsync(ct);
 
-        TempData["ok"] = $"بار {load.Code} منتشر شد.";
+        TempData["ok"] = $"بار {load.Code} منتشر شد و کد تحویل برای گیرنده پیامک شد.";
         return RedirectToAction(nameof(Detail), new { id });
     }
 

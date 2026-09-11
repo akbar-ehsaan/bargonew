@@ -95,7 +95,7 @@ else
                         <dt>مسیر</dt><dd>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</dd>
                         <dt>کالا</dt><dd>@l.Title · @l.CargoType · @Fa.N(l.WeightTon, 1) تن</dd>
                         <dt>فرستنده</dt><dd>@(string.IsNullOrEmpty(Model.OwnerName) ? "—" : Model.OwnerName)</dd>
-                        <dt>گیرنده</dt><dd>@(string.IsNullOrEmpty(l.ReceiverName) ? "—" : l.ReceiverName)@(string.IsNullOrEmpty(l.ReceiverMobile) ? "" : " · " + l.ReceiverMobile)</dd>
+                        <dt>گیرنده</dt><dd>@(!t.IsPaid ? Privacy.HiddenName : string.IsNullOrEmpty(l.ReceiverName) ? "—" : l.ReceiverName)@(!t.IsPaid || string.IsNullOrEmpty(l.ReceiverMobile) ? "" : " · " + l.ReceiverMobile)</dd>
                         <dt>خودرو</dt>
                         <dd>
                             @if (t.Vehicle is not null)
@@ -108,6 +108,14 @@ else
                             }
                         </dd>
                         <dt>کرایه</dt><dd>@Fa.Toman(t.Fare)</dd>
+                        @if (!string.IsNullOrEmpty(l.InsuranceType))
+                        {
+                            <dt>نوع بیمه</dt><dd>@l.InsuranceType</dd>
+                        }
+                        @if (l.InsuranceAmount is long insAmount)
+                        {
+                            <dt>مبلغ بیمه</dt><dd>@Fa.Toman(insAmount)</dd>
+                        }
                         @if (Model.IsCompanyTrip)
                         {
                             <dt>شرکت</dt><dd>@(t.Company?.Name ?? "—")</dd>

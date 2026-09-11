@@ -72,21 +72,16 @@
 
     <div class="stack">
         <div class="card2" id="charge">
-            <div class="hd"><i class="bi bi-plus-circle"></i> شارژ کیف پول <span class="end">@Ui.Pill("پرداخت آزمایشی", "wait")</span></div>
+            <div class="hd"><i class="bi bi-plus-circle"></i> شارژ کیف پول <span class="end">@Ui.Pill(Model.DemoGateway ? "پرداخت آزمایشی" : "درگاه زرین‌پال", Model.DemoGateway ? "wait" : "ok")</span></div>
             <div class="bd">
-                <div class="alert2 warn"><i class="bi bi-exclamation-triangle-fill"></i>
-                    <div class="grow">
-                        @if (Model.DemoGateway)
-                        {
-                            <text>درگاه پرداخت بانکی هنوز متصل نیست. این شارژ «پرداخت آزمایشی» است: هیچ مبلغی از حساب بانکی شما کسر نمی‌شود و موجودی فقط برای آزمودن سامانه افزایش می‌یابد.</text>
-                        }
-                        else
-                        {
-                            <text>درگاه پرداخت در تنظیمات سامانه تعریف شده ولی هنوز به این صفحه وصل نشده است؛ شارژ از این فرم همچنان «پرداخت آزمایشی» ثبت می‌شود و مبلغی از حساب بانکی کسر نمی‌شود.</text>
-                        }
+                @if (Model.DemoGateway)
+                {
+                    <div class="alert2 warn"><i class="bi bi-exclamation-triangle-fill"></i>
+                        <div class="grow">درگاه پرداخت بانکی هنوز متصل نیست. این شارژ «پرداخت آزمایشی» است: هیچ مبلغی از حساب بانکی شما کسر نمی‌شود و موجودی فقط برای آزمودن سامانه افزایش می‌یابد.</div>
                     </div>
-                </div>
-                <form method="post" asp-action="Charge">
+                }
+                <form method="post" asp-area="" asp-controller="Pay" asp-action="Charge">
+                    <input type="hidden" name="returnUrl" value="/Shipper/Finance" />
                     <div class="fld">
                         <label>مبلغ شارژ (تومان) <span class="req">*</span></label>
                         <input name="amountToman" class="money" inputmode="numeric" required placeholder="مثلاً ۵۰۰,۰۰۰"
@@ -94,7 +89,7 @@
                         <span class="hint">حداقل ۱,۰۰۰ تومان و حداکثر ۱,۰۰۰,۰۰۰,۰۰۰ تومان در هر شارژ.@(Model.UnpaidTotal > Model.Balance ? " مبلغ پیشنهادی، کسری کرایه‌های پرداخت‌نشده است." : "")</span>
                     </div>
                     <div class="form-actions">
-                        <button class="btn2 pri block"><i class="bi bi-lightning-charge"></i> شارژ آزمایشی کیف پول</button>
+                        <button class="btn2 pri block"><i class="bi bi-lightning-charge"></i> @(Model.DemoGateway ? "شارژ آزمایشی کیف پول" : "پرداخت و شارژ کیف پول")</button>
                     </div>
                 </form>
             </div>

@@ -46,14 +46,22 @@ else
                     <div class="grid-side">
                         <dl class="kv">
                             <dt>بار</dt><dd>@l.Title — @l.CargoType · @OpsLabels.Ton(l.WeightTon) تن</dd>
-                            <dt>صاحب بار</dt><dd>@(l.Shipper?.DisplayName ?? "مشتری شرکت")</dd>
-                            <dt>گیرنده</dt><dd>@(l.ReceiverName ?? "—") <span class="num">@Fa.Digits(l.ReceiverMobile)</span></dd>
+                            <dt>صاحب بار</dt><dd>@(l.Shipper is not null ? (t.IsPaid ? l.Shipper.DisplayName : Privacy.HiddenName) : "مشتری شرکت")</dd>
+                            <dt>گیرنده</dt><dd>@(l.Shipper is not null && !t.IsPaid ? Privacy.HiddenName : l.ReceiverName ?? "—") <span class="num">@(l.Shipper is not null && !t.IsPaid ? "" : Fa.Digits(l.ReceiverMobile))</span></dd>
                             <dt>راننده</dt><dd>@(t.Driver?.FullName ?? "—")@if (t.Vehicle is not null) { <text> · </text><span class="plate">@t.Vehicle.PlateNo</span> }</dd>
                             <dt>بارگیری</dt><dd>@Fa.Stamp(t.LoadedAt ?? l.LoadingFrom)</dd>
                             <dt>کرایه</dt><dd class="num">@Fa.Toman(t.Fare)</dd>
                             @if (l.DeclaredValue is long dv)
                             {
                                 <dt>ارزش اعلامی</dt><dd class="num">@Fa.Toman(dv)@(l.InsuranceRequested ? " · نیازمند بیمه" : "")</dd>
+                            }
+                            @if (!string.IsNullOrEmpty(l.InsuranceType))
+                            {
+                                <dt>نوع بیمه</dt><dd>@l.InsuranceType</dd>
+                            }
+                            @if (l.InsuranceAmount is long ia)
+                            {
+                                <dt>مبلغ بیمه</dt><dd class="num">@Fa.Toman(ia)</dd>
                             }
                         </dl>
                         <form method="post" asp-action="Issue" enctype="multipart/form-data">

@@ -31,9 +31,10 @@ public class LoadsController(BargoDbContext db, CurrentUser me, TripFlow flow, A
         Dest = l.DestCity!.Name, DestProvince = l.DestCity.Province!.Name,
         WeightTon = l.WeightTon, VehicleType = l.VehicleType != null ? l.VehicleType.Name : null,
         LoadingFrom = l.LoadingFrom, PriceMode = l.PriceMode, Price = l.Price, DistanceKm = l.DistanceKm,
+        // صاحب بار در بازار ناشناس است (Privacy)؛ فقط بارهای خودِ شرکت نام دارند
         OwnerName = l.Shipper != null
-            ? (l.Shipper.Kind == "business" && l.Shipper.BusinessName != null && l.Shipper.BusinessName != "" ? l.Shipper.BusinessName : l.Shipper.FullName)
-            : (l.Company != null ? l.Company.Name : ""),
+            ? (l.Shipper.Kind == "business" ? "صاحب بار (کسب‌وکار)" : "صاحب بار (حقیقی)")
+            : (l.Company != null ? (l.CompanyId == cid ? l.Company.Name : "شرکت حمل‌ونقل") : ""),
         OwnerRating = l.Shipper != null ? l.Shipper.RatingAvg : (l.Company != null ? l.Company.RatingAvg : 0),
         OwnerRatingCount = l.Shipper != null ? l.Shipper.RatingCount : (l.Company != null ? l.Company.RatingCount : 0),
         PendingOffers = l.Offers.Count(o => o.Status == OfferStatus.Pending),
@@ -160,6 +161,12 @@ public class LoadsController(BargoDbContext db, CurrentUser me, TripFlow flow, A
 
         load.Code = Codes.Make("L", load.LoadId, load.CreatedAt);
         if (customer is not null) CompanyOps.LinkCustomer(audit, load.LoadId, customer);
+        // کد تحویل همان لحظهٔ ثبت ساخته و به گیرنده/مشتری پیامک می‌شود
+        if (!string.IsNullOrEmpty(load.ReceiverMobile ?? customer?.Mobile))
+        {
+            load.ReceiverMobile ??= customer?.Mobile;
+            await flow.IssueLoadDeliveryCodeAsync(load, ct);
+        }
         await db.SaveChangesAsync(ct);
 
         if (!own)

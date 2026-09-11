@@ -221,14 +221,15 @@ public class LoadsController(BargoDbContext db, CurrentUser me, TripFlow flow, D
         ViewData["Title"] = $"بار {load.Code}";
         var vm = new LoadDetailVm { Load = load };
 
-        // صاحب بار: نام و امتیاز — موبایل پیش از قطعی شدن نمایش داده نمی‌شود
+        // صاحب بار در مرحلهٔ بازار همیشه ناشناس است (Privacy): فقط نوع و امتیازش —
+        // نام و موبایل پس از ساخت سفر و پرداخت کرایه در صفحهٔ سفر دیده می‌شود
         if (load.ShipperId is int sid)
         {
             var s = await db.Shippers.AsNoTracking().Where(x => x.ShipperId == sid)
-                .Select(x => new { x.Kind, x.FullName, x.BusinessName, x.RatingAvg, x.RatingCount }).FirstOrDefaultAsync(ct);
+                .Select(x => new { x.Kind, x.RatingAvg, x.RatingCount }).FirstOrDefaultAsync(ct);
             if (s is not null)
             {
-                vm.OwnerName = s.Kind == "business" && !string.IsNullOrWhiteSpace(s.BusinessName) ? s.BusinessName! : s.FullName;
+                vm.OwnerName = s.Kind == "business" ? "صاحب بار (کسب‌وکار)" : "صاحب بار (حقیقی)";
                 vm.OwnerRating = s.RatingAvg;
                 vm.OwnerRatingCount = s.RatingCount;
             }
@@ -236,9 +237,9 @@ public class LoadsController(BargoDbContext db, CurrentUser me, TripFlow flow, D
         else if (load.CompanyId is int cid)
         {
             var c = await db.Companies.AsNoTracking().Where(x => x.CompanyId == cid)
-                .Select(x => new { x.Name, x.RatingAvg, x.RatingCount }).FirstOrDefaultAsync(ct);
+                .Select(x => new { x.RatingAvg, x.RatingCount }).FirstOrDefaultAsync(ct);
             vm.OwnerIsCompany = true;
-            vm.OwnerName = c?.Name ?? "";
+            vm.OwnerName = "شرکت حمل‌ونقل";
             vm.OwnerRating = c?.RatingAvg ?? 0;
             vm.OwnerRatingCount = c?.RatingCount ?? 0;
         }

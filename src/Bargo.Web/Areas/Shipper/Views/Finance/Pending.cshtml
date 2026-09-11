@@ -46,11 +46,11 @@
                     <td>@Ui.Route(unpaidTrip.From, unpaidTrip.To)</td>
                     <td>@Ui.TripPill(unpaidTrip.Status)</td>
                     <td class="nowrap">@Fa.Date(unpaidTrip.CreatedAt)</td>
-                    <td class="nowrap"><b class="num">@Fa.Toman(unpaidTrip.Fare)</b></td>
+                    <td class="nowrap"><b class="num">@Fa.Toman(unpaidTrip.Total)</b></td>
                     <td>
-                        @if (Model.Balance >= unpaidTrip.Fare)
+                        @if (Model.Balance >= unpaidTrip.Total)
                         {
-                            <form method="post" asp-action="Pay" data-confirm="@($"کرایهٔ سفر {unpaidTrip.Code} به مبلغ {Fa.Toman(unpaidTrip.Fare)} از کیف پول پرداخت شود؟")">
+                            <form method="post" asp-action="Pay" data-confirm="@($"کرایه و هزینه‌های سفر {unpaidTrip.Code} به مبلغ {Fa.Toman(unpaidTrip.Total)} از کیف پول پرداخت شود؟")">
                                 <input type="hidden" name="tripId" value="@unpaidTrip.TripId" />
                                 <input type="hidden" name="returnUrl" value="@backHere" />
                                 <button class="btn2 pri sm"><i class="bi bi-credit-card"></i> پرداخت</button>

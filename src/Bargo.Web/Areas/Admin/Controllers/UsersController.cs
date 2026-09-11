@@ -363,6 +363,133 @@ public class UsersController(
     //  تغییر وضعیت حساب
     // ------------------------------------------------------------------
 
+    // ------------------------------------------------------------------
+    //  تغییر نام کاربری (موبایل) و گذرواژه — برای مدیران، همین کار در
+    //  «تنظیمات ← نقش‌ها و دسترسی‌ها» (SettingsController.SaveAdmin/ResetPassword) است.
+    // ------------------------------------------------------------------
+
+    private const int MinPassword = 8;
+    /// <summary>کاربر پنل شرکت — kind جدا از OwnerKind.Company تا با خودِ شرکت اشتباه نشود.</summary>
+    private const string KindCompanyUser = "companyuser";
+
+    [HttpPost]
+    public async Task<IActionResult> SetMobile(string kind, int id, string? mobile, string? returnUrl, CancellationToken ct)
+    {
+        var fallback = "/Admin/Users/Drivers";
+        try
+        {
+            var m = Fa.NormMobile(mobile);
+            if (m.Length == 0) throw new UserError("شمارهٔ موبایل معتبر نیست (۰۹xxxxxxxxx).");
+
+            switch (kind)
+            {
+                case OwnerKind.Driver:
+                {
+                    fallback = $"/Admin/Users/Driver/{id}";
+                    var row = await db.Drivers.FirstOrDefaultAsync(x => x.DriverId == id, ct) ?? throw new UserError("راننده پیدا نشد.");
+                    if (row.Mobile == m) throw new UserError("شمارهٔ واردشده همان شمارهٔ فعلی است.");
+                    if (await db.Drivers.AnyAsync(x => x.Mobile == m && x.DriverId != id, ct))
+                        throw new UserError("این شماره برای رانندهٔ دیگری ثبت شده است.");
+                    var before = row.Mobile;
+                    row.Mobile = m;
+                    audit.Add("Driver", id, "change_mobile", $"تغییر نام کاربری راننده «{row.FullName}» از {before} به {m}", new { before, after = m });
+                    await db.SaveChangesAsync(ct);
+                    TempData["ok"] = $"نام کاربری (موبایل) «{row.FullName}» به {Fa.Digits(m)} تغییر کرد؛ از این پس ورود با شمارهٔ تازه است.";
+                    break;
+                }
+                case OwnerKind.Shipper:
+                {
+                    fallback = $"/Admin/Users/Shipper/{id}";
+                    var row = await db.Shippers.FirstOrDefaultAsync(x => x.ShipperId == id, ct) ?? throw new UserError("صاحب بار پیدا نشد.");
+                    if (row.Mobile == m) throw new UserError("شمارهٔ واردشده همان شمارهٔ فعلی است.");
+                    if (await db.Shippers.AnyAsync(x => x.Mobile == m && x.ShipperId != id, ct))
+                        throw new UserError("این شماره برای صاحب بار دیگری ثبت شده است.");
+                    var before = row.Mobile;
+                    row.Mobile = m;
+                    audit.Add("Shipper", id, "change_mobile", $"تغییر نام کاربری صاحب بار «{row.DisplayName}» از {before} به {m}", new { before, after = m });
+                    await db.SaveChangesAsync(ct);
+                    TempData["ok"] = $"نام کاربری (موبایل) «{row.DisplayName}» به {Fa.Digits(m)} تغییر کرد؛ از این پس ورود با شمارهٔ تازه است.";
+                    break;
+                }
+                case KindCompanyUser:
+                {
+                    var row = await db.CompanyUsers.FirstOrDefaultAsync(x => x.CompanyUserId == id, ct) ?? throw new UserError("کاربر شرکت پیدا نشد.");
+                    fallback = $"/Admin/Users/Company/{row.CompanyId}";
+                    if (row.Mobile == m) throw new UserError("شمارهٔ واردشده همان شمارهٔ فعلی است.");
+                    if (await db.CompanyUsers.AnyAsync(x => x.Mobile == m && x.CompanyUserId != id, ct))
+                        throw new UserError("این شماره برای کاربر شرکت دیگری ثبت شده است.");
+                    var before = row.Mobile;
+                    row.Mobile = m;
+                    audit.Add("CompanyUser", id, "change_mobile", $"تغییر نام کاربری کاربر شرکت «{row.Name}» از {before} به {m}", new { row.CompanyId, before, after = m });
+                    await db.SaveChangesAsync(ct);
+                    TempData["ok"] = $"نام کاربری (موبایل) «{row.Name}» به {Fa.Digits(m)} تغییر کرد؛ از این پس ورود با شمارهٔ تازه است.";
+                    break;
+                }
+                default:
+                    return BadRequest();
+            }
+        }
+        catch (UserError e)
+        {
+            TempData["err"] = e.Message;
+        }
+        return AdminOps.Back(this, returnUrl, fallback);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> SetPassword(string kind, int id, string? password, string? returnUrl, CancellationToken ct)
+    {
+        var fallback = "/Admin/Users/Drivers";
+        try
+        {
+            if (string.IsNullOrEmpty(password) || password.Length < MinPassword)
+                throw new UserError($"گذرواژهٔ تازه دست‌کم {Fa.N(MinPassword)} نویسه باشد.");
+            var hash = PasswordHasher.Hash(password);
+
+            // در حسابرسی فقط «چه کسی گذرواژهٔ چه کسی را عوض کرد» می‌ماند — نه خودِ گذرواژه
+            switch (kind)
+            {
+                case OwnerKind.Driver:
+                {
+                    fallback = $"/Admin/Users/Driver/{id}";
+                    var row = await db.Drivers.FirstOrDefaultAsync(x => x.DriverId == id, ct) ?? throw new UserError("راننده پیدا نشد.");
+                    row.PassHash = hash;
+                    audit.Add("Driver", id, "set_password", $"تعیین گذرواژهٔ تازه برای راننده «{row.FullName}» ({row.Mobile})");
+                    await db.SaveChangesAsync(ct);
+                    TempData["ok"] = $"گذرواژهٔ «{row.FullName}» عوض شد.";
+                    break;
+                }
+                case OwnerKind.Shipper:
+                {
+                    fallback = $"/Admin/Users/Shipper/{id}";
+                    var row = await db.Shippers.FirstOrDefaultAsync(x => x.ShipperId == id, ct) ?? throw new UserError("صاحب بار پیدا نشد.");
+                    row.PassHash = hash;
+                    audit.Add("Shipper", id, "set_password", $"تعیین گذرواژهٔ تازه برای صاحب بار «{row.DisplayName}» ({row.Mobile})");
+                    await db.SaveChangesAsync(ct);
+                    TempData["ok"] = $"گذرواژهٔ «{row.DisplayName}» عوض شد.";
+                    break;
+                }
+                case KindCompanyUser:
+                {
+                    var row = await db.CompanyUsers.FirstOrDefaultAsync(x => x.CompanyUserId == id, ct) ?? throw new UserError("کاربر شرکت پیدا نشد.");
+                    fallback = $"/Admin/Users/Company/{row.CompanyId}";
+                    row.PassHash = hash;
+                    audit.Add("CompanyUser", id, "set_password", $"تعیین گذرواژهٔ تازه برای کاربر شرکت «{row.Name}» ({row.Mobile})", new { row.CompanyId });
+                    await db.SaveChangesAsync(ct);
+                    TempData["ok"] = $"گذرواژهٔ «{row.Name}» عوض شد.";
+                    break;
+                }
+                default:
+                    return BadRequest();
+            }
+        }
+        catch (UserError e)
+        {
+            TempData["err"] = e.Message;
+        }
+        return AdminOps.Back(this, returnUrl, fallback);
+    }
+
     [HttpPost]
     public async Task<IActionResult> SetStatus(string kind, int id, string status, string? reason, string? returnUrl, CancellationToken ct)
     {

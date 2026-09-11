@@ -78,9 +78,9 @@ public class DashboardController(BargoDbContext db, CurrentUser me) : Controller
                 $"/Shipper/Orders/Detail/{t.TripId}", "bi-shield-lock", "inf"));
 
         var unpaid = await trips.Where(t => !t.IsPaid && t.Status != TripStatus.Cancelled)
-            .OrderBy(t => t.TripId).Select(t => new { t.TripId, t.Code, t.Fare }).Take(6).ToListAsync(ct);
+            .OrderBy(t => t.TripId).Select(t => new { t.TripId, t.Code, Total = t.Fare + t.LoadingFee + t.UnloadingFee + t.WaybillFee + t.Vat }).Take(6).ToListAsync(ct);
         foreach (var t in unpaid)
-            vm.Todos.Add(new TodoItem($"کرایهٔ سفر {t.Code} ({Fa.Toman(t.Fare)}) پرداخت نشده است",
+            vm.Todos.Add(new TodoItem($"کرایه و هزینه‌های سفر {t.Code} ({Fa.Toman(t.Total)}) پرداخت نشده است",
                 "/Shipper/Finance/Pay", "bi-credit-card", "no"));
 
         var unrated = await trips

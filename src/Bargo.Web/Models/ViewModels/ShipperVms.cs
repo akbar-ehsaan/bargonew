@@ -87,6 +87,8 @@ public sealed class ShipperTripRow
     public string? PlateNo { get; init; }
     public string Status { get; init; } = "";
     public long Fare { get; init; }
+    /// <summary>کل مبلغ پرداختی = کرایه + هزینه‌های بارگیری/تخلیه/بارنامه + ارزش افزوده.</summary>
+    public long Total { get; init; }
     public bool IsPaid { get; init; }
     public DateTime? EtaAt { get; init; }
     public DateTime? LastPointAt { get; init; }
@@ -98,9 +100,10 @@ public sealed class ShipperTripRow
     public double? PlannedKm { get; init; }
     public DateTime CreatedAt { get; init; }
 
-    /// <summary>«شرکت · راننده» یا فقط یکی از آن دو.</summary>
+    /// <summary>«شرکت · راننده» یا فقط یکی از آن دو — تا پرداخت کرایه مخفی.</summary>
     public string Carrier =>
-        !string.IsNullOrWhiteSpace(CompanyName)
+        !IsPaid ? Services.Privacy.HiddenName
+        : !string.IsNullOrWhiteSpace(CompanyName)
             ? (string.IsNullOrWhiteSpace(DriverName) ? CompanyName! : $"{CompanyName} · {DriverName}")
             : string.IsNullOrWhiteSpace(DriverName) ? "—" : DriverName!;
 
@@ -115,11 +118,13 @@ public sealed class ShipperTripRow
         To = t.Load.DestCity!.Name,
         CarrierKind = t.CarrierKind,
         DriverId = t.DriverId,
-        DriverName = t.Driver != null ? t.Driver.FirstName + " " + t.Driver.LastName : null,
-        CompanyName = t.Company != null ? t.Company.Name : null,
-        PlateNo = t.Vehicle != null ? t.Vehicle.PlateNo : null,
+        // هویت حمل‌کننده تا پرداخت کرایه از صاحب بار مخفی است (Privacy)
+        DriverName = t.IsPaid && t.Driver != null ? t.Driver.FirstName + " " + t.Driver.LastName : null,
+        CompanyName = t.IsPaid && t.Company != null ? t.Company.Name : null,
+        PlateNo = t.IsPaid && t.Vehicle != null ? t.Vehicle.PlateNo : null,
         Status = t.Status,
         Fare = t.Fare,
+        Total = t.Fare + t.LoadingFee + t.UnloadingFee + t.WaybillFee + t.Vat,
         IsPaid = t.IsPaid,
         EtaAt = t.EtaAt,
         LastPointAt = t.LastPointAt,
@@ -161,6 +166,19 @@ public sealed class ShipperLoadForm
 
     public static readonly string[] Packagings =
         ["کارتن", "پالت", "کیسه", "فله", "بشکه", "جعبهٔ چوبی", "رول", "باندل", "کانتینر", "بدون بسته‌بندی"];
+
+    /// <summary>عنوان‌های پرکاربرد — پیشنهادِ کشویی؛ تایپ آزاد همچنان ممکن است.</summary>
+    public static readonly string[] TitleSuggestions =
+    [
+        "برنج کیسه‌ای", "گندم فله", "جو فله", "ذرت", "سیمان پاکتی", "سیمان فله", "آجر و بلوک", "میلگرد",
+        "ورق فولادی", "تیرآهن", "کاشی و سرامیک", "میوهٔ فصل", "صیفی‌جات", "مرغ منجمد", "تخم‌مرغ",
+        "خوراک دام", "کود کشاورزی", "لوازم خانگی", "مبلمان و اثاثیه", "پوشاک", "مواد شوینده", "روغن خوراکی",
+        "آب معدنی و نوشیدنی", "کاغذ و مقوا", "لوله و اتصالات", "ماشین‌آلات صنعتی", "خودرو سواری", "کانتینر"
+    ];
+
+    /// <summary>نوع‌های رایج بیمهٔ باربری داخلی.</summary>
+    public static readonly string[] InsuranceTypes =
+        ["باربری داخلی — خطرات اصلی", "باربری داخلی — تمام‌خطر", "بیمهٔ عمومی حمل", "بدون بیمه"];
 
     public int? CopyOf { get; set; }
 
@@ -205,6 +223,8 @@ public sealed class ShipperLoadForm
 
     // sec-insurance
     public bool InsuranceRequested { get; set; }
+    public string? InsuranceType { get; set; }
+    public string? InsuranceAmountToman { get; set; }
 
     // گیرنده و درخواست مستقیم
     public string? ReceiverName { get; set; }
@@ -438,7 +458,7 @@ public sealed class ShipperPayVm
     public List<ShipperTripRow> Unpaid { get; init; } = [];
     public List<Payment> PendingPayments { get; init; } = [];
     public List<Payment> FailedPayments { get; init; } = [];
-    public long Total => Unpaid.Sum(t => t.Fare);
+    public long Total => Unpaid.Sum(t => t.Total);
 }
 
 public sealed class ShipperRefundRow

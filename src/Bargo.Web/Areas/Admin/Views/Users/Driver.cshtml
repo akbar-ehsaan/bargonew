@@ -276,6 +276,8 @@
     <div class="stack">
         <partial name="_AccountActions" model="new AccountActionVm { Kind = OwnerKind.Driver, Id = d.DriverId, Name = d.FullName, Status = d.Status, StatusReason = d.StatusReason, ReturnUrl = ret }" />
 
+        <partial name="_LoginEdit" model="new LoginEditVm { Kind = OwnerKind.Driver, Id = d.DriverId, Name = d.FullName, Mobile = d.Mobile, ReturnUrl = ret }" />
+
         @if (pendingDocs > 0)
         {
             <div class="alert2 warn"><i class="bi bi-hourglass-split"></i><div class="grow">@Fa.N(pendingDocs) مدرک این راننده در انتظار بررسی است. <a class="lnk" href="/Admin/Documents?owner=driver:@d.DriverId">بررسی</a></div></div>

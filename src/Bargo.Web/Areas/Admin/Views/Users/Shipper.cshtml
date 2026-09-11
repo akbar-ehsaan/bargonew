@@ -205,6 +205,8 @@
     <div class="stack">
         <partial name="_AccountActions" model="new AccountActionVm { Kind = OwnerKind.Shipper, Id = s.ShipperId, Name = s.DisplayName, Status = s.Status, StatusReason = s.StatusReason, ReturnUrl = ret }" />
 
+        <partial name="_LoginEdit" model="new LoginEditVm { Kind = OwnerKind.Shipper, Id = s.ShipperId, Name = s.DisplayName, Mobile = s.Mobile, ReturnUrl = ret }" />
+
         @if (openLoads > 0 && s.Status != AccountStatus.Approved)
         {
             <div class="alert2 warn"><i class="bi bi-exclamation-triangle"></i><div class="grow">@Fa.N(openLoads) بار این صاحب بار هنوز در بازار است. <a class="lnk" href="/Admin/Loads?q=@s.Mobile">مدیریت بارها</a></div></div>
