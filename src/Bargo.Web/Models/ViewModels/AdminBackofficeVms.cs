@@ -791,6 +791,8 @@ public sealed class VersionVm
 {
     public string AppVersion { get; init; } = "";
     public string? InformationalVersion { get; init; }
+    /// <summary>تاریخ و ساعت نسخه‌گذاری — زمان ساخت فایل برنامهٔ در حال اجرا (UTC).</summary>
+    public DateTime? BuiltAt { get; init; }
     public string EnvironmentName { get; init; } = "";
     public string Runtime { get; init; } = "";
     public string Os { get; init; } = "";

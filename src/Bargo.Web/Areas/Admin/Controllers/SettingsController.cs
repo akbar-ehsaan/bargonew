@@ -380,10 +380,14 @@ public class SettingsController(BargoDbContext db, SettingsService settings, Aud
             TempData["err"] = "اتصال به پایگاه‌داده برای خواندن فهرست مهاجرت‌ها برقرار نشد.";
         }
 
+        DateTime? builtAt = null;
+        try { builtAt = System.IO.File.GetLastWriteTimeUtc(asm.Location); } catch (Exception) { }
+
         return View(new VersionVm
         {
             AppVersion = asm.GetName().Version?.ToString(3) ?? "—",
             InformationalVersion = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
+            BuiltAt = builtAt,
             EnvironmentName = env.EnvironmentName,
             Runtime = RuntimeInformation.FrameworkDescription,
             Os = RuntimeInformation.OSDescription,

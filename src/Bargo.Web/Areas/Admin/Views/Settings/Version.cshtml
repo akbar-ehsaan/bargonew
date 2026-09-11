@@ -17,6 +17,7 @@
 
 <div class="stats">
     <div class="stat p"><div class="l"><i class="bi bi-git"></i> نسخهٔ سامانه</div><div class="v num">@Model.AppVersion</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-clock-history"></i> تاریخ و ساعت نسخه‌گذاری</div><div class="v">@(Model.BuiltAt is DateTime b ? Fa.Stamp(b) : "—")</div></div>
     <div class="stat @(isProd ? "s" : "w")"><div class="l"><i class="bi bi-hdd-network"></i> محیط</div><div class="v num">@Model.EnvironmentName</div></div>
     <div class="stat @(Model.Pending.Count == 0 ? "s" : "r")"><div class="l"><i class="bi bi-database"></i> مهاجرت‌ها</div><div class="v">@Fa.N(Model.Applied.Count) <small>اعمال‌شده@(Model.Pending.Count > 0 ? " · " + Fa.N(Model.Pending.Count) + " در انتظار" : "")</small></div></div>
     <div class="stat i"><div class="l"><i class="bi bi-phone"></i> آخرین نسخهٔ اپ</div><div class="v num">@(Model.Form.Fields.FirstOrDefault(f => f.Key == SettingsService.Keys.AppLatestVersion)?.Value ?? "—")</div></div>
@@ -29,6 +30,7 @@
             <div class="bd">
                 <dl class="kv">
                     <dt>نسخهٔ سامانه</dt><dd class="num">@Model.AppVersion@(string.IsNullOrEmpty(Model.InformationalVersion) || Model.InformationalVersion == Model.AppVersion ? "" : " (" + Model.InformationalVersion + ")")</dd>
+                    <dt>تاریخ و ساعت نسخه‌گذاری</dt><dd>@(Model.BuiltAt is DateTime built ? Fa.Stamp(built) : "—")</dd>
                     <dt>محیط</dt><dd class="num">@Model.EnvironmentName</dd>
                     <dt>.NET</dt><dd class="num">@Model.Runtime</dd>
                     <dt>سیستم‌عامل</dt><dd class="num">@Model.Os</dd>

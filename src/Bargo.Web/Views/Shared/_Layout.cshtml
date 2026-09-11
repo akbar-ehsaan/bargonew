@@ -98,7 +98,14 @@
                 </form>
             </li>
         </ul>
-        <div class="side-ver"><i class="bi bi-git"></i> نسخهٔ @(typeof(Program).Assembly.GetName().Version?.ToString(3))</div>
+        <div class="side-ver">
+            <i class="bi bi-git"></i> نسخهٔ @(typeof(Program).Assembly.GetName().Version?.ToString(3))
+            @if (role == Roles.Admin)
+            {
+                @* تاریخ و ساعت نسخه‌گذاری (زمان ساخت فایل برنامه) — فقط برای مدیر *@
+                try { <span> · @Fa.Stamp(System.IO.File.GetLastWriteTimeUtc(typeof(Program).Assembly.Location))</span> } catch (Exception) { }
+            }
+        </div>
     </aside>
 
     <div class="main">
@@ -107,6 +114,7 @@
             <button type="button" class="tb-btn" onclick="history.length > 1 ? history.back() : location.assign('@area')" title="بازگشت" aria-label="بازگشت"><i class="bi bi-arrow-right"></i></button>
             <div class="ttl">@title</div>
             <span class="tb-date">@Fa.LongDate(DateTime.UtcNow)</span>
+            <span class="tb-clock" id="tbClock" aria-label="ساعت"></span>
             @if (!string.IsNullOrEmpty(Roles.AreaOf(role)))
             {
                 <a class="tb-btn" href="@area/Notifications" title="اعلان‌ها" aria-label="اعلان‌ها">
@@ -123,7 +131,7 @@
             </div>
             <form method="post" action="/account/logout" data-confirm="از حساب خارج می‌شوید؟">
                 @Html.AntiForgeryToken()
-                <button type="submit" class="tb-btn" title="خروج از حساب" aria-label="خروج از حساب"><i class="bi bi-box-arrow-left"></i></button>
+                <button type="submit" class="tb-btn out" title="خروج از حساب" aria-label="خروج از حساب"><i class="bi bi-box-arrow-left"></i></button>
             </form>
         </header>
 
@@ -155,6 +163,21 @@
 <script src="~/js/jdate.js" asp-append-version="true"></script>
 <script src="~/js/money.js" asp-append-version="true"></script>
 <script src="~/js/panel.js" asp-append-version="true"></script>
+<script>
+    // ساعت زندهٔ نوار بالا — ارقام فارسی، به وقت دستگاه کاربر
+    (function () {
+        var el = document.getElementById('tbClock');
+        if (!el) return;
+        var fa = function (s) { return String(s).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; }); };
+        var p = function (n) { return (n < 10 ? '0' : '') + n; };
+        var tick = function () {
+            var d = new Date();
+            el.textContent = fa(p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()));
+            setTimeout(tick, 1000);
+        };
+        tick();
+    })();
+</script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

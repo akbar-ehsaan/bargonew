@@ -114,6 +114,10 @@ h1,h2,h3{text-wrap:balance;line-height:1.4}
   color:#fff;display:grid;place-items:center;font-size:18px;cursor:pointer;flex:none;position:relative}
 .topbar .burger{display:none}
 .topbar .tb-btn:hover{background:rgba(255,255,255,.2)}
+/* دکمهٔ خروج — قرمز و آشکار، مثل باقی اپ‌ها */
+.topbar .tb-btn.out{background:#d64547;border-color:rgba(255,255,255,.35)}
+.topbar .tb-btn.out:hover{background:#b93436}
+.topbar .tb-clock{font-size:13.5px;font-weight:800;opacity:.95;white-space:nowrap;font-variant-numeric:tabular-nums}
 .topbar .tb-btn .dot{position:absolute;top:-5px;inset-inline-end:-5px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--signal);
   color:var(--ink);font-size:11px;font-weight:800;display:grid;place-items:center;font-variant-numeric:tabular-nums}
 .topbar .ttl{flex:1;min-width:0;font-weight:800;font-size:16.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
