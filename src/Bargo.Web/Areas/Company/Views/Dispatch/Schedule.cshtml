@@ -1,0 +1,94 @@
+@model OpsScheduleVm
+@{
+    var withTrips = Model.Days.Count(d => d.Trips.Count > 0);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-calendar-week"></i> برنامه‌ریزی حمل</h1>
+        <p>سفرهای @Fa.N(Model.Days14) روز آینده به تفکیک روزِ حرکت. تاریخ حرکت از صفحهٔ تخصیص هر سفر تغییر می‌کند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-person-check"></i> صف تخصیص</a>
+        <a class="btn2 ghost" asp-controller="Trips" asp-action="Index" asp-route-tab="planned"><i class="bi bi-calendar-event"></i> سفرهای برنامه‌ریزی‌شده</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat p"><div class="l"><i class="bi bi-signpost-split"></i> سفر در برنامه</div><div class="v">@Fa.N(Model.Total)<small>سفر</small></div></div>
+    <div class="stat @(Model.Unassigned > 0 ? "w" : "s")"><div class="l"><i class="bi bi-hourglass-split"></i> بدون راننده</div><div class="v">@Fa.N(Model.Unassigned)<small>سفر</small></div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-calendar-check"></i> روزهای دارای حمل</div><div class="v">@Fa.N(withTrips)<small>روز</small></div></div>
+</div>
+
+@if (Model.Total == 0)
+{
+    <div class="card2">
+        <div class="empty-state">
+            <i class="bi bi-calendar-x"></i>
+            <b>برای @Fa.N(Model.Days14) روز آینده سفری ثبت نشده است</b>
+            سفر از پذیرش پیشنهاد در بازار بار یا ثبت بار برای مشتری شرکت ساخته می‌شود.
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack">
+        @foreach (var day in Model.Days)
+        {
+            if (day.Trips.Count == 0)
+            {
+                <div class="card2">
+                    <div class="hd"><i class="bi bi-calendar-day" style="color:#c3ccd5"></i> <span class="muted">@day.Title</span> <span class="muted small">@day.Sub</span> <span class="end muted small">بدون سفر</span></div>
+                </div>
+            }
+            else
+            {
+            <div class="card2">
+                <div class="hd">
+                    <i class="bi @(day.Tone == "no" ? "bi-exclamation-octagon" : "bi-calendar-day")"></i>
+                    @day.Title
+                    @if (!string.IsNullOrEmpty(day.Sub)) { <span class="muted small">@day.Sub</span> }
+                    <span class="end">
+                        @Ui.Pill($"{Fa.N(day.Trips.Count)} سفر", day.Tone)
+                        @if (day.Trips.Any(t => t.DriverId is null))
+                        {
+                            @Ui.Pill($"{Fa.N(day.Trips.Count(t => t.DriverId is null))} بدون راننده", "wait")
+                        }
+                    </span>
+                </div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>ساعت</th><th>سفر</th><th>مسیر</th><th>بار</th><th>راننده / خودرو</th><th>وضعیت</th><th></th></tr></thead>
+                        <tbody>
+                        @foreach (var t in day.Trips)
+                        {
+                            var l = t.Load!;
+                            <tr data-href="/Company/Trips/Detail/@t.TripId">
+                                <td class="num nowrap">@(t.ScheduledDepartureAt is DateTime d ? (day.Tone == "no" ? Fa.Stamp(d) : Fa.Time(d)) : "—")</td>
+                                <td><a class="num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a></td>
+                                <td>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</td>
+                                <td><b>@l.Title</b><span class="sub">@OpsLabels.Ton(l.WeightTon) تن@(l.VehicleType is not null ? " · " + l.VehicleType.Name : "")</span></td>
+                                <td>
+                                    @if (t.Driver is not null) { <span>@t.Driver.FullName</span> } else { <span class="chip">بدون راننده</span> }
+                                    @if (t.Vehicle is not null) { <span class="sub"><span class="plate">@t.Vehicle.PlateNo</span></span> }
+                                </td>
+                                <td>@Ui.TripPill(t.Status)</td>
+                                <td>
+                                    @if (t.Status is TripStatus.AwaitingAssignment or TripStatus.Assigned)
+                                    {
+                                        <a class="btn2 soft sm" asp-action="Assign" asp-route-id="@t.TripId" asp-route-back="schedule"><i class="bi bi-person-check"></i> تخصیص</a>
+                                    }
+                                    else if (TripStatus.Upcoming.Contains(t.Status))
+                                    {
+                                        <a class="btn2 ghost sm" asp-action="Assign" asp-route-id="@t.TripId" asp-route-back="schedule"><i class="bi bi-calendar-event"></i> زمان / تعویض</a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            }
+        }
+    </div>
+}

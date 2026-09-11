@@ -1,0 +1,85 @@
+@model PageVm<CompanyRow>
+@{
+    var q = ViewBag.Q as string;
+    var sort = (string)ViewBag.Sort;
+    var stats = (Dictionary<string, int>)ViewBag.Stats;
+    var since = DateTime.UtcNow.AddDays(-30);
+    (string Key, string Label)[] sorts = [("active", "سفر در راه"), ("trips30", "سفر ۳۰ روز اخیر"), ("fleet", "اندازهٔ ناوگان"), ("idle", "راکدترین‌ها")];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-activity"></i> وضعیت فعالیت شرکت‌ها</h1>
+        <p>شرکت‌های تأییدشده و تعلیق‌شده از نگاه فعالیت: رانندگان، خودروها، سفرهای در راه و ۳۰ روز اخیر، آخرین ورود کاربرانشان. «راکد» یعنی نه سفری در ۳۰ روز گذشته و نه ورودی.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-building-check"></i> تأیید شرکت‌ها</a>
+        <a class="btn2 ghost" href="/Admin/Reports/Companies"><i class="bi bi-graph-up"></i> گزارش شرکت‌ها</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat s"><div class="l"><i class="bi bi-truck"></i> با سفر در راه</div><div class="v">@Fa.N(stats["live"])</div></div>
+    <div class="stat p"><div class="l"><i class="bi bi-calendar-check"></i> فعال در ۳۰ روز اخیر</div><div class="v">@Fa.N(stats["busy"])</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-moon"></i> راکد</div><div class="v">@Fa.N(stats["idle"])</div></div>
+    <div class="stat r"><div class="l"><i class="bi bi-pause-circle"></i> تعلیق‌شده</div><div class="v">@Fa.N(stats["suspended"])</div></div>
+</div>
+
+<div class="tabs">
+    @foreach (var s in sorts)
+    {
+        <a asp-action="Activity" asp-route-sort="@s.Key" asp-route-q="@q" class="@(sort == s.Key ? "on" : "")">@s.Label</a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Activity" class="filters">
+        <input type="hidden" name="sort" value="@sort" />
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="نام شرکت، شناسهٔ ملی، مدیرعامل یا موبایل" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Activity" asp-route-sort="@sort">پاک کردن</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>شرکت</th><th>رانندگان</th><th>خودروها</th><th>سفر در راه</th><th>سفر ۳۰ روز اخیر</th><th>آخرین ورود</th><th>کیف پول</th><th>وضعیت</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                var idle = r.Trips30 == 0 && (r.LastLoginAt is null || r.LastLoginAt < since);
+                <tr data-href="/Admin/Users/Company/@r.CompanyId">
+                    <td><a class="lnk" href="/Admin/Users/Company/@r.CompanyId">@r.Name</a><span class="sub">@(r.City ?? "—") · @r.ManagerName</span></td>
+                    <td class="num">@Fa.N(r.Drivers)</td>
+                    <td class="num">@Fa.N(r.Vehicles)</td>
+                    <td>
+                        @if (r.ActiveTrips > 0)
+                        {
+                            @Ui.Pill($"{Fa.N(r.ActiveTrips)} در راه", "inf")
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td class="num">@Fa.N(r.Trips30)</td>
+                    <td class="nowrap">
+                        @(r.LastLoginAt is DateTime ll ? Fa.Ago(ll) : "هرگز")
+                        @if (idle)
+                        {
+                            <span class="sub" style="color:var(--wait);font-weight:800">راکد</span>
+                        }
+                    </td>
+                    <td class="nowrap">@Fa.Toman(r.WalletBalance)</td>
+                    <td>@Ui.AccountPill(r.Status)</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-buildings"></i>هنوز شرکت تأییدشده‌ای نیست.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

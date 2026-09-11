@@ -1,0 +1,36 @@
+@model Complaint
+<div class="page-head">
+    <div><h1><i class="bi bi-exclamation-octagon"></i> @Model.Title</h1><p>کد پیگیری <span class="num">@Model.Code</span> · ثبت @Fa.Stamp(Model.CreatedAt)</p></div>
+    <div class="actions">@Ui.ComplaintPill(Model.Status) <a class="btn2 ghost" asp-action="Index">بازگشت</a></div>
+</div>
+<div class="grid2">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-card-text"></i> شرح</div>
+        <div class="bd">
+            <dl class="kv">
+                <dt>نوع</dt><dd>@ComplaintKind.Label(Model.Kind)</dd>
+                <dt>سفر</dt><dd class="num">@(Model.Trip?.Code ?? "—")</dd>
+                <dt>طرف شکایت</dt><dd>@(Model.AgainstKind is null ? "—" : OwnerKind.Label(Model.AgainstKind))</dd>
+            </dl>
+            <p style="white-space:pre-line;margin-top:12px">@Model.Body</p>
+        </div>
+    </div>
+    <div class="card2">
+        <div class="hd"><i class="bi bi-hammer"></i> نتیجهٔ رسیدگی</div>
+        <div class="bd">
+            @if (Model.Status is ComplaintStatus.Resolved or ComplaintStatus.Rejected)
+            {
+                <p style="white-space:pre-line">@Model.Resolution</p>
+                @if (Model.CompensationAmount is long comp)
+                {
+                    <div class="kvrow"><span>جبران خسارت</span><b>@Fa.Toman(comp)</b></div>
+                }
+                <div class="muted small">@Fa.Stamp(Model.ResolvedAt)</div>
+            }
+            else
+            {
+                <div class="empty-state"><i class="bi bi-hourglass-split"></i>در حال بررسی توسط پشتیبانی بارگو</div>
+            }
+        </div>
+    </div>
+</div>

@@ -1,0 +1,126 @@
+@model OpsLoadTripsVm
+@{
+    (string Key, string Label, string Icon)[] tabs =
+    [
+        ("unassigned", "در انتظار تخصیص", "bi-hourglass-split"),
+        ("active", "فعال", "bi-lightning"),
+        ("done", "تکمیل‌شده", "bi-check2-all"),
+        ("cancelled", "لغوشده", "bi-x-octagon"),
+        ("published", "منتشرشده در بازار", "bi-shop")
+    ];
+    string CustomerOf(Load l)
+    {
+        if (l.Shipper is not null) return l.Shipper.DisplayName;
+        if (Model.Customers.TryGetValue(l.LoadId, out var c)) return c.Name;
+        return l.Company?.Name ?? "—";
+    }
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-boxes"></i> @ViewData["Title"]</h1>
+        <p>بارهایی که شرکت حملشان را بر عهده گرفته — از بازار، درخواست مستقیم یا مشتریان خود شرکت.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 pri" asp-action="Create"><i class="bi bi-plus-lg"></i> ثبت بار</a>
+        <a class="btn2 ghost" asp-action="Market"><i class="bi bi-shop"></i> بازار بار</a>
+    </div>
+</div>
+
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        <a asp-action="Index" asp-route-tab="@t.Key" class="@(Model.Tab == t.Key ? "on" : "")"><i class="bi @t.Icon"></i> @t.Label <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(t.Key))</span></a>
+    }
+</div>
+
+@if (Model.Tab == "published" && Model.Loads is not null)
+{
+    <div class="card2">
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>کد بار</th><th>عنوان</th><th>مسیر</th><th>مشتری</th><th>بارگیری</th><th>کرایه</th><th>پیشنهاد</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                @foreach (var l in Model.Loads.Rows)
+                {
+                    <tr data-href="/Company/Loads/Detail/@l.LoadId">
+                        <td><a class="lnk num" href="/Company/Loads/Detail/@l.LoadId">@l.Code</a><span class="sub">@Fa.Ago(l.CreatedAt)</span></td>
+                        <td><b>@l.Title</b><span class="sub">@l.CargoType · @OpsLabels.Ton(l.WeightTon) تن</span></td>
+                        <td>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</td>
+                        <td>@(Model.Customers.TryGetValue(l.LoadId, out var cu) ? cu.Name : "—")</td>
+                        <td class="nowrap">@Fa.Stamp(l.LoadingFrom)</td>
+                        <td class="num">@(l.Price is long p ? Fa.Toman(p) : "توافقی")<span class="sub">@PriceMode.Label(l.PriceMode)</span></td>
+                        <td>@(Model.OfferCounts.TryGetValue(l.LoadId, out var n) ? Ui.Pill(Fa.N(n) + " در انتظار", "wait") : Ui.Pill("بدون پیشنهاد", "mut"))</td>
+                        <td>@Ui.LoadPill(l.Status)</td>
+                    </tr>
+                }
+                @if (Model.Loads.Total == 0)
+                {
+                    <tr><td colspan="8" class="empty"><i class="bi bi-shop"></i>باری از طرف شرکت در بازار منتشر نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Loads.Pager" />
+    </div>
+}
+else if (Model.Trips is not null)
+{
+    <div class="card2">
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>سفر</th><th>بار</th><th>مسیر</th><th>مشتری</th><th>زمان حرکت</th><th>راننده / خودرو</th><th>کرایه</th><th>وضعیت</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var t in Model.Trips.Rows)
+                {
+                    var l = t.Load!;
+                    <tr data-href="/Company/Trips/Detail/@t.TripId">
+                        <td><a class="lnk num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a><span class="sub num">@l.Code</span></td>
+                        <td><b>@l.Title</b><span class="sub">@l.CargoType · @OpsLabels.Ton(l.WeightTon) تن</span></td>
+                        <td>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</td>
+                        <td>@CustomerOf(l)</td>
+                        <td class="nowrap">@Fa.Stamp(t.ScheduledDepartureAt ?? l.LoadingFrom)</td>
+                        <td>
+                            @if (t.Driver is not null)
+                            {
+                                <span>@t.Driver.FullName</span>
+                            }
+                            else
+                            {
+                                <span class="chip">تخصیص نیافته</span>
+                            }
+                            @if (t.Vehicle is not null)
+                            {
+                                <span class="sub"><span class="plate">@t.Vehicle.PlateNo</span></span>
+                            }
+                        </td>
+                        <td class="num">@Fa.Toman(t.Fare)</td>
+                        <td>@Ui.TripPill(t.Status)</td>
+                        <td>
+                            @if (t.Status is TripStatus.AwaitingAssignment or TripStatus.Assigned)
+                            {
+                                <a class="btn2 soft sm" href="/Company/Dispatch/Assign/@t.TripId"><i class="bi bi-person-check"></i> تخصیص</a>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Trips.Total == 0)
+                {
+                    <tr>
+                        <td colspan="9" class="empty">
+                            <i class="bi bi-inbox"></i>
+                            @(Model.Tab switch
+                            {
+                                "active" => "سفر فعالی ندارید.",
+                                "done" => "هنوز سفری تحویل نشده است.",
+                                "cancelled" => "سفر لغوشده‌ای ندارید.",
+                                _ => "همهٔ بارها تخصیص یافته‌اند."
+                            })
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Trips.Pager" />
+    </div>
+}

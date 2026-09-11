@@ -1,0 +1,39 @@
+@model Ticket
+@inject CurrentUser Me
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-chat-left-text"></i> @Model.Subject</h1>
+        <p>@TicketCategory.Label(Model.Category) · ثبت @Fa.Stamp(Model.CreatedAt) · @Ui.TicketPill(Model.Status)</p>
+    </div>
+    <div class="actions">
+        @if (Model.Status != TicketStatus.Closed)
+        {
+            <form method="post" asp-action="Close" asp-route-id="@Model.TicketId" data-confirm="تیکت بسته شود؟">
+                <button class="btn2 ghost"><i class="bi bi-check2-square"></i> بستن تیکت</button>
+            </form>
+        }
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-arrow-right"></i> بازگشت</a>
+    </div>
+</div>
+<div class="card2">
+    <div class="thread">
+        @foreach (var m in Model.Messages.OrderBy(x => x.TicketMessageId))
+        {
+            var mine = m.SenderKind != Roles.Admin;
+            <div class="bubble @(mine ? "me" : "them")">
+                <div class="who">@(mine ? "شما" : "پشتیبانی بارگو") · @m.SenderName</div>
+                <div style="white-space:pre-line">@m.Body</div>
+                <div class="when">@Fa.Stamp(m.CreatedAt)</div>
+            </div>
+        }
+    </div>
+    @if (Model.Status != TicketStatus.Closed)
+    {
+        <div class="bd">
+            <form method="post" asp-action="Reply" asp-route-id="@Model.TicketId">
+                <div class="fld"><label>پاسخ</label><textarea name="body" rows="3" required></textarea></div>
+                <div class="form-actions"><button class="btn2 pri"><i class="bi bi-send"></i> ارسال</button></div>
+            </form>
+        </div>
+    }
+</div>

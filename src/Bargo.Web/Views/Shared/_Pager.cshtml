@@ -1,0 +1,36 @@
+@model PagerVm
+@{
+    if (Model.Pages <= 1) { return; }
+    var from = Math.Max(1, Model.Page - 3);
+    var to = Math.Min(Model.Pages, Model.Page + 3);
+}
+<nav class="pager" aria-label="صفحه‌بندی">
+    @if (Model.HasPrev)
+    {
+        <a href="@Model.Link(Model.Page - 1)" aria-label="صفحهٔ قبل">‹</a>
+    }
+    else
+    {
+        <span class="pg off">‹</span>
+    }
+    @for (var p = from; p <= to; p++)
+    {
+        if (p == Model.Page)
+        {
+            <span class="pg on" aria-current="page">@Fa.N(p)</span>
+        }
+        else
+        {
+            <a href="@Model.Link(p)">@Fa.N(p)</a>
+        }
+    }
+    @if (Model.HasNext)
+    {
+        <a href="@Model.Link(Model.Page + 1)" aria-label="صفحهٔ بعد">›</a>
+    }
+    else
+    {
+        <span class="pg off">›</span>
+    }
+    <span class="info">ردیف @Fa.N(Model.FirstRow) تا @Fa.N(Model.LastRow) از @Fa.N(Model.Total)</span>
+</nav>

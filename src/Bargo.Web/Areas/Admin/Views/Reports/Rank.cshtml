@@ -1,0 +1,74 @@
+@model ReportRankVm
+@{
+    // یک ویو برای «رانندگان» و «شرکت‌ها» — Range.Action می‌گوید کدام است.
+    var isDriver = Model.Range.Action == "Drivers";
+    var who = isDriver ? "راننده" : "شرکت";
+    var icon = isDriver ? "bi-person-badge" : "bi-buildings";
+    var maxTrips = Model.Rows.Count == 0 ? 0 : Model.Rows.Max(r => r.Trips);
+    var maxIncome = Model.Rows.Count == 0 ? 0 : Model.Rows.Max(r => r.Income);
+    ViewData["by"] = Model.By;
+    var from = Fa.DateBox(Model.Range.FromUtc.AddHours(12));
+    var to = Fa.DateBox(Model.Range.ToUtc.AddDays(-1).AddHours(12));
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi @icon"></i> گزارش @(isDriver ? "رانندگان" : "شرکت‌ها")</h1>
+        <p>۲۰ @who برتر بر پایهٔ سفرهای تحویل‌شده در بازه — تعداد سفر، کرایه، درآمد (سهم @who) و امتیاز.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="@(isDriver ? "/Admin/Drivers/Ratings" : "/Admin/Companies")"><i class="bi @(isDriver ? "bi-star" : "bi-building-check")"></i> @(isDriver ? "امتیاز رانندگان" : "فهرست شرکت‌ها")</a>
+    </div>
+</div>
+
+<partial name="_Range" model="Model.Range" />
+
+<div class="stats" style="margin-top:18px">
+    <div class="stat p"><div class="l"><i class="bi @icon"></i> @who فعال در بازه</div><div class="v">@Fa.N(Model.Active)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-flag"></i> سفرهای تحویل‌شدهٔ ۲۰ نفر برتر</div><div class="v">@Fa.N(Model.Rows.Sum(r => r.Trips))</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-star"></i> میانگین امتیاز کل</div><div class="v">@(Model.AvgRating is double a ? Fa.N(a, 1) : "—")</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-star-half"></i> امتیازهای ثبت‌شده در بازه</div><div class="v">@(Model.RangeRatingCount == 0 ? "—" : Fa.N(Model.RangeRatingAvg ?? 0, 1)) <small>(@Fa.N(Model.RangeRatingCount) رأی)</small></div></div>
+</div>
+
+<div class="tabs">
+    <a asp-action="@Model.Range.Action" asp-route-from="@from" asp-route-to="@to" asp-route-by="trips" class="@(Model.By == "trips" ? "on" : "")"><i class="bi bi-123"></i> بیشترین سفر</a>
+    <a asp-action="@Model.Range.Action" asp-route-from="@from" asp-route-to="@to" asp-route-by="revenue" class="@(Model.By == "revenue" ? "on" : "")"><i class="bi bi-cash-stack"></i> بیشترین درآمد</a>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead>
+                <tr>
+                    <th>#</th><th>@who</th><th style="min-width:200px">سفر تحویل‌شده</th><th>کرایه</th><th style="min-width:200px">درآمد @who</th><th>کمیسیون بارگو</th><th>امتیاز</th><th>@(isDriver ? "لغو در بازه" : "رانندگان")</th>
+                </tr>
+            </thead>
+            <tbody>
+            @{ var i = 0; }
+            @foreach (var r in Model.Rows)
+            {
+                i++;
+                <tr>
+                    <td class="num muted">@Fa.N(i)</td>
+                    <td><a class="lnk" href="@(isDriver ? "/Admin/Users/Driver/" : "/Admin/Users/Company/")@r.Id">@r.Name</a><span class="sub">@r.Sub</span></td>
+                    <td>
+                        <div class="small">@Fa.N(r.Trips) سفر</div>
+                        <div style="height:7px;border-radius:6px;background:var(--line-soft)"><div style="height:7px;border-radius:6px;background:var(--primary);width:@BackofficeFormat.Bar(r.Trips, maxTrips)%"></div></div>
+                    </td>
+                    <td class="nowrap">@Fa.Toman(r.Fare)</td>
+                    <td>
+                        <div class="small nowrap">@Fa.Toman(r.Income)</div>
+                        <div style="height:7px;border-radius:6px;background:var(--line-soft)"><div style="height:7px;border-radius:6px;background:var(--ok);width:@BackofficeFormat.Bar(r.Income, maxIncome)%"></div></div>
+                    </td>
+                    <td class="nowrap">@Fa.Toman(r.Commission)</td>
+                    <td>@Ui.Stars(r.Rating, r.RatingCount)</td>
+                    <td class="num">@Fa.N(r.Extra)</td>
+                </tr>
+            }
+            @if (Model.Rows.Count == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi @icon"></i>در این بازه سفر تحویل‌شده‌ای برای هیچ @who ثبت نشده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

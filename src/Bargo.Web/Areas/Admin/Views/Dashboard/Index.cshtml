@@ -1,0 +1,106 @@
+@model AdminDashboardVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-speedometer2"></i> داشبورد کل سامانه</h1>
+        <p>تصویر لحظه‌ای بارگو: کاربران، بارها، سفرها و گردش مالی · موجودی کیف پول بارگو: <b>@Fa.Toman(Model.PlatformBalance)</b></p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Admin/Live"><i class="bi bi-broadcast"></i> کنترل زنده</a>
+        <a class="btn2 pri" href="/Admin/Documents"><i class="bi bi-patch-check"></i> صف بررسی مدارک</a>
+    </div>
+</div>
+
+<div class="stats cols5">
+    @foreach (var s in Model.People)
+    {
+        <a class="stat @s.Kind" href="@s.Href">
+            <div class="l"><i class="bi @s.Icon"></i> @s.Label</div>
+            <div class="v">@s.Value</div>
+        </a>
+    }
+</div>
+
+<div class="stats">
+    @foreach (var s in Model.Ops)
+    {
+        <a class="stat @s.Kind" href="@s.Href">
+            <div class="l"><i class="bi @s.Icon"></i> @s.Label</div>
+            <div class="v">
+                @s.Value
+                @if (s.Unit is not null)
+                {
+                    <small>@s.Unit</small>
+                }
+            </div>
+        </a>
+    }
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd">
+            <i class="bi bi-signpost-split"></i> تازه‌ترین سفرها
+            <span class="end"><a class="btn2 sm ghost" href="/Admin/Trips">سفرهای جاری</a></span>
+        </div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>سفر</th><th>مسیر</th><th>حمل‌کننده</th><th>کرایه</th><th>وضعیت</th><th>ثبت</th></tr></thead>
+                <tbody>
+                @foreach (var t in Model.RecentTrips)
+                {
+                    <tr data-href="/Admin/Trips/Case/@t.TripId">
+                        <td><a class="lnk num" href="/Admin/Trips/Case/@t.TripId">@t.Code</a><span class="sub num">@t.LoadCode</span></td>
+                        <td>@Ui.Route(t.From, t.To)</td>
+                        <td>@t.CarrierName<span class="sub">@CarrierKind.Label(t.CarrierKind)</span></td>
+                        <td class="nowrap">@Fa.Toman(t.Fare)</td>
+                        <td>
+                            @Ui.TripPill(t.Status)
+                            @if (t.IsProblem)
+                            {
+                                @Ui.Pill("مشکل‌دار", "no")
+                            }
+                        </td>
+                        <td class="nowrap">@Fa.Ago(t.CreatedAt)</td>
+                    </tr>
+                }
+                @if (Model.RecentTrips.Count == 0)
+                {
+                    <tr><td colspan="6" class="empty"><i class="bi bi-signpost-split"></i>هنوز سفری ساخته نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-list-check"></i> کارهای در انتظار</div>
+        <div class="bd">
+            @foreach (var t in Model.Todo)
+            {
+                <a class="kvrow" href="@t.Href">
+                    <span><i class="bi @t.Icon"></i> @t.Text</span>
+                    @Ui.Pill("رسیدگی", t.Tone)
+                </a>
+            }
+            @if (Model.Todo.Count == 0)
+            {
+                <div class="empty-state"><i class="bi bi-check2-all"></i><b>کاری در انتظار نیست</b>همهٔ صف‌های بررسی خالی‌اند.</div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="card2" style="margin-top:18px">
+    <div class="hd">
+        <i class="bi bi-map"></i> سفرهای در حال انجام روی نقشه
+        <span class="end">
+            <span class="muted small">@Fa.N(Model.Markers.Count) خودرو</span>
+            <a class="btn2 sm ghost" href="/Admin/Live">نقشهٔ کامل کشور</a>
+        </span>
+    </div>
+    <div class="bd">
+        <div class="map short" data-map="@Json.Serialize(new { markers = Model.Markers, fit = Model.Markers.Count > 0, poll = "/Admin/Live/Data?trips=1" })"></div>
+    </div>
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

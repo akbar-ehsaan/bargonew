@@ -1,0 +1,65 @@
+@model TripDocsVm
+@{
+    var kinds = new[] { TripDocumentKind.LoadingReceipt, TripDocumentKind.DeliveryReceipt, TripDocumentKind.Photo, TripDocumentKind.CargoInsurance, TripDocumentKind.Other };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-folder2-open"></i> @ViewData["Title"]</h1>
+        <p>همهٔ اسناد سفرهای شما — چه خودتان بارگذاری کرده باشید، چه صاحب بار یا شرکت. بارگذاری سند تازه از صفحهٔ هر سفر انجام می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-files"></i> بارنامه‌ها</a>
+        <a class="btn2 ghost" asp-action="Receipts"><i class="bi bi-receipt"></i> رسیدهای تحویل</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Documents" class="@(Model.Kind is null ? "on" : "")">همه</a>
+    @foreach (var k in kinds)
+    {
+        <a asp-action="Documents" asp-route-kind="@k" class="@(Model.Kind == k ? "on" : "")">@TripDocumentKind.Label(k)</a>
+    }
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>نوع</th><th>عنوان</th><th>سفر</th><th>مسیر</th><th>بارگذاری</th><th>فایل</th></tr></thead>
+            <tbody>
+            @foreach (var d in Model.Page.Rows)
+            {
+                <tr>
+                    <td>@Ui.Pill(TripDocumentKind.Label(d.Kind), d.Kind == TripDocumentKind.DeliveryReceipt ? "ok" : d.Kind == TripDocumentKind.LoadingReceipt ? "inf" : "mut")</td>
+                    <td><b>@d.Title</b></td>
+                    <td><a class="lnk num" asp-controller="Trips" asp-action="Detail" asp-route-id="@d.TripId">@d.TripCode</a></td>
+                    <td>@Ui.Route(d.From, d.To)</td>
+                    <td class="nowrap">@Fa.Stamp(d.CreatedAt)<span class="sub">@(d.UploadedByKind == Roles.Driver ? "شما" : OwnerKind.Label(d.UploadedByKind))</span></td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(d.FilePath))
+                        {
+                            <a class="btn2 ghost sm" href="@DocumentStorage.Url(d.FilePath)" target="_blank"><i class="bi bi-box-arrow-up-right"></i> مشاهده</a>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr>
+                    <td colspan="6" class="empty">
+                        <i class="bi bi-folder2-open"></i>
+                        @(Model.Kind is null ? "هنوز سندی برای سفرهای شما بارگذاری نشده است." : $"سندی از نوع «{TripDocumentKind.Label(Model.Kind)}» ندارید.")
+                        <div class="form-actions" style="justify-content:center">
+                            <a class="btn2 ghost" asp-controller="Trips" asp-action="Current"><i class="bi bi-truck"></i> سفر در حال انجام</a>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

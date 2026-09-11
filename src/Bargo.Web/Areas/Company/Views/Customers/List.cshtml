@@ -1,0 +1,87 @@
+@model PageVm<CustomerRow>
+@{
+    var kind = (string)ViewBag.Kind;
+    var q = ViewBag.Q as string;
+    var corporate = kind == "corporate";
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi @(corporate ? "bi-building" : "bi-person")"></i> @ViewData["Title"]</h1>
+        <p>دفتر مشتریان شرکت — مشتریان عضو بارگو و مشتریان بیرونی که شرکت برایشان بار ثبت می‌کند یا قرارداد دارد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="History"><i class="bi bi-clock-history"></i> سوابق همکاری</a>
+        <a class="btn2 ghost" asp-action="Contracts"><i class="bi bi-file-earmark-medical"></i> قراردادها</a>
+    </div>
+</div>
+
+<partial name="_Tabs" />
+
+<div class="grid-side">
+    <div class="card2">
+        <form method="get" asp-action="Index" class="filters">
+            <input type="hidden" name="kind" value="@kind" />
+            <div class="fld"><label>جستجو</label><input name="q" value="@q" placeholder="نام، موبایل یا شناسه" /></div>
+            <button class="btn2 ghost"><i class="bi bi-search"></i> جستجو</button>
+            @if (q is not null)
+            {
+                <a class="btn2 ghost" asp-action="Index" asp-route-kind="@kind"><i class="bi bi-x-lg"></i> حذف فیلتر</a>
+            }
+        </form>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>مشتری</th><th>موبایل</th><th>@(corporate ? "شناسهٔ ملی" : "کد ملی")</th><th>قرارداد</th><th>ثبت</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var c in Model.Rows)
+                {
+                    <tr>
+                        <td>
+                            <a class="lnk" asp-action="History" asp-route-customerId="@c.CompanyCustomerId">@c.Name</a>
+                            @if (c.ShipperId is not null)
+                            {
+                                <span class="chip"><i class="bi bi-patch-check"></i> عضو بارگو</span>
+                            }
+                            @if (!string.IsNullOrEmpty(c.Note))
+                            {
+                                <span class="sub">@c.Note</span>
+                            }
+                        </td>
+                        <td class="num">@(string.IsNullOrEmpty(c.Mobile) ? "—" : Fa.Digits(c.Mobile))</td>
+                        <td class="num">@(string.IsNullOrEmpty(c.NationalId) ? "—" : Fa.Digits(c.NationalId))</td>
+                        <td>
+                            @if (c.Contracts == 0)
+                            {
+                                <span class="muted">ندارد</span>
+                            }
+                            else
+                            {
+                                <a class="lnk" asp-action="Contracts" asp-route-customerId="@c.CompanyCustomerId">@Fa.N(c.Contracts) قرارداد</a>
+                                <span class="sub">@Fa.N(c.ActiveContracts) فعال</span>
+                            }
+                        </td>
+                        <td class="nowrap">@Fa.Date(c.CreatedAt)</td>
+                        <td>
+                            <div class="row-actions">
+                                <a class="btn2 ghost sm" asp-action="History" asp-route-customerId="@c.CompanyCustomerId"><i class="bi bi-clock-history"></i> سوابق</a>
+                                @if (c.Contracts == 0)
+                                {
+                                    <form method="post" asp-action="Delete" asp-route-id="@c.CompanyCustomerId" class="inline" data-confirm="«@c.Name» از مشتریان حذف شود؟">
+                                        <button class="btn2 ghost sm" title="حذف"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Total == 0)
+                {
+                    <tr><td colspan="6" class="empty"><i class="bi bi-person-vcard"></i>@(q is null ? (corporate ? "هنوز مشتری شرکتی ثبت نشده است." : "هنوز مشتری حقیقی ثبت نشده است.") : "مشتری‌ای با این مشخصات پیدا نشد.")</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    </div>
+
+    <partial name="_AddCustomer" />
+</div>

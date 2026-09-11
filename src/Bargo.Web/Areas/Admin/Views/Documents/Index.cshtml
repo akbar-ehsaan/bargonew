@@ -1,0 +1,77 @@
+@model PageVm<DocumentRowVm>
+@{
+    var status = (string)ViewBag.Status;
+    var kind = ViewBag.Kind as string;
+    var owner = ViewBag.Owner as string;
+    var ownerKind = ViewBag.OwnerKind as string;
+    var q = ViewBag.Q as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    var kinds = (string[])ViewBag.Kinds;
+    var owners = (string[])ViewBag.Owners;
+    int C(string s) => counts.TryGetValue(s, out var n) ? n : 0;
+    ViewData["Mode"] = "queue";
+    ViewData["ReturnUrl"] = Context.Request.Path + Context.Request.QueryString;
+    ViewData["WarnDays"] = (int)ViewBag.WarnDays;
+    var desc = status switch
+    {
+        AccountStatus.Approved => "مدارک تأییدشده — تازه‌ترین بررسی اول. تأییدِ اشتباه را با نوشتن علت پس بگیرید.",
+        AccountStatus.Rejected => "مدارک ردشده — تازه‌ترین بررسی اول. صاحب مدرک با هر رد، اعلان و علت را گرفته است.",
+        _ => "قدیمی‌ترین مدرک اول؛ هیچ مدرکی نباید زیر مدارک تازه دفن شود. رد بدون علت پذیرفته نمی‌شود."
+    };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-patch-check"></i> @ViewData["Title"]</h1>
+        <p>@desc</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Alerts"><i class="bi bi-alarm"></i> هشدارهای انقضا</a>
+        <a class="btn2 ghost" asp-action="Expired"><i class="bi bi-calendar-x"></i> مدارک منقضی</a>
+        <a class="btn2 ghost" href="/Admin/Users/Verifications"><i class="bi bi-person-vcard"></i> احراز هویت صاحبان بار</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Index" asp-route-status="pending" asp-route-kind="@kind" asp-route-owner="@owner" asp-route-q="@q" class="@(status == AccountStatus.Pending ? "on" : "")">در انتظار بررسی <span class="n">@Fa.N(C(AccountStatus.Pending))</span></a>
+    <a asp-action="Index" asp-route-status="approved" asp-route-kind="@kind" asp-route-owner="@owner" asp-route-q="@q" class="@(status == AccountStatus.Approved ? "on" : "")">تأییدشده <span class="n">@Fa.N(C(AccountStatus.Approved))</span></a>
+    <a asp-action="Index" asp-route-status="rejected" asp-route-kind="@kind" asp-route-owner="@owner" asp-route-q="@q" class="@(status == AccountStatus.Rejected ? "on" : "")">ردشده <span class="n">@Fa.N(C(AccountStatus.Rejected))</span></a>
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Index" class="filters">
+        <input type="hidden" name="status" value="@status" />
+        <div class="fld narrow">
+            <label>صاحب مدرک</label>
+            <select name="owner">
+                <option value="">همه</option>
+                @foreach (var o in owners)
+                {
+                    <option value="@o" selected="@(ownerKind == o && owner == o)">@OwnerKind.Label(o)</option>
+                }
+                @if (owner is not null && owner.Contains(':'))
+                {
+                    <option value="@owner" selected>@OwnerKind.Label(ownerKind ?? "") #@owner.Split(':')[1]</option>
+                }
+            </select>
+        </div>
+        <div class="fld narrow">
+            <label>نوع مدرک</label>
+            <select name="kind">
+                <option value="">همه</option>
+                @foreach (var k in kinds)
+                {
+                    <option value="@k" selected="@(kind == k)">@DocumentKind.Label(k)</option>
+                }
+            </select>
+        </div>
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="نام، موبایل، پلاک یا شمارهٔ مدرک" /></div>
+        <div class="row-actions">
+            <button class="btn2 pri"><i class="bi bi-funnel"></i> اعمال</button>
+            @if (!string.IsNullOrEmpty(q) || kind is not null || owner is not null)
+            {
+                <a class="btn2 ghost" asp-action="Index" asp-route-status="@status">پاک کردن</a>
+            }
+        </div>
+    </form>
+    <partial name="_DocTable" model="Model" />
+</div>

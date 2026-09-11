@@ -1,0 +1,89 @@
+@model List<CompanyUserRow>
+@inject CurrentUser Me
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-shield-lock"></i> تعیین سطح دسترسی</h1>
+        <p>هر ستون یک بخش از پنل است. تغییرها بلافاصله اعمال می‌شوند — بدون نیاز به خروج و ورود دوبارهٔ کاربر.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-people"></i> فهرست کاربران</a>
+        <a class="btn2 ghost" asp-action="Add"><i class="bi bi-person-plus"></i> تعریف کاربر</a>
+    </div>
+</div>
+
+<form method="post" asp-action="SavePermissions">
+    <div class="card2">
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead>
+                    <tr>
+                        <th>کاربر</th>
+                        @foreach (var p in CompanyLabels.Permissions)
+                        {
+                            <th style="text-align:center">@CompanyLabels.Permission(p)</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var u in Model)
+                {
+                    var isMe = u.CompanyUserId == Me.Id;
+                    <tr id="u@(u.CompanyUserId)" style="@(u.IsActive ? "" : "opacity:.55")">
+                        <td>
+                            <b>@u.Name</b>
+                            @if (u.IsOwner) { <span class="pill inf">مدیر شرکت</span> }
+                            @if (isMe) { <span class="chip">شما</span> }
+                            @if (!u.IsActive) { <span class="pill no">غیرفعال</span> }
+                            <span class="sub">@CompanyLabels.UserTitle(u.Title) · @Fa.Digits(u.Mobile)</span>
+                        </td>
+                        @foreach (var p in CompanyLabels.Permissions)
+                        {
+                            var on = u.Permissions.HasFlag(p);
+                            var locked = u.IsOwner || (isMe && p == CompanyPermission.Users);
+                            <td style="text-align:center">
+                                @if (locked)
+                                {
+                                    <input type="checkbox" checked disabled title="@(u.IsOwner ? "مدیر شرکت همیشه همهٔ دسترسی‌ها را دارد" : "دسترسی «کاربران» را از خودتان نمی‌توانید بردارید")" style="width:17px;height:17px;accent-color:var(--primary)" />
+                                }
+                                else
+                                {
+                                    <input type="checkbox" name="p_@(u.CompanyUserId)" value="@p" checked="@on" aria-label="@u.Name — @CompanyLabels.Permission(p)" style="width:17px;height:17px;accent-color:var(--primary)" />
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="@(CompanyLabels.Permissions.Length + 1)" class="empty"><i class="bi bi-people"></i>هنوز کاربری برای شرکت تعریف نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.Count > 0)
+        {
+            <div class="bd">
+                <div class="form-actions" style="margin-top:0">
+                    <button class="btn2 pri"><i class="bi bi-check2"></i> ذخیرهٔ دسترسی‌ها</button>
+                    <a class="btn2 ghost" asp-action="Permissions">بازنشانی</a>
+                </div>
+            </div>
+        }
+    </div>
+</form>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-info-circle"></i> هر بخش چه چیزی را باز می‌کند</div>
+    <div class="bd">
+        <dl class="kv">
+            <dt>بارها</dt><dd>ثبت بار، بارهای دریافتی، بازار بار و پیشنهاد قیمت</dd>
+            <dt>تخصیص و کنترل سفر</dt><dd>تخصیص و تعویض راننده/خودرو، سفرها، رهگیری ناوگان، بارنامه</dd>
+            <dt>رانندگان</dt><dd>افزودن راننده، مدارک، فعالیت و امتیاز رانندگان</dd>
+            <dt>ناوگان</dt><dd>خودروها، مدارک خودرو و هشدار انقضا</dd>
+            <dt>مالی</dt><dd>کیف پول، درآمد و هزینه، تسویه با رانندگان و صاحبان بار، فاکتورها</dd>
+            <dt>گزارش‌ها</dt><dd>گزارش عملکرد رانندگان، خودروها، مسیرها و درآمد دوره‌ای</dd>
+            <dt>مشتریان</dt><dd>دفتر مشتریان، سوابق همکاری و قراردادها</dd>
+            <dt>کاربران</dt><dd>تعریف کاربر و دسترسی‌ها، اطلاعات بانکی و تنظیمات شرکت — معمولاً فقط مدیر شرکت</dd>
+        </dl>
+    </div>
+</div>

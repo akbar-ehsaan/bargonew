@@ -1,0 +1,181 @@
+@model OpsDocumentsVm
+@{
+    var pending = Model.Page.Rows.Count(x => x.Status == AccountStatus.Pending);
+    var selectedPlate = Model.OwnerId is int oid ? Model.Owners.GetValueOrDefault(oid) : null;
+    var kindLabel = Model.Kind is null ? null : DocumentKind.Label(Model.Kind);
+    (string Key, string Label, string Icon)[] tabs =
+    [
+        ("", "همهٔ مدارک", "bi-folder2-open"),
+        (DocumentKind.VehicleCard, "کارت خودرو", "bi-credit-card-2-front"),
+        (DocumentKind.Insurance, "بیمه", "bi-shield-check"),
+        (DocumentKind.Inspection, "معاینه فنی", "bi-tools")
+    ];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-folder2-open"></i> @ViewData["Title"]</h1>
+        <p>کارت خودرو، بیمه‌نامه و معاینه فنی خودروهای شرکت. مدرک تازه به نام خودرو ثبت و برای بررسی به مدیر بارگو می‌رود؛ تاریخ انقضایش روی خودرو هم به‌روز می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-truck"></i> خودروهای شرکت</a>
+        <a class="btn2 ghost" asp-action="Alerts"><i class="bi bi-alarm"></i> هشدار انقضا</a>
+    </div>
+</div>
+
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        var on = (Model.Kind ?? "") == t.Key;
+        <a href="@Url.Action("Documents", new { kind = t.Key.Length == 0 ? null : t.Key, vehicleId = Model.OwnerId })" class="@(on ? "on" : "")"><i class="bi @t.Icon"></i> @t.Label</a>
+    }
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <form method="get" asp-action="Documents" class="filters">
+            @if (Model.Kind is not null)
+            {
+                <input type="hidden" name="kind" value="@Model.Kind" />
+            }
+            <div class="fld">
+                <label>خودرو</label>
+                <select name="vehicleId">
+                    <option value="">همهٔ خودروها</option>
+                    @foreach (var o in Model.OwnerOptions)
+                    {
+                        <option value="@o.Id" selected="@(Model.OwnerId == o.Id)">@o.Label</option>
+                    }
+                </select>
+            </div>
+            <button class="btn2 ghost"><i class="bi bi-funnel"></i> فیلتر</button>
+            @if (Model.OwnerId is not null)
+            {
+                <a class="btn2 ghost" asp-action="Documents" asp-route-kind="@Model.Kind"><i class="bi bi-x-lg"></i> همهٔ خودروها</a>
+                <a class="btn2 soft" asp-action="Edit" asp-route-id="@Model.OwnerId"><i class="bi bi-truck-front"></i> خودرو</a>
+            }
+        </form>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>خودرو</th><th>مدرک</th><th>شماره</th><th>انقضا</th><th>وضعیت</th><th>بارگذاری</th><th>فایل</th></tr></thead>
+                <tbody>
+                @foreach (var x in Model.Page.Rows)
+                {
+                    <tr>
+                        <td><a asp-action="Edit" asp-route-id="@x.OwnerId"><span class="plate">@Model.Owners.GetValueOrDefault(x.OwnerId, "—")</span></a></td>
+                        <td><b>@DocumentKind.Label(x.Kind)</b></td>
+                        <td class="num">@(x.Number is null ? "—" : Fa.Digits(x.Number))</td>
+                        <td>@(DocumentKind.Expiring.Contains(x.Kind) ? Ui.Expiry(x.ExpiresAt, Model.WarnDays) : Ui.Pill("بدون انقضا", "mut"))</td>
+                        <td>
+                            @Ui.AccountPill(x.Status)
+                            @if (!string.IsNullOrWhiteSpace(x.ReviewNote))
+                            {
+                                <span class="sub">@x.ReviewNote</span>
+                            }
+                        </td>
+                        <td class="nowrap">@Fa.Date(x.UploadedAt)<span class="sub">@Fa.Ago(x.UploadedAt)</span></td>
+                        <td>
+                            @if (x.FilePath is not null)
+                            {
+                                <a class="btn2 ghost sm" href="@DocumentStorage.Url(x.FilePath)" target="_blank"><i class="bi bi-eye"></i> مشاهده</a>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Page.Total == 0)
+                {
+                    <tr>
+                        <td colspan="7" class="empty">
+                            <i class="bi bi-folder2-open"></i>
+                            @if (Model.OwnerOptions.Count == 0)
+                            {
+                                <text>هنوز خودرویی در ناوگان شرکت نیست؛ ابتدا </text><a class="lnk" asp-action="Add">خودرو اضافه کنید</a><text>.</text>
+                            }
+                            else if (selectedPlate is not null)
+                            {
+                                <text>برای خودرو @selectedPlate @(kindLabel is null ? "مدرکی" : kindLabel + "ای") بارگذاری نشده است.</text>
+                            }
+                            else if (kindLabel is not null)
+                            {
+                                <text>هنوز @kindLabel برای هیچ خودرویی بارگذاری نشده است.</text>
+                            }
+                            else
+                            {
+                                <text>هنوز مدرکی برای خودروهای شرکت بارگذاری نشده است.</text>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Page.Pager" />
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-cloud-arrow-up"></i> بارگذاری مدرک خودرو</div>
+            <div class="bd">
+                @if (Model.OwnerOptions.Count == 0)
+                {
+                    <div class="muted small">ابتدا خودرویی اضافه کنید.</div>
+                }
+                else
+                {
+                    <form method="post" asp-action="Upload" enctype="multipart/form-data">
+                        <div class="form-grid">
+                            <div class="fld full">
+                                <label>خودرو <span class="req">*</span></label>
+                                <select name="vehicleId" required>
+                                    <option value="">انتخاب کنید</option>
+                                    @foreach (var o in Model.OwnerOptions)
+                                    {
+                                        <option value="@o.Id" selected="@(Model.OwnerId == o.Id)">@o.Label</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="fld full">
+                                <label>نوع مدرک <span class="req">*</span></label>
+                                <select name="kind" required>
+                                    @foreach (var k in Model.Kinds)
+                                    {
+                                        <option value="@k" selected="@(Model.Kind == k)">@DocumentKind.Label(k)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="fld">
+                                <label>شماره مدرک</label>
+                                <input name="number" maxlength="40" dir="ltr" />
+                                <span class="hint">شماره بیمه‌نامه یا کارت خودرو.</span>
+                            </div>
+                            <div class="fld">
+                                <label>تاریخ انقضا</label>
+                                <input name="expiresAt" data-jdate placeholder="۱۴۰۵/۰۶/۲۱" />
+                                <span class="hint">برای بیمه‌نامه و معاینه فنی لازم است.</span>
+                            </div>
+                            <div class="fld full">
+                                <label>فایل <span class="req">*</span></label>
+                                <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required />
+                                <span class="hint">تصویر (jpg، png، webp) یا PDF، حداکثر ۸ مگابایت.</span>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn2 pri block"><i class="bi bi-cloud-arrow-up"></i> بارگذاری</button>
+                        </div>
+                    </form>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-info-circle"></i> راهنما</div>
+            <div class="bd small">
+                <div class="kvrow"><span>در این صفحه</span><b>@Fa.N(pending) در انتظار بررسی</b></div>
+                <p class="muted" style="margin:10px 0 0">برای تمدید بیمه یا معاینه فنی فقط نسخهٔ جدید را بارگذاری کنید؛ مدرک قبلیِ همان نوع کنار گذاشته و هشدار انقضایش برداشته می‌شود. خودرویی که مدرکش رد شده با بارگذاری مدرک تازه دوباره به صف بررسی می‌رود.</p>
+            </div>
+        </div>
+    </div>
+</div>

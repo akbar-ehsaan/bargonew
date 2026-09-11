@@ -1,0 +1,30 @@
+@model ReportRangeVm
+@{
+    // بازهٔ گزارش: از/تا با تقویم شمسی + میان‌برهای پرکاربرد. «تا» انحصاری است، پس یک روز کم می‌شود.
+    var lastDay = Model.ToUtc.AddDays(-1);
+    var today = DateTime.UtcNow;
+    string Q(int days) => Url.Action(Model.Action, new { from = Fa.DateBox(today.AddDays(-(days - 1))), to = Fa.DateBox(today) })!;
+    var monthStart = Fa.MonthStartUtc.AddHours(12);
+    var isDays = (int days) => Model.Days == days && Fa.DateBox(lastDay) == Fa.DateBox(today);
+}
+<div class="card2">
+    <form method="get" asp-action="@Model.Action" class="filters">
+        <div class="fld narrow"><label>از تاریخ</label><input name="from" data-jdate value="@Fa.DateBox(Model.FromUtc.AddHours(12))" placeholder="۱۴۰۵/۰۶/۰۱" /></div>
+        <div class="fld narrow"><label>تا تاریخ</label><input name="to" data-jdate value="@Fa.DateBox(lastDay.AddHours(12))" placeholder="۱۴۰۵/۰۶/۳۱" /></div>
+        @if (ViewData["by"] is string by)
+        {
+            <input type="hidden" name="by" value="@by" />
+        }
+        <div class="row-actions">
+            <button class="btn2 pri"><i class="bi bi-funnel"></i> اعمال</button>
+            <a class="btn2 sm @(isDays(7) ? "soft" : "ghost")" href="@Q(7)">۷ روز</a>
+            <a class="btn2 sm @(isDays(30) ? "soft" : "ghost")" href="@Q(30)">۳۰ روز</a>
+            <a class="btn2 sm ghost" href="@Url.Action(Model.Action, new { from = Fa.DateBox(monthStart), to = Fa.DateBox(today) })">ماه جاری</a>
+            <a class="btn2 sm @(isDays(90) ? "soft" : "ghost")" href="@Q(90)">۹۰ روز</a>
+            <a class="btn2 sm @(isDays(365) ? "soft" : "ghost")" href="@Q(365)">یک سال</a>
+        </div>
+        <span class="muted small" style="margin-inline-start:auto">
+            @Fa.LongDate(Model.FromUtc.AddHours(12)) تا @Fa.LongDate(lastDay.AddHours(12)) · @Fa.N(Model.Days) روز · نمایش @(Model.Monthly ? "ماهانه" : "روزانه")
+        </span>
+    </form>
+</div>

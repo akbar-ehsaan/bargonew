@@ -1,0 +1,75 @@
+@model PageVm<ShipperAggRow>
+@{
+    var shippers = (Dictionary<int, ShipperInfo>)ViewBag.Shippers;
+    var saved = (Dictionary<int, int>)ViewBag.Saved;
+    var q = ViewBag.Q as string;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-person-lines-fill"></i> صاحبان بار</h1>
+        <p>صاحبان بارِ بارگو که شرکت برایشان حمل کرده است — خودکار از روی سفرها، به‌همراه دفتر مشتریان شرکت.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="History"><i class="bi bi-clock-history"></i> سوابق همکاری</a>
+        <a class="btn2 ghost" asp-action="Contracts"><i class="bi bi-file-earmark-medical"></i> قراردادها</a>
+    </div>
+</div>
+
+<partial name="_Tabs" />
+
+<div class="grid-side">
+    <div class="card2">
+        <form method="get" asp-action="Index" class="filters">
+            <div class="fld"><label>جستجو</label><input name="q" value="@q" placeholder="نام، نام تجاری یا موبایل" /></div>
+            <button class="btn2 ghost"><i class="bi bi-search"></i> جستجو</button>
+            @if (q is not null)
+            {
+                <a class="btn2 ghost" asp-action="Index"><i class="bi bi-x-lg"></i> حذف فیلتر</a>
+            }
+        </form>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>صاحب بار</th><th>موبایل</th><th>سفرها</th><th>جمع کرایه</th><th>آخرین سفر</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var r in Model.Rows)
+                {
+                    shippers.TryGetValue(r.ShipperId, out var s);
+                    <tr>
+                        <td>
+                            <a class="lnk" asp-action="History" asp-route-shipperId="@r.ShipperId">@(s?.Name ?? "—")</a>
+                            <span class="sub">@(s?.Kind == "business" ? "کسب‌وکار" : "شخص حقیقی")@(s?.City is null ? "" : " · " + s.City)</span>
+                        </td>
+                        <td class="num">@Fa.Digits(s?.Mobile)</td>
+                        <td>
+                            <b>@Fa.N(r.Trips)</b>
+                            <span class="sub">@Fa.N(r.Done) تحویل‌شده@(r.Cancelled > 0 ? " · " + Fa.N(r.Cancelled) + " لغو" : "")</span>
+                        </td>
+                        <td class="nowrap">@Fa.Toman(r.Fare)</td>
+                        <td class="nowrap">@Fa.Date(r.LastTripAt)<span class="sub">@Fa.Ago(r.LastTripAt)</span></td>
+                        <td>
+                            @if (saved.ContainsKey(r.ShipperId))
+                            {
+                                <span class="chip"><i class="bi bi-bookmark-check"></i> در دفتر مشتریان</span>
+                            }
+                            else
+                            {
+                                <form method="post" asp-action="Add" class="inline">
+                                    <input type="hidden" name="shipperId" value="@r.ShipperId" />
+                                    <button class="btn2 soft sm"><i class="bi bi-bookmark-plus"></i> افزودن به مشتریان</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Total == 0)
+                {
+                    <tr><td colspan="6" class="empty"><i class="bi bi-people"></i>@(q is null ? "شرکت هنوز برای هیچ صاحب باری در بارگو حمل نکرده است." : "صاحب باری با این مشخصات پیدا نشد.")</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    </div>
+
+    <partial name="_AddCustomer" />
+</div>

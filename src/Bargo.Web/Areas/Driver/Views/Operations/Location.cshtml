@@ -1,0 +1,161 @@
+@model LocationVm
+@{
+    var markers = new List<object>();
+    if (Model.LastLat is double la && Model.LastLng is double lo)
+        markers.Add(new { lat = la, lng = lo, kind = "truck", label = "آخرین موقعیت ثبت‌شده · " + (Model.LastSeenAt is DateTime s0 ? Fa.Ago(s0) : "") });
+    var stale = Model.LastSeenAt is null || Model.LastSeenAt < DateTime.UtcNow.AddMinutes(-(Model.IntervalMin * 3));
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-broadcast-pin"></i> @ViewData["Title"]</h1>
+        <p>تا وقتی پنل باز است، مرورگر هر @Fa.N(Model.IntervalMin) دقیقه موقعیت شما را می‌فرستد. صاحب بار فقط در سفرِ زنده موقعیت را می‌بیند؛ بیرون از سفر فقط برای «بارهای نزدیک من» استفاده می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-joystick"></i> عملیات سفر</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat @(stale ? "w" : "s")">
+        <div class="l"><i class="bi bi-clock"></i> آخرین موقعیت</div>
+        <div class="v">@(Model.LastSeenAt is DateTime s1 ? Fa.Ago(s1) : "ثبت نشده")</div>
+    </div>
+    <div class="stat p">
+        <div class="l"><i class="bi bi-pin-map"></i> نقاط امروز</div>
+        <div class="v">@Fa.N(Model.PointsToday)<small>نقطه</small></div>
+    </div>
+    <div class="stat @(Model.LiveTripId is null ? "i" : "p")">
+        <div class="l"><i class="bi bi-truck"></i> سفر زنده</div>
+        <div class="v">
+            @if (Model.LiveTripId is int lt)
+            {
+                <a class="lnk num" asp-controller="Trips" asp-action="Detail" asp-route-id="@lt">@Model.LiveTripCode</a>
+            }
+            else
+            {
+                <text>ندارید</text>
+            }
+        </div>
+    </div>
+    <div class="stat @(Model.IsAvailable ? "s" : "i")">
+        <div class="l"><i class="bi bi-toggle-on"></i> وضعیت دریافت بار</div>
+        <div class="v">@(Model.IsAvailable ? "آماده بار" : "غیرفعال")</div>
+    </div>
+</div>
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-geo-alt"></i> ارسال موقعیت از این دستگاه <span class="end"><span id="trk-state" class="pill mut">…</span></span></div>
+            <div class="bd">
+                <p style="margin-top:0">ارسال خودکار در همین مرورگر و همین دستگاه انجام می‌شود. اگر خاموشش کنید، فاصله‌ها از مرکز شهر حساب شما سنجیده می‌شوند و در سفر زنده صاحب بار موقعیت شما را نمی‌بیند.</p>
+                <div class="form-actions">
+                    <button type="button" class="btn2 ghost" id="trk-toggle"><i class="bi bi-power"></i> <span>…</span></button>
+                    <button type="button" class="btn2 pri" id="trk-now"><i class="bi bi-crosshair"></i> ثبت موقعیت همین حالا</button>
+                </div>
+                <p class="muted small" id="trk-msg" style="margin:10px 0 0"></p>
+                <p class="muted small" style="margin:10px 0 0">اگر مرورگر اجازهٔ موقعیت را نمی‌دهد، از تنظیمات سایت در مرورگر «موقعیت مکانی» را برای بارگو فعال کنید.</p>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-list-ol"></i> آخرین نقاط رسیده به سرور</div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>زمان</th><th>مختصات</th><th>سرعت</th><th>دقت</th><th>سفر</th></tr></thead>
+                    <tbody>
+                    @foreach (var p in Model.Recent)
+                    {
+                        <tr>
+                            <td class="nowrap">@Fa.Stamp(p.RecordedAt)<span class="sub">@Fa.Ago(p.RecordedAt)</span></td>
+                            <td class="num">@p.Lat.ToString("0.00000", System.Globalization.CultureInfo.InvariantCulture), @p.Lng.ToString("0.00000", System.Globalization.CultureInfo.InvariantCulture)</td>
+                            <td>@(p.SpeedKmh is double sp ? Fa.N(sp) + " کیلومتر بر ساعت" : "—")</td>
+                            <td>@(p.AccuracyM is double ac ? "±" + Fa.N(ac) + " متر" : "—")</td>
+                            <td>@if (p.TripCode is not null) { <span class="num">@p.TripCode</span> } else { <span class="muted">بیرون از سفر</span> }</td>
+                        </tr>
+                    }
+                    @if (Model.Recent.Count == 0)
+                    {
+                        <tr><td colspan="5" class="empty"><i class="bi bi-broadcast"></i>هنوز نقطه‌ای از شما به سرور نرسیده است. «ثبت موقعیت همین حالا» را بزنید و اجازهٔ موقعیت را تأیید کنید.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-map"></i> آخرین موقعیت روی نقشه</div>
+            <div class="bd">
+                @if (markers.Count > 0)
+                {
+                    <div class="map short" data-map="@Json.Serialize(new { markers, fit = true })"></div>
+                }
+                else
+                {
+                    <div class="empty-state"><i class="bi bi-map"></i><b>موقعیتی ثبت نشده</b>پس از اولین ارسال، نقشه اینجا نمایش داده می‌شود.</div>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-toggle-on"></i> دریافت بار تازه</div>
+            <div class="bd">
+                <p style="margin-top:0">@(Model.IsAvailable ? "شما «آماده بار» هستید و در فهرست رانندگان در دسترس دیده می‌شوید." : "شما برای بار تازه غیرفعال هستید. سفرهای جاری تغییری نمی‌کنند.")</p>
+                <form method="post" asp-controller="Dashboard" asp-action="Availability">
+                    <input type="hidden" name="available" value="@(Model.IsAvailable ? "false" : "true")" />
+                    <button type="submit" class="btn2 @(Model.IsAvailable ? "ghost" : "grn") block">
+                        <i class="bi @(Model.IsAvailable ? "bi-pause-circle" : "bi-play-circle")"></i> @(Model.IsAvailable ? "فعلاً بار نمی‌گیرم" : "آماده بار هستم")
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_MapAssets" />
+    <script>
+        (function () {
+            var key = 'bg:track';
+            var btn = document.getElementById('trk-toggle'), lbl = btn.querySelector('span'), st = document.getElementById('trk-state');
+            var now = document.getElementById('trk-now'), msg = document.getElementById('trk-msg');
+            function isOff() { try { return localStorage.getItem(key) === 'off'; } catch (_) { return false; } }
+            function render() {
+                var off = isOff();
+                st.textContent = off ? 'خاموش در این دستگاه' : 'روشن در این دستگاه';
+                st.className = 'pill ' + (off ? 'no' : 'ok');
+                lbl.textContent = off ? 'روشن کردن ارسال خودکار' : 'خاموش کردن ارسال خودکار';
+                btn.className = 'btn2 ' + (off ? 'grn' : 'ghost');
+            }
+            btn.addEventListener('click', function () {
+                var off = isOff();
+                try { if (off) localStorage.removeItem(key); else localStorage.setItem(key, 'off'); } catch (_) { }
+                render();
+                // با روشن شدن، panel.js باید از نو بارگذاری شود تا ارسال دوره‌ای آغاز شود
+                if (off) location.reload();
+            });
+            render();
+
+            now.addEventListener('click', function () {
+                if (!navigator.geolocation) { msg.textContent = 'مرورگر شما از موقعیت‌یابی پشتیبانی نمی‌کند.'; return; }
+                msg.textContent = 'در حال دریافت موقعیت از دستگاه…';
+                now.disabled = true;
+                navigator.geolocation.getCurrentPosition(function (p) {
+                    fetch('/api/track', {
+                        method: 'POST', credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ lat: p.coords.latitude, lng: p.coords.longitude, speed: p.coords.speed != null ? p.coords.speed * 3.6 : null, accuracy: p.coords.accuracy })
+                    }).then(function (r) {
+                        if (r.ok) location.reload();
+                        else { msg.textContent = 'سرور موقعیت را نپذیرفت (کد ' + r.status + ').'; now.disabled = false; }
+                    }).catch(function () { msg.textContent = 'ارتباط با سرور برقرار نشد.'; now.disabled = false; });
+                }, function (err) {
+                    msg.textContent = err && err.code === 1 ? 'دسترسی به موقعیت داده نشد. در تنظیمات مرورگر اجازهٔ موقعیت را فعال کنید.' : 'موقعیت دریافت نشد؛ دوباره تلاش کنید.';
+                    now.disabled = false;
+                }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+            });
+        })();
+    </script>
+}

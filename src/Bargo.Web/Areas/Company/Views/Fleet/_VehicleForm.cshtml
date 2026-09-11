@@ -1,0 +1,65 @@
+@model OpsVehicleForm
+@{
+    var types = (List<VehicleType>)ViewBag.Types;
+    var selectedType = types.FirstOrDefault(t => t.VehicleTypeId == Model.VehicleTypeId);
+}
+<div class="form-grid">
+    <div class="form-sec"><i class="bi bi-truck-front"></i> مشخصات خودرو</div>
+    <div class="fld">
+        <label>نوع خودرو <span class="req">*</span></label>
+        <select name="VehicleTypeId" required>
+            <option value="">انتخاب کنید</option>
+            @foreach (var t in types)
+            {
+                <option value="@t.VehicleTypeId" selected="@(Model.VehicleTypeId == t.VehicleTypeId)">@t.Name (@OpsLabels.Ton(t.CapacityTon) تن)</option>
+            }
+        </select>
+        @if (Model.VehicleId is not null)
+        {
+            <span class="hint">تغییر نوع، خودرو را دوباره به صف تأیید مدیر بارگو می‌فرستد.</span>
+        }
+    </div>
+    <div class="fld">
+        <label>پلاک <span class="req">*</span></label>
+        <input name="PlateNo" value="@Model.PlateNo" maxlength="30" required placeholder="۱۲ ع ۳۴۵ ایران ۶۷" />
+        <span class="hint">همان قالب پلاک: دو رقم، حرف، سه رقم، «ایران»، کد استان.</span>
+    </div>
+    <div class="fld">
+        <label>برند</label>
+        <input name="Brand" value="@Model.Brand" maxlength="40" placeholder="ولوو، بنز، اسکانیا…" />
+    </div>
+    <div class="fld">
+        <label>مدل</label>
+        <input name="ModelName" value="@Model.ModelName" maxlength="40" placeholder="FH500" />
+    </div>
+    <div class="fld">
+        <label>سال ساخت</label>
+        <input name="Year" value="@Model.Year" inputmode="numeric" dir="ltr" placeholder="۱۴۰۰ یا 2020" />
+    </div>
+    <div class="fld">
+        <label>ظرفیت (تن) <span class="req">*</span></label>
+        <input name="CapacityTon" value="@Model.CapacityTon" inputmode="decimal" dir="ltr" required placeholder="@(selectedType is null ? "24" : OpsLabels.Ton(selectedType.CapacityTon))" />
+        <span class="hint">در تخصیص، خودروی کم‌ظرفیت‌تر از وزن بار هشدار می‌گیرد.</span>
+    </div>
+
+    <div class="form-sec"><i class="bi bi-shield-check"></i> مدارک خودرو</div>
+    <div class="fld">
+        <label>شماره کارت خودرو</label>
+        <input name="VehicleCardNo" value="@Model.VehicleCardNo" maxlength="30" dir="ltr" />
+    </div>
+    <div class="fld">
+        <label>انقضای معاینه فنی</label>
+        <input name="InspectionExpiresAt" data-jdate value="@Fa.DateBox(Model.InspectionExpiresAt)" placeholder="۱۴۰۵/۰۶/۲۱" />
+    </div>
+    <div class="fld">
+        <label>شماره بیمه‌نامه (شخص ثالث)</label>
+        <input name="InsurancePolicyNo" value="@Model.InsurancePolicyNo" maxlength="30" dir="ltr" />
+    </div>
+    <div class="fld">
+        <label>انقضای بیمه‌نامه</label>
+        <input name="InsuranceExpiresAt" data-jdate value="@Fa.DateBox(Model.InsuranceExpiresAt)" placeholder="۱۴۰۵/۰۶/۲۱" />
+    </div>
+    <div class="fld full">
+        <span class="hint">شماره و تاریخ‌ها برای هشدار انقضا ثبت می‌شوند؛ تصویر کارت خودرو، بیمه‌نامه و معاینه فنی را از «مدارک» بارگذاری کنید تا مدیر بارگو تأیید کند.</span>
+    </div>
+</div>

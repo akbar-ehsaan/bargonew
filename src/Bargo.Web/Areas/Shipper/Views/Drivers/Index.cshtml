@@ -1,0 +1,73 @@
+@model PageVm<ShipperDriverRow>
+@{
+    var returnTo = Context.Request.Path.Value + Context.Request.QueryString.Value;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-people"></i> رانندگان قبلی</h1>
+        <p>رانندگانی که تا امروز بار شما را حمل کرده‌اند یا در حال حمل آن هستند. رانندهٔ مورد علاقه از بارهای عمومی تازهٔ شما زودتر باخبر می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Favorites"><i class="bi bi-heart"></i> رانندگان مورد علاقه</a>
+        <a class="btn2 ghost" asp-action="Rate"><i class="bi bi-star"></i> امتیازدهی</a>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>راننده</th><th>شهر</th><th>امتیاز کلی</th><th>سفر با شما</th><th>آخرین سفر</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var drv in Model.Rows)
+            {
+                <tr>
+                    <td>
+                        <a class="lnk" href="/Shipper/Offers/Driver/@drv.DriverId">@drv.Name</a>
+                        @if (drv.IsFavorite)
+                        {
+                            <i class="bi bi-heart-fill" style="color:var(--no)" title="مورد علاقه"></i>
+                        }
+                        <span class="sub">@(drv.CompanyName is null ? "رانندهٔ مستقل" : $"عضو {drv.CompanyName}")</span>
+                    </td>
+                    <td>@(drv.City ?? "—")</td>
+                    <td>@Ui.Stars(drv.RatingAvg, drv.RatingCount)<span class="sub">@Fa.N(drv.TripCount) سفر در بارگو</span></td>
+                    <td class="nowrap"><b>@Fa.N(drv.TripsWithMe)</b> سفر<span class="sub">@Fa.N(drv.DoneWithMe) تحویل‌شده</span></td>
+                    <td class="nowrap">
+                        @Fa.Date(drv.LastTripAt)
+                        @if (drv.LastTripId is int lastTripId)
+                        {
+                            <span class="sub"><a class="lnk" href="/Shipper/Orders/Detail/@lastTripId">@(drv.LastTripCode ?? "جزئیات سفر")</a></span>
+                        }
+                    </td>
+                    <td>
+                        <div class="row-actions">
+                            <a class="btn2 ghost sm" href="/Shipper/Offers/Driver/@drv.DriverId"><i class="bi bi-person-badge"></i> مشخصات</a>
+                            @if (drv.IsFavorite)
+                            {
+                                <form method="post" asp-action="Unfavorite" data-confirm="@($"«{drv.Name}» از رانندگان مورد علاقه حذف شود؟")">
+                                    <input type="hidden" name="driverId" value="@drv.DriverId" />
+                                    <input type="hidden" name="returnUrl" value="@returnTo" />
+                                    <button class="btn2 ghost sm"><i class="bi bi-heartbreak"></i> حذف از علاقه‌مندی</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form method="post" asp-action="Favorite">
+                                    <input type="hidden" name="driverId" value="@drv.DriverId" />
+                                    <input type="hidden" name="returnUrl" value="@returnTo" />
+                                    <button class="btn2 soft sm"><i class="bi bi-heart"></i> افزودن به علاقه‌مندی</button>
+                                </form>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="6" class="empty"><i class="bi bi-people"></i>هنوز راننده‌ای بار شما را حمل نکرده است. پس از پذیرش اولین پیشنهاد، راننده اینجا فهرست می‌شود. <a class="lnk" href="/Shipper/Loads/Create">ثبت بار جدید</a></td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

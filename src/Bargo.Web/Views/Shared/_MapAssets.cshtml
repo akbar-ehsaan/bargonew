@@ -1,0 +1,17 @@
+@*
+    نقشه: در ویو، داخل @section Scripts { <partial name="_MapAssets" /> } و در بدنه
+    <div class="map" data-map="@Json.Serialize(...)" data-tiles="@ViewBag.Tiles"></div>.
+    آدرس کاشی از تنظیم Map.TileUrl خوانده می‌شود و روی همهٔ .mapها نشانده می‌شود.
+*@
+@inject SettingsService Settings
+@{
+    var tiles = await Settings.GetAsync(SettingsService.Keys.MapTileUrl);
+}
+<link rel="stylesheet" href="~/lib/leaflet/leaflet.css" />
+<script src="~/lib/leaflet/leaflet.js"></script>
+<script>
+    document.querySelectorAll('.map[data-map]').forEach(function (el) {
+        if (!el.getAttribute('data-tiles')) el.setAttribute('data-tiles', @Json.Serialize(tiles));
+    });
+</script>
+<script src="~/js/map.js" asp-append-version="true"></script>

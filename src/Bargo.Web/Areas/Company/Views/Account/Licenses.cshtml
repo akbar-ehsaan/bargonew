@@ -1,0 +1,101 @@
+@{
+    var licenseNo = ViewBag.LicenseNo as string;
+    var expires = ViewBag.LicenseExpiresAt as DateTime?;
+    var check = (CompanyDocCheck)ViewBag.Check;
+    var history = (List<CompanyDocRow>)ViewBag.History;
+    var status = (string)ViewBag.Status;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-award"></i> مجوزها</h1>
+        <p>مجوز فعالیت شرکت حمل‌ونقل (پروانهٔ سازمان راهداری). با انقضای مجوز، پذیرش بار تازه بسته می‌شود.</p>
+    </div>
+    <div class="actions">@Ui.AccountPill(status)</div>
+</div>
+
+<partial name="_Tabs" />
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-award"></i> مجوز فعالیت</div>
+        <div class="bd">
+            <form method="post" asp-action="Licenses" enctype="multipart/form-data">
+                <div class="form-grid">
+                    <div class="fld">
+                        <label>شمارهٔ مجوز</label>
+                        <input name="licenseNo" value="@licenseNo" dir="ltr" maxlength="40" />
+                    </div>
+                    <div class="fld">
+                        <label>تاریخ انقضا</label>
+                        <input name="licenseExpiresAt" data-jdate value="@Fa.DateBox(expires)" placeholder="۱۴۰۵/۰۶/۲۱" />
+                    </div>
+                    <div class="fld full">
+                        <label>تصویر یا PDF مجوز</label>
+                        <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" />
+                        <span class="hint">حداکثر ۸ مگابایت. اگر فقط شماره یا تاریخ را اصلاح می‌کنید، فایل لازم نیست؛ با فرستادن فایل، نسخهٔ تازه به صف بررسی می‌رود.</span>
+                    </div>
+                </div>
+                <div class="form-actions"><button class="btn2 pri"><i class="bi bi-cloud-arrow-up"></i> ذخیره و بارگذاری</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-patch-check"></i> وضعیت مجوز</div>
+            <div class="bd">
+                <div class="kvrow"><span>بررسی مدرک</span>@Ui.Pill(check.StateLabel, check.Tone)</div>
+                <div class="kvrow"><span>شمارهٔ مجوز</span><b>@(string.IsNullOrEmpty(licenseNo) ? "—" : Fa.Digits(licenseNo))</b></div>
+                <div class="kvrow"><span>انقضا</span>@Ui.Expiry(expires, 60)</div>
+                @if (check.Doc is { } lastDoc)
+                {
+                    <div class="kvrow"><span>آخرین بارگذاری</span><b>@Fa.Date(lastDoc.UploadedAt)</b></div>
+                    @if (!string.IsNullOrEmpty(lastDoc.ReviewNote))
+                    {
+                        <div class="kvrow"><span>یادداشت بررسی</span><b>@lastDoc.ReviewNote</b></div>
+                    }
+                }
+                @if (expires is DateTime e && e < DateTime.UtcNow)
+                {
+                    <p class="val-err" style="margin:10px 0 0"><i class="bi bi-exclamation-triangle"></i> مجوز منقضی شده است؛ نسخهٔ تمدیدشده را بارگذاری کنید.</p>
+                }
+                else if (expires is DateTime e2 && e2 < DateTime.UtcNow.AddDays(60))
+                {
+                    <p class="muted small" style="margin:10px 0 0"><i class="bi bi-alarm"></i> کمتر از ۶۰ روز تا انقضا مانده است.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-clock-history"></i> نسخه‌های بارگذاری‌شده</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>بارگذاری</th><th>شماره</th><th>انقضا</th><th>وضعیت</th><th>یادداشت بررسی</th><th>فایل</th></tr></thead>
+            <tbody>
+            @foreach (var d in history)
+            {
+                <tr>
+                    <td class="nowrap">@Fa.Stamp(d.UploadedAt)</td>
+                    <td class="num">@(string.IsNullOrEmpty(d.Number) ? "—" : Fa.Digits(d.Number))</td>
+                    <td>@Ui.Expiry(d.ExpiresAt, 60)</td>
+                    <td>@Ui.AccountPill(d.Status)</td>
+                    <td>@(string.IsNullOrEmpty(d.ReviewNote) ? "—" : d.ReviewNote)<span class="sub">@(d.ReviewedAt is null ? "" : Fa.Date(d.ReviewedAt))</span></td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(d.FilePath))
+                        {
+                            <a class="btn2 ghost sm" href="@DocumentStorage.Url(d.FilePath)" target="_blank" rel="noopener"><i class="bi bi-file-earmark"></i> مشاهده</a>
+                        }
+                        else { <span class="muted">—</span> }
+                    </td>
+                </tr>
+            }
+            @if (history.Count == 0)
+            {
+                <tr><td colspan="6" class="empty"><i class="bi bi-award"></i>هنوز مجوزی بارگذاری نشده است. شماره، تاریخ انقضا و تصویر مجوز را در فرم بالا وارد کنید.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

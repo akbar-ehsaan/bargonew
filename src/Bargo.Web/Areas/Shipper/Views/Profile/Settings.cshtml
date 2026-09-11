@@ -1,0 +1,54 @@
+@{
+    var notifySms = (bool)ViewBag.NotifySms;
+    var loginMobile = ViewBag.Mobile as string ?? "";
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-gear"></i> تنظیمات</h1>
+        <p>نحوهٔ اطلاع‌رسانی و گذرواژهٔ ورود به حساب.</p>
+    </div>
+</div>
+
+<partial name="_Tabs" />
+
+<div class="grid2">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-bell"></i> اطلاع‌رسانی</div>
+        <div class="bd">
+            <form method="post" asp-action="Settings">
+                <div class="fld">
+                    <label class="check">
+                        <input type="checkbox" name="notifySms" value="true" checked="@notifySms" />
+                        اطلاع‌رسانی پیامکی
+                    </label>
+                    <span class="hint">پیشنهاد تازه روی بار، پذیرش سفر، رسیدن به مقصد و تحویل بار به موبایل @Fa.Digits(ShipperUi.MaskMobile(loginMobile)) پیامک می‌شود. اعلان‌های داخل پنل همیشه فعال‌اند و کد تحویل همچنان برای گیرنده پیامک می‌شود.</span>
+                </div>
+                <div class="form-actions"><button class="btn2 pri"><i class="bi bi-check2"></i> ذخیرهٔ تنظیمات</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-key"></i> تغییر گذرواژه</div>
+        <div class="bd">
+            <form method="post" asp-action="ChangePassword" autocomplete="off">
+                <div class="form-grid">
+                    <div class="fld full">
+                        <label>گذرواژهٔ فعلی <span class="req">*</span></label>
+                        <input type="password" name="current" dir="ltr" required autocomplete="current-password" />
+                    </div>
+                    <div class="fld">
+                        <label>گذرواژهٔ تازه <span class="req">*</span></label>
+                        <input type="password" name="next" dir="ltr" minlength="6" required autocomplete="new-password" />
+                        <span class="hint">دست‌کم ۶ نویسه</span>
+                    </div>
+                    <div class="fld">
+                        <label>تکرار گذرواژهٔ تازه <span class="req">*</span></label>
+                        <input type="password" name="confirm" dir="ltr" minlength="6" required autocomplete="new-password" />
+                    </div>
+                </div>
+                <div class="form-actions"><button class="btn2 ghost"><i class="bi bi-shield-lock"></i> تغییر گذرواژه</button></div>
+            </form>
+        </div>
+    </div>
+</div>

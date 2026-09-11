@@ -1,0 +1,110 @@
+@model AlertsVm
+@{
+    var blocking = Model.Issues.Where(i => i.Blocking).ToList();
+    var warnings = Model.Issues.Where(i => !i.Blocking).ToList();
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-alarm"></i> هشدار انقضای مدارک</h1><p>مدارکی که منقضی شده یا تا @Fa.N(Model.WarnDays) روز آینده منقضی می‌شوند، و هر چیزی که جلوی گرفتن بار را گرفته است.</p></div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Documents" asp-route-kind="@DocumentKind.License"><i class="bi bi-folder2-open"></i> مدارک</a></div>
+</div>
+
+@if (Model.AllClear)
+{
+    <div class="card2"><div class="empty-state"><i class="bi bi-shield-check"></i><b>همه‌چیز مرتب است</b>هیچ مدرک منقضی یا نزدیک به انقضا ندارید و مانعی برای گرفتن بار نیست.</div></div>
+}
+else
+{
+    if (blocking.Count > 0)
+    {
+        <div class="alert2 err"><i class="bi bi-slash-circle"></i><div class="grow">
+            <b>فعلاً نمی‌توانید بار بگیرید:</b>
+            <ul style="margin:6px 0 0;padding-right:18px">
+                @foreach (var i in blocking)
+                {
+                    <li>@i.Text @if (i.Link is not null) { <a class="lnk" href="@i.Link">رفع</a> }</li>
+                }
+            </ul>
+        </div></div>
+    }
+    if (warnings.Count > 0)
+    {
+        <div class="alert2 warn"><i class="bi bi-exclamation-triangle"></i><div class="grow">
+            <b>به‌زودی مشکل‌ساز می‌شود:</b>
+            <ul style="margin:6px 0 0;padding-right:18px">
+                @foreach (var i in warnings)
+                {
+                    <li>@i.Text @if (i.Link is not null) { <a class="lnk" href="@i.Link">تمدید</a> }</li>
+                }
+            </ul>
+        </div></div>
+    }
+}
+
+<div class="grid2">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-calendar-x"></i> منقضی‌شده <span class="end">@Ui.Pill(Fa.N(Model.Expired.Count), Model.Expired.Count > 0 ? "no" : "mut")</span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>مدرک</th><th>مربوط به</th><th>تاریخ انقضا</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var r in Model.Expired)
+                {
+                    <tr>
+                        <td><b>@DocumentKind.Label(r.Doc.Kind)</b></td>
+                        <td>@r.OwnerLabel</td>
+                        <td>@Ui.Expiry(r.Doc.ExpiresAt, Model.WarnDays)</td>
+                        <td><a class="btn2 soft sm" asp-action="Documents" asp-route-kind="@r.Doc.Kind" asp-route-vehicleId="@(r.Doc.OwnerKind == OwnerKind.Vehicle ? (int?)r.Doc.OwnerId : null)"><i class="bi bi-cloud-arrow-up"></i> بارگذاری نسخهٔ تازه</a></td>
+                    </tr>
+                }
+                @if (Model.Expired.Count == 0)
+                {
+                    <tr><td colspan="4" class="empty"><i class="bi bi-check2-circle"></i>مدرک منقضی ندارید.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.Expired.Count > 0)
+        {
+            <div class="bd small muted">@(Model.BlockOnExpired ? "طبق تنظیم سامانه، مدرک منقضی پذیرش بار را می‌بندد." : "مدرک منقضی فعلاً پذیرش بار را نمی‌بندد، ولی تا تمدید نشود در پروندهٔ شما می‌ماند.")</div>
+        }
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-hourglass-split"></i> در آستانهٔ انقضا <span class="end">@Ui.Pill(Fa.N(Model.Expiring.Count), Model.Expiring.Count > 0 ? "wait" : "mut")</span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>مدرک</th><th>مربوط به</th><th>تاریخ انقضا</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var r in Model.Expiring)
+                {
+                    var days = (int)Math.Ceiling((r.Doc.ExpiresAt!.Value - DateTime.UtcNow).TotalDays);
+                    <tr>
+                        <td><b>@DocumentKind.Label(r.Doc.Kind)</b></td>
+                        <td>@r.OwnerLabel</td>
+                        <td>@Ui.Expiry(r.Doc.ExpiresAt, Model.WarnDays)<span class="sub">@Fa.N(days) روز مانده</span></td>
+                        <td><a class="btn2 ghost sm" asp-action="Documents" asp-route-kind="@r.Doc.Kind" asp-route-vehicleId="@(r.Doc.OwnerKind == OwnerKind.Vehicle ? (int?)r.Doc.OwnerId : null)"><i class="bi bi-arrow-repeat"></i> تمدید</a></td>
+                    </tr>
+                }
+                @if (Model.Expiring.Count == 0)
+                {
+                    <tr><td colspan="4" class="empty"><i class="bi bi-check2-circle"></i>تا @Fa.N(Model.WarnDays) روز آینده مدرکی منقضی نمی‌شود.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-calendar-check"></i> تاریخ‌های ثبت‌شده در پروفایل و خودرو</div>
+    <div class="bd">
+        <dl class="kv">
+            @foreach (var f in Model.Fields)
+            {
+                <dt>@f.Label</dt>
+                <dd>@Ui.Expiry(f.ExpiresAt, Model.WarnDays) @if (f.ExpiresAt is null) { <a class="lnk small" href="@f.Link">ثبت</a> }</dd>
+            }
+        </dl>
+        <p class="muted small" style="margin:12px 0 0">این تاریخ‌ها با بارگذاری مدرک به‌روز می‌شوند. اگر با مدرک تأییدشده فرق دارند، نسخهٔ تازه را بارگذاری کنید.</p>
+    </div>
+</div>

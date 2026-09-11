@@ -1,0 +1,99 @@
+@model OpsAlertsVm
+@{
+    var vehicles = Model.Alerts.Where(a => a.SubjectKind == OwnerKind.Vehicle).ToList();
+    var drivers = Model.Alerts.Where(a => a.SubjectKind == OwnerKind.Driver).ToList();
+    var expired = Model.Alerts.Count(a => a.IsExpired);
+    var soon = Model.Alerts.Count - expired;
+
+    void Rows(List<OpsExpiryAlert> list, string emptyText, string emptyIcon)
+    {
+        foreach (var a in list)
+        {
+            var days = (int)Math.Ceiling((a.ExpiresAt - DateTime.UtcNow).TotalDays);
+            <tr data-href="@a.Href">
+                <td>
+                    @if (a.SubjectKind == OwnerKind.Vehicle)
+                    {
+                        <span class="plate">@a.Subject</span>
+                    }
+                    else
+                    {
+                        <a class="lnk" href="/Company/Drivers/Detail/@a.SubjectId">@a.Subject</a>
+                    }
+                </td>
+                <td><b>@a.KindLabel</b></td>
+                <td>@Ui.Pill(Fa.Date(a.ExpiresAt), a.IsExpired ? "no" : "wait")</td>
+                <td>
+                    @if (days < 0)
+                    {
+                        @Ui.Pill(Fa.N(-days) + " روز گذشته", "no")
+                    }
+                    else if (days == 0 || a.IsExpired)
+                    {
+                        @Ui.Pill("امروز", "no")
+                    }
+                    else
+                    {
+                        @Ui.Pill(Fa.N(days) + " روز مانده", "wait")
+                    }
+                </td>
+                <td>
+                    @if (a.FromDocument)
+                    {
+                        @Ui.AccountPill(a.DocStatus ?? AccountStatus.Pending)
+                    }
+                    else
+                    {
+                        <span class="chip" title="فقط تاریخِ ثبت‌شده روی پروفایل؛ مدرکی بارگذاری نشده">تاریخ ثبت‌شده — بدون مدرک</span>
+                    }
+                </td>
+                <td><a class="btn2 soft sm" href="@a.Href"><i class="bi bi-cloud-arrow-up"></i> بارگذاری نسخهٔ جدید</a></td>
+            </tr>
+        }
+        if (list.Count == 0)
+        {
+            <tr><td colspan="6" class="empty"><i class="bi @emptyIcon"></i>@emptyText</td></tr>
+        }
+    }
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-alarm"></i> هشدار انقضای مدارک</h1>
+        <p>مدارکی که منقضی شده‌اند یا تا @Fa.N(Model.WarnDays) روز دیگر منقضی می‌شوند. @(Model.BlockOnExpired ? "مدرک منقضی، تخصیص راننده یا خودرو را می‌بندد." : "مدرک منقضی فقط هشدار می‌دهد و تخصیص را نمی‌بندد.")</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Documents"><i class="bi bi-folder2-open"></i> مدارک ناوگان</a>
+        <a class="btn2 ghost" asp-controller="Drivers" asp-action="Documents"><i class="bi bi-person-vcard"></i> مدارک رانندگان</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat @(expired > 0 ? "r" : "s")"><div class="l"><i class="bi bi-calendar-x"></i> منقضی‌شده</div><div class="v">@Fa.N(expired)</div></div>
+    <div class="stat @(soon > 0 ? "w" : "s")"><div class="l"><i class="bi bi-hourglass-split"></i> نزدیک انقضا</div><div class="v">@Fa.N(soon) <small>تا @Fa.N(Model.WarnDays) روز</small></div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-truck-front"></i> خودروها</div><div class="v">@Fa.N(vehicles.Select(a => a.SubjectId).Distinct().Count()) <small>خودرو</small></div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-person-badge"></i> رانندگان</div><div class="v">@Fa.N(drivers.Select(a => a.SubjectId).Distinct().Count()) <small>راننده</small></div></div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-truck-front"></i> خودروها <span class="end muted small">بیمه‌نامه، معاینه فنی</span></div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>خودرو</th><th>مدرک</th><th>انقضا</th><th>مهلت</th><th>وضعیت مدرک</th><th></th></tr></thead>
+            <tbody>
+            @{ Rows(vehicles, "بیمه‌نامه و معاینه فنی همهٔ خودروها معتبر است.", "bi-shield-check"); }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-person-badge"></i> رانندگان <span class="end muted small">گواهینامه، کارت هوشمند</span></div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>راننده</th><th>مدرک</th><th>انقضا</th><th>مهلت</th><th>وضعیت مدرک</th><th></th></tr></thead>
+            <tbody>
+            @{ Rows(drivers, "گواهینامه و کارت هوشمند همهٔ رانندگان معتبر است.", "bi-shield-check"); }
+            </tbody>
+        </table>
+    </div>
+</div>

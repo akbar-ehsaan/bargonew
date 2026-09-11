@@ -1,0 +1,255 @@
+@model ShipperDashboardVm
+@{
+    var approved = Model.AccountState == AccountStatus.Approved;
+    var verifyTone = ShipperUi.VerifyTone(Model.VerifyStatus);
+    var needsVerify = Model.VerifyStatus is null or "" or AccountStatus.Rejected;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-speedometer2"></i> سلام، @Model.Name</h1>
+        <p>
+            @Ui.AccountPill(Model.AccountState)
+            · احراز هویت: @Ui.Pill(ShipperUi.VerifyLabel(Model.VerifyStatus), verifyTone)
+            · کارهایی که منتظر تصمیم شماست، سفرهای در راه و آخرین بارهایتان.
+        </p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Shipper/Offers/Compare"><i class="bi bi-bar-chart-steps"></i> مقایسهٔ پیشنهادها</a>
+        <a class="btn2 pri" href="/Shipper/Loads/Create"><i class="bi bi-plus-lg"></i> ثبت بار جدید</a>
+    </div>
+</div>
+
+@if (!approved)
+{
+    <div class="alert2 @(Model.AccountState == AccountStatus.Pending ? "warn" : "err")" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            @if (!string.IsNullOrEmpty(Model.Gate))
+            {
+                <b>صفحه‌ای که خواستید فقط برای حساب فعال باز می‌شود.</b><br />
+            }
+            @switch (Model.AccountState)
+            {
+                case AccountStatus.Pending:
+                    <text>حساب شما در انتظار بررسی مدیر بارگو است. تا فعال شدن حساب، ثبت بار و پذیرش پیشنهاد ممکن نیست؛ داشبورد، پیام‌ها و پشتیبانی در دسترس است.</text>
+                    break;
+                case AccountStatus.Rejected:
+                    <text>درخواست فعال‌سازی حساب شما رد شده است. مشخصات و مدارک را اصلاح کنید یا با پشتیبانی تماس بگیرید.</text>
+                    break;
+                default:
+                    <text>حساب شما تعلیق شده است و تا رفع تعلیق، بار تازه ثبت نمی‌شود و پیشنهادی پذیرفته نمی‌شود.</text>
+                    break;
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.StatusReason))
+            {
+                <div class="small" style="margin-top:4px">توضیح مدیر: @Model.StatusReason</div>
+            }
+            <div class="row-actions" style="margin-top:8px">
+                <a class="btn2 sm ghost" href="/Shipper/Profile"><i class="bi bi-person"></i> مشخصات</a>
+                <a class="btn2 sm ghost" href="/Shipper/Tickets/Create"><i class="bi bi-life-preserver"></i> ثبت تیکت</a>
+            </div>
+        </div>
+    </div>
+}
+else if (needsVerify)
+{
+    <div class="alert2 info">
+        <i class="bi bi-patch-check"></i>
+        <div class="grow">
+            @(Model.VerifyStatus == AccountStatus.Rejected
+                ? "مدارک احراز هویت شما رد شده است؛ مدارک اصلاح‌شده را دوباره بفرستید."
+                : "هویت شما هنوز احراز نشده است. با ارسال کارت ملی (یا آگهی تأسیس برای کسب‌وکار) رانندگان و شرکت‌ها با اطمینان بیشتری روی بارتان پیشنهاد می‌دهند.")
+        </div>
+        <a class="btn2 soft sm" href="/Shipper/Profile/Verification">احراز هویت</a>
+    </div>
+}
+
+<div class="stats">
+    @foreach (var s in Model.Stats)
+    {
+        <a class="stat @s.Kind" href="@(s.Href ?? "#")">
+            <div class="l"><i class="bi @s.Icon"></i> @s.Label</div>
+            <div class="v">
+                @s.Value
+                @if (s.Unit is not null)
+                {
+                    <small>@s.Unit</small>
+                }
+            </div>
+        </a>
+    }
+</div>
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-truck"></i> سفرهای جاری
+                <span class="end">
+                    <a class="btn2 sm ghost" href="/Shipper/Tracking"><i class="bi bi-geo-alt"></i> رهگیری</a>
+                    <a class="btn2 sm ghost" href="/Shipper/Orders?tab=current">همهٔ سفارش‌های جاری</a>
+                </span>
+            </div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>سفارش</th><th>مسیر</th><th>حمل‌کننده</th><th>مرحله</th><th>کرایه</th><th>آخرین موقعیت</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var t in Model.ActiveTrips)
+                    {
+                        var live = TripStatus.Live.Contains(t.Status);
+                        <tr data-href="/Shipper/Orders/Detail/@t.TripId">
+                            <td><a class="lnk num" href="/Shipper/Orders/Detail/@t.TripId">@t.Code</a><span class="sub">@t.LoadTitle</span></td>
+                            <td>@Ui.Route(t.From, t.To)</td>
+                            <td>
+                                @t.Carrier
+                                @if (!string.IsNullOrEmpty(t.PlateNo))
+                                {
+                                    <span class="sub"><span class="plate">@t.PlateNo</span></span>
+                                }
+                            </td>
+                            <td>@Ui.TripPill(t.Status)</td>
+                            <td class="nowrap">
+                                @Fa.Toman(t.Fare)
+                                <span class="sub">@(t.IsPaid ? Ui.Pill("پرداخت‌شده", "ok") : Ui.Pill("پرداخت‌نشده", "no"))</span>
+                            </td>
+                            <td class="nowrap">
+                                @if (t.LastPointAt is DateTime lastAt)
+                                {
+                                    @Fa.Ago(lastAt)
+                                    if (t.EtaAt is DateTime etaAt)
+                                    {
+                                        <span class="sub">رسیدن حدود @Fa.Stamp(etaAt)</span>
+                                    }
+                                }
+                                else if (!live)
+                                {
+                                    <span class="muted">بارگیری @Fa.Stamp(t.ScheduledDepartureAt)</span>
+                                }
+                                else
+                                {
+                                    <span class="muted">موقعیتی نرسیده</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="row-actions">
+                                    @if (live)
+                                    {
+                                        <a class="btn2 soft sm" href="/Shipper/Tracking?tripId=@t.TripId"><i class="bi bi-geo-alt"></i> رهگیری</a>
+                                    }
+                                    @if (!t.IsPaid)
+                                    {
+                                        <a class="btn2 grn sm" href="/Shipper/Finance/Pay"><i class="bi bi-credit-card"></i> پرداخت</a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.ActiveTrips.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7" class="empty">
+                                <i class="bi bi-truck"></i>
+                                سفری در جریان ندارید. پس از پذیرش پیشنهاد یک راننده یا شرکت، سفر اینجا نمایش داده می‌شود.
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-boxes"></i> آخرین بارهای من
+                <span class="end"><a class="btn2 sm ghost" href="/Shipper/Loads">همهٔ بارها</a></span>
+            </div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>بار</th><th>مسیر</th><th>بارگیری</th><th>پیشنهادها</th><th>وضعیت</th></tr></thead>
+                    <tbody>
+                    @foreach (var l in Model.RecentLoads)
+                    {
+                        <tr data-href="/Shipper/Loads/Detail/@l.LoadId">
+                            <td><a class="lnk" href="/Shipper/Loads/Detail/@l.LoadId">@l.Title</a><span class="sub"><span class="num">@l.Code</span> · @ShipperUi.Ton(l.WeightTon)</span></td>
+                            <td>@Ui.Route(l.From, l.To)</td>
+                            <td class="nowrap">@Fa.Stamp(l.LoadingFrom)</td>
+                            <td>
+                                @if (l.PendingOffers > 0)
+                                {
+                                    <a class="lnk" href="/Shipper/Offers/Compare/@l.LoadId">@Fa.N(l.PendingOffers) پیشنهاد</a>
+                                    <span class="sub">کمترین @Fa.Toman(l.LowestOffer)</span>
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
+                            </td>
+                            <td>
+                                @Ui.LoadPill(l.Status)
+                                @if (l.CurrentTripStatus is not null)
+                                {
+                                    <span class="sub">@TripStatus.Label(l.CurrentTripStatus)</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.RecentLoads.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="5" class="empty">
+                                <i class="bi bi-box-seam"></i>
+                                هنوز باری ثبت نکرده‌اید.
+                                <div class="form-actions" style="justify-content:center">
+                                    <a class="btn2 pri" href="/Shipper/Loads/Create"><i class="bi bi-plus-lg"></i> ثبت اولین بار</a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-list-check"></i> نیاز به اقدام شما <span class="end">@(Model.Todos.Count > 0 ? Ui.Pill(Fa.N(Model.Todos.Count) + " مورد", "wait") : Ui.Pill("خالی", "mut"))</span></div>
+            <div class="bd">
+                @foreach (var todo in Model.Todos)
+                {
+                    <a class="kvrow" href="@todo.Href">
+                        <span><i class="bi @todo.Icon"></i> @todo.Text</span>
+                        @Ui.Pill("رسیدگی", todo.Tone)
+                    </a>
+                }
+                @if (Model.Todos.Count == 0)
+                {
+                    <div class="empty-state"><i class="bi bi-check2-all"></i><b>کاری در انتظار شما نیست</b>پیشنهاد بی‌پاسخ، کرایهٔ پرداخت‌نشده یا سفر بی‌امتیاز ندارید.</div>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-wallet2"></i> کیف پول</div>
+            <div class="bd">
+                <div class="kvrow"><span>موجودی</span><b class="num">@Fa.Toman(Model.WalletBalance)</b></div>
+                <p class="muted small" style="margin:10px 0 0">کرایهٔ هر سفر پس از پذیرش پیشنهاد از کیف پول پرداخت و تا تحویل بار نزد بارگو امانت می‌ماند.</p>
+                <div class="form-actions">
+                    <a class="btn2 soft" href="/Shipper/Finance"><i class="bi bi-plus-circle"></i> شارژ کیف پول</a>
+                    <a class="btn2 ghost" href="/Shipper/Finance/Pay"><i class="bi bi-credit-card"></i> پرداخت کرایه</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-lightning"></i> دسترسی سریع</div>
+            <div class="bd">
+                <a class="kvrow" href="/Shipper/Offers?pending=1"><span><i class="bi bi-check2-square"></i> قبول / رد پیشنهادها</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" href="/Shipper/Loads?status=waiting"><span><i class="bi bi-hourglass"></i> بارهای در انتظار راننده</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" href="/Shipper/Documents?kind=waybill"><span><i class="bi bi-file-earmark-text"></i> بارنامه‌ها</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" href="/Shipper/Drivers/Favorites"><span><i class="bi bi-heart"></i> رانندگان مورد علاقه</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" href="/Shipper/Profile/Addresses"><span><i class="bi bi-geo"></i> آدرس‌های منتخب</span><i class="bi bi-chevron-left"></i></a>
+            </div>
+        </div>
+    </div>
+</div>

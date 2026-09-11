@@ -1,0 +1,50 @@
+@model List<ProvinceRowVm>
+@{
+    var maxLoads = Model.Count == 0 ? 0 : Model.Max(p => p.Loads);
+    var totalCities = Model.Sum(p => p.Cities);
+    var totalNoCoords = Model.Sum(p => p.NoCoords);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-map"></i> استان‌ها</h1>
+        <p>فهرست استان‌ها از دادهٔ پایهٔ کشور می‌آید و ویرایش نمی‌شود؛ شهرهای هر استان از همین‌جا مدیریت می‌شوند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Cities"><i class="bi bi-buildings"></i> همهٔ شهرها</a>
+        <a class="btn2 ghost" asp-action="Cities" asp-route-filter="nocoords"><i class="bi bi-geo"></i> شهرهای بدون مختصات</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat p"><div class="l"><i class="bi bi-map"></i> استان</div><div class="v">@Fa.N(Model.Count)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-buildings"></i> شهر</div><div class="v">@Fa.N(totalCities) <small>@Fa.N(Model.Sum(p => p.Active)) فعال</small></div></div>
+    <div class="stat @(totalNoCoords > 0 ? "w" : "i")"><div class="l"><i class="bi bi-geo"></i> شهر بدون مختصات</div><div class="v">@Fa.N(totalNoCoords)</div></div>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>استان</th><th>شهر</th><th>فعال</th><th>بدون مختصات</th><th style="min-width:200px">بار (مبدا)</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var p in Model)
+            {
+                <tr>
+                    <td><b>@p.Name</b></td>
+                    <td class="num">@Fa.N(p.Cities)</td>
+                    <td class="num">@Fa.N(p.Active)</td>
+                    <td>@(p.NoCoords == 0 ? Ui.Pill("کامل", "ok") : Ui.Pill(Fa.N(p.NoCoords) + " شهر", "wait"))</td>
+                    <td>
+                        <div class="small">@Fa.N(p.Loads)</div>
+                        <div style="height:7px;border-radius:6px;background:var(--line-soft)"><div style="height:7px;border-radius:6px;background:var(--primary);width:@BackofficeFormat.Bar(p.Loads, maxLoads)%"></div></div>
+                    </td>
+                    <td><a class="btn2 sm soft" asp-action="Cities" asp-route-provinceId="@p.Id"><i class="bi bi-buildings"></i> شهرها</a></td>
+                </tr>
+            }
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="6" class="empty"><i class="bi bi-map"></i>هنوز استانی در پایگاه‌داده نیست؛ دادهٔ پایهٔ کشور بارگذاری نشده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

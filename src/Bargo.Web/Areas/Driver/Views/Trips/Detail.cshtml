@@ -1,0 +1,318 @@
+@model TripDetailVm
+@{
+    var t = Model.Trip;
+    var l = t.Load!;
+    var markers = new List<object>();
+    var oLat = l.OriginLat ?? l.OriginCity?.Lat; var oLng = l.OriginLng ?? l.OriginCity?.Lng;
+    var dLat = l.DestLat ?? l.DestCity?.Lat; var dLng = l.DestLng ?? l.DestCity?.Lng;
+    if (oLat is double ola && oLng is double olg) markers.Add(new { lat = ola, lng = olg, kind = "origin", label = "مبدا: " + l.OriginCity?.Name });
+    if (dLat is double dla && dLng is double dlg) markers.Add(new { lat = dla, lng = dlg, kind = "dest", label = "مقصد: " + l.DestCity?.Name });
+    if (t.LastLat is double tla && t.LastLng is double tlg && TripStatus.Live.Contains(t.Status))
+        markers.Add(new { lat = tla, lng = tlg, kind = "truck", label = "آخرین موقعیت شما · " + Fa.Ago(t.LastPointAt ?? DateTime.UtcNow) });
+    var showContacts = t.Status != TripStatus.Cancelled;
+    var docKinds = new[] { TripDocumentKind.LoadingReceipt, TripDocumentKind.DeliveryReceipt, TripDocumentKind.Photo };
+    ViewData["back"] = null;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-signpost-split"></i> سفر <span class="num">@t.Code</span> @Ui.TripPill(t.Status)</h1>
+        <p>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name) · @l.Title · @Fa.N(l.WeightTon, 1) تن@(Model.IsCompanyTrip ? " · مأموریت شرکت " + t.Company?.Name : "")</p>
+    </div>
+    <div class="actions">
+        @if (Model.Next.Count > 0 && t.Status != TripStatus.Cancelled)
+        {
+            <a class="btn2 pri" asp-controller="Operations" asp-action="Index"><i class="bi bi-joystick"></i> عملیات سفر</a>
+        }
+        <a class="btn2 ghost" asp-action="Index" asp-route-tab="@(TripStatus.Live.Contains(t.Status) ? "live" : TripStatus.Done.Contains(t.Status) ? "done" : t.Status == TripStatus.Cancelled ? "cancelled" : "upcoming")"><i class="bi bi-arrow-right"></i> سفرهای من</a>
+    </div>
+</div>
+
+@if (t.IsProblem && !string.IsNullOrEmpty(t.ProblemNote))
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-octagon"></i><div class="grow">این سفر در صف بررسی مدیر است: @t.ProblemNote</div></div>
+}
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-flag"></i> مراحل سفر</div>
+            <div class="bd">
+                <partial name="_TripSteps" model="t" />
+                <div style="margin-top:14px">
+                    <partial name="_TripActions" model="Model" />
+                </div>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-map"></i> مسیر
+                <span class="end muted small">@(t.LastPointAt is DateTime lp ? "آخرین موقعیت " + Fa.Ago(lp) : "موقعیتی ثبت نشده")</span>
+            </div>
+            <div class="bd">
+                @if (markers.Count > 0 || Model.Line.Count > 1)
+                {
+                    <div class="map" data-map="@Json.Serialize(new { markers, line = Model.Line, fit = true })"></div>
+                }
+                else
+                {
+                    <div class="empty-state"><i class="bi bi-map"></i><b>مختصاتی برای نمایش نیست</b>مبدا و مقصد این بار بدون مختصات ثبت شده‌اند.</div>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-folder2-open"></i> اسناد سفر <span class="end muted small">@Fa.N(Model.Documents.Count) سند</span></div>
+            @if (Model.Documents.Count > 0)
+            {
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>نوع</th><th>عنوان</th><th>بارگذاری</th><th>فایل</th></tr></thead>
+                        <tbody>
+                        @foreach (var d in Model.Documents)
+                        {
+                            <tr>
+                                <td>@TripDocumentKind.Label(d.Kind)</td>
+                                <td>@d.Title</td>
+                                <td class="nowrap">@Fa.Stamp(d.CreatedAt)<span class="sub">@(d.UploadedByKind == Roles.Driver ? "شما" : OwnerKind.Label(d.UploadedByKind))</span></td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(d.FilePath))
+                                    {
+                                        <a class="chip" href="@DocumentStorage.Url(d.FilePath)" target="_blank"><i class="bi bi-box-arrow-up-right"></i> مشاهده</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            <div class="bd">
+                @if (Model.Documents.Count == 0)
+                {
+                    <div class="empty-state"><i class="bi bi-folder2-open"></i><b>سندی بارگذاری نشده است</b>رسید بارگیری، رسید تحویل و تصویر بار را همین‌جا بارگذاری کنید؛ صاحب بار همان لحظه آن را می‌بیند.</div>
+                }
+                @if (Model.CanUploadDocs)
+                {
+                    <form method="post" asp-action="Document" asp-route-id="@t.TripId" enctype="multipart/form-data">
+                        <div class="form-grid cols3">
+                            <div class="fld">
+                                <label>نوع سند <span class="req">*</span></label>
+                                <select name="kind" required>
+                                    @foreach (var k in docKinds)
+                                    {
+                                        <option value="@k" selected="@(k == (t.Status is TripStatus.Unloaded or TripStatus.Delivered or TripStatus.Settled ? TripDocumentKind.DeliveryReceipt : TripDocumentKind.LoadingReceipt))">@TripDocumentKind.Label(k)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="fld">
+                                <label>عنوان</label>
+                                <input name="title" maxlength="150" />
+                                <span class="hint">اگر خالی بماند، نام نوع سند ثبت می‌شود.</span>
+                            </div>
+                            <div class="fld">
+                                <label>فایل <span class="req">*</span></label>
+                                <input type="file" name="file" accept="image/*,.pdf" required />
+                            </div>
+                        </div>
+                        <div class="form-actions"><button type="submit" class="btn2 pri"><i class="bi bi-upload"></i> بارگذاری سند</button></div>
+                    </form>
+                }
+                else
+                {
+                    <p class="muted small" style="margin:0">در این مرحلهٔ سفر نمی‌توان سند بارگذاری کرد.</p>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-clock-history"></i> رویدادهای سفر</div>
+            <div class="bd"><partial name="_TripEvents" model="Model.Events" /></div>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-card-list"></i> مشخصات</div>
+            <div class="bd">
+                <dl class="kv">
+                    <dt>کد بار</dt><dd class="num">@l.Code</dd>
+                    <dt>کالا</dt><dd>@l.CargoType · @Fa.N(l.WeightTon, 1) تن@(string.IsNullOrEmpty(l.Packaging) ? "" : " · " + l.Packaging)</dd>
+                    <dt>مبدا</dt><dd>@l.OriginCity?.Name@(string.IsNullOrWhiteSpace(l.OriginAddress) ? "" : " — " + l.OriginAddress)</dd>
+                    <dt>مقصد</dt><dd>@l.DestCity?.Name@(string.IsNullOrWhiteSpace(l.DestAddress) ? "" : " — " + l.DestAddress)</dd>
+                    <dt>زمان بارگیری</dt><dd>@Fa.Stamp(t.ScheduledDepartureAt ?? l.LoadingFrom)</dd>
+                    <dt>مسافت</dt><dd>@(t.PlannedKm is double pk ? Fa.N(pk) + " کیلومتر" : "—")@(t.TravelledKm > 0 ? " · طی‌شده " + Fa.N(t.TravelledKm) + " کیلومتر" : "")</dd>
+                    @if (t.EtaAt is not null && t.Status == TripStatus.InTransit)
+                    {
+                        <dt>رسیدن تقریبی</dt><dd>@Fa.Stamp(t.EtaAt)</dd>
+                    }
+                    <dt>خودرو</dt>
+                    <dd>
+                        @if (t.Vehicle is not null)
+                        {
+                            <span class="plate">@t.Vehicle.PlateNo</span> <span class="muted small">@t.Vehicle.VehicleType?.Name</span>
+                        }
+                        else
+                        {
+                            <span class="muted">تعیین نشده</span>
+                        }
+                    </dd>
+                    @if (Model.IsCompanyTrip)
+                    {
+                        <dt>شرکت</dt><dd>@(t.Company?.Name ?? "—")</dd>
+                    }
+                    @if (!string.IsNullOrEmpty(l.Description))
+                    {
+                        <dt>توضیحات</dt><dd style="white-space:pre-line">@l.Description</dd>
+                    }
+                    @if (t.Status == TripStatus.Cancelled)
+                    {
+                        <dt>لغو</dt><dd>@Fa.Stamp(t.CancelledAt)@(string.IsNullOrEmpty(t.CancelReason) ? "" : " — " + t.CancelReason)</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-person-lines-fill"></i> طرف‌های سفر</div>
+            <div class="bd">
+                <div class="kvrow"><span>@(Model.OwnerIsCompany ? "شرکت صاحب بار" : "صاحب بار")</span><b>@(string.IsNullOrEmpty(Model.OwnerName) ? "—" : Model.OwnerName)</b></div>
+                @if (showContacts)
+                {
+                    @if (!string.IsNullOrEmpty(Model.OwnerMobile))
+                    {
+                        <div class="kvrow"><span>موبایل صاحب بار</span><b class="num"><a href="tel:@Model.OwnerMobile">@Model.OwnerMobile</a></b></div>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.OwnerPhone))
+                    {
+                        <div class="kvrow"><span>تلفن</span><b class="num"><a href="tel:@Model.OwnerPhone">@Model.OwnerPhone</a></b></div>
+                    }
+                    <div class="kvrow"><span>گیرندهٔ بار</span><b>@(string.IsNullOrEmpty(l.ReceiverName) ? "—" : l.ReceiverName)</b></div>
+                    @if (!string.IsNullOrEmpty(l.ReceiverMobile))
+                    {
+                        <div class="kvrow"><span>موبایل گیرنده</span><b class="num"><a href="tel:@l.ReceiverMobile">@l.ReceiverMobile</a></b></div>
+                    }
+                }
+                <div class="form-actions">
+                    @if (t.OfferId is int offerId)
+                    {
+                        <a class="btn2 soft sm" href="@Url.Action("Thread", "Messages", new { key = "offer:" + offerId })"><i class="bi bi-chat-dots"></i> گفتگو با صاحب بار</a>
+                    }
+                    <a class="btn2 ghost sm" href="/Driver/Complaints/Create?tripCode=@t.Code"><i class="bi bi-exclamation-octagon"></i> گزارش مشکل</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-cash-coin"></i> کرایه و سهم شما</div>
+            <div class="bd">
+                <div class="kvrow"><span>کرایهٔ توافق‌شده</span><b>@Fa.Toman(t.Fare)</b></div>
+                @if (!Model.IsCompanyTrip)
+                {
+                    <div class="kvrow"><span>کمیسیون بارگو (@Fa.N(t.CommissionPercent, 1)٪)</span><b>@Fa.Toman(t.Commission)</b></div>
+                }
+                <div class="kvrow"><span>سهم شما</span><b>@Fa.Toman(Model.MyShare)</b></div>
+                <div class="kvrow"><span>پرداخت صاحب بار</span>@(t.IsPaid ? Ui.Pill("پرداخت‌شده نزد بارگو", "ok") : Ui.Pill("هنوز پرداخت نشده", "wait"))</div>
+                @if (t.Status == TripStatus.Settled)
+                {
+                    <div class="kvrow"><span>تسویه</span><b>@Fa.Stamp(t.SettledAt)</b></div>
+                }
+                @if (Model.IsCompanyTrip)
+                {
+                    <div class="kvrow"><span>واریز سهم توسط شرکت</span>@(t.DriverSharePaidAt is DateTime dp ? Ui.Pill("واریز شد " + Fa.Date(dp), "ok") : Ui.Pill("در انتظار شرکت", "wait"))</div>
+                }
+                <p class="muted small" style="margin:10px 0 0">
+                    @(Model.IsCompanyTrip
+                        ? "سهم شما را شرکت پس از تسویهٔ سفر به کیف پولتان واریز می‌کند."
+                        : "سهم شما پس از تحویل بار و پرداخت صاحب بار به‌صورت خودکار به کیف پولتان واریز می‌شود.")
+                </p>
+            </div>
+        </div>
+
+        <div class="card2" id="waybill-card">
+            <div class="hd"><i class="bi bi-file-earmark-text"></i> بارنامه@(Model.WaybillRequired ? "" : " (اختیاری)")</div>
+            <div class="bd"><partial name="_Waybill" model="Model" /></div>
+        </div>
+
+        @if (TripStatus.Live.Contains(t.Status) || t.Status == TripStatus.Accepted)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-link-45deg"></i> پیوند رهگیری برای گیرنده</div>
+                <div class="bd">
+                    <div class="fld">
+                        <input readonly dir="ltr" value="@Model.TrackUrl" id="track-url" />
+                        <span class="hint">این پیوند را برای گیرنده بفرستید تا بدون ورود به سامانه، محل بار را ببیند.</span>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn2 ghost sm" id="track-copy"><i class="bi bi-clipboard"></i> کپی پیوند</button>
+                        <a class="btn2 ghost sm" href="@Model.TrackUrl" target="_blank"><i class="bi bi-box-arrow-up-right"></i> باز کردن</a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (Model.CanRate)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-star"></i> امتیاز به صاحب بار</div>
+                <div class="bd">
+                    <form method="post" asp-action="Rate" asp-route-id="@t.TripId">
+                        <div class="fld">
+                            <label>امتیاز <span class="req">*</span></label>
+                            <select name="score" required>
+                                <option value="5">۵ — عالی</option>
+                                <option value="4">۴ — خوب</option>
+                                <option value="3">۳ — متوسط</option>
+                                <option value="2">۲ — ضعیف</option>
+                                <option value="1">۱ — خیلی بد</option>
+                            </select>
+                        </div>
+                        <div class="fld" style="margin-top:10px">
+                            <label>نظر (اختیاری)</label>
+                            <textarea name="comment" rows="3" maxlength="1000"></textarea>
+                        </div>
+                        <div class="form-actions"><button type="submit" class="btn2 pri block"><i class="bi bi-star-fill"></i> ثبت امتیاز</button></div>
+                    </form>
+                </div>
+            </div>
+        }
+        else if (Model.Rated)
+        {
+            <div class="alert2 ok"><i class="bi bi-star-fill"></i><div class="grow">امتیاز شما به صاحب بار این سفر ثبت شده است.</div></div>
+        }
+
+        @if (Model.CanCancel)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-x-octagon"></i> لغو سفر</div>
+                <div class="bd">
+                    <form method="post" asp-action="Cancel" asp-route-id="@t.TripId" data-confirm="سفر @t.Code لغو شود؟ این کار برگشت‌پذیر نیست و بار دوباره به بازار برمی‌گردد.">
+                        <div class="fld">
+                            <label>علت لغو <span class="req">*</span></label>
+                            <textarea name="reason" rows="2" required maxlength="500"></textarea>
+                        </div>
+                        <div class="form-actions"><button type="submit" class="btn2 red block"><i class="bi bi-x-octagon"></i> لغو سفر</button></div>
+                    </form>
+                    <p class="muted small" style="margin:10px 0 0">لغو مکرر روی امتیاز و اولویت شما در بازار اثر می‌گذارد.</p>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_MapAssets" />
+    <script>
+        var tc = document.getElementById('track-copy'), tu = document.getElementById('track-url');
+        if (tc && tu) tc.addEventListener('click', function () {
+            tu.select();
+            var done = function () { tc.innerHTML = '<i class="bi bi-check2"></i> کپی شد'; };
+            if (navigator.clipboard) navigator.clipboard.writeText(tu.value).then(done, function () { document.execCommand('copy'); done(); });
+            else { document.execCommand('copy'); done(); }
+        });
+    </script>
+}

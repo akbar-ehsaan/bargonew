@@ -1,0 +1,88 @@
+@model OffersVm
+@{
+    var s = Model.Status;
+    var here = Context.Request.Path.Value + Context.Request.QueryString.Value;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-tags"></i> @ViewData["Title"]</h1>
+        <p>پیشنهادهایی که روی بارهای بازار داده‌اید. پاسخ صاحب بار با اعلان به شما می‌رسد؛ پیشنهاد پذیرفته‌شده به سفر تبدیل می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 pri" asp-action="Create"><i class="bi bi-plus-circle"></i> ثبت پیشنهاد تازه</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Index" class="@(s is null ? "on" : "")">همه <span class="n">@Fa.N(Model.CountAll)</span></a>
+    <a asp-action="Index" asp-route-status="pending" class="@(s == "pending" ? "on" : "")">در انتظار پاسخ <span class="n">@Fa.N(Model.CountPending)</span></a>
+    <a asp-action="Index" asp-route-status="accepted" class="@(s == "accepted" ? "on" : "")">پذیرفته‌شده <span class="n">@Fa.N(Model.CountAccepted)</span></a>
+    <a asp-action="Index" asp-route-status="rejected" class="@(s == "rejected" ? "on" : "")">ردشده <span class="n">@Fa.N(Model.CountRejected)</span></a>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>بار</th><th>مسیر</th><th>پیشنهاد من</th><th>رسیدن به مبدا</th><th>خودرو</th><th>وضعیت</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var o in Model.Page.Rows)
+            {
+                <tr>
+                    <td>
+                        <a class="lnk" asp-controller="Loads" asp-action="Detail" asp-route-id="@o.LoadId">@o.Title</a>
+                        <span class="sub"><span class="num">@o.LoadCode</span> · @Ui.LoadPill(o.LoadStatus)</span>
+                    </td>
+                    <td>@Ui.Route(o.From, o.To)</td>
+                    <td>
+                        <b class="num">@Fa.Toman(o.Amount)</b>
+                        <span class="sub">@PriceMode.Label(o.PriceMode)@(o.LoadPrice is long lp && lp != o.Amount ? " · اعلامی " + Fa.Toman(lp) : "")</span>
+                    </td>
+                    <td>@(o.EtaHours is int eh ? Fa.N(eh) + " ساعت" : "—")</td>
+                    <td>@if (!string.IsNullOrEmpty(o.Plate)) { <span class="plate">@o.Plate</span> } else { <span class="muted">—</span> }</td>
+                    <td>
+                        @Ui.OfferPill(o.Status)
+                        <span class="sub">@(o.RespondedAt is DateTime ra ? "پاسخ " + Fa.Ago(ra) : "ثبت " + Fa.Ago(o.CreatedAt))</span>
+                    </td>
+                    <td>
+                        <div class="row-actions">
+                            @if (o.Status == OfferStatus.Accepted && o.TripId is int tripId)
+                            {
+                                <a class="btn2 soft sm" asp-controller="Trips" asp-action="Detail" asp-route-id="@tripId"><i class="bi bi-signpost-split"></i> صفحهٔ سفر</a>
+                            }
+                            @if (o.Status == OfferStatus.Pending)
+                            {
+                                <a class="btn2 ghost sm" asp-controller="Loads" asp-action="Detail" asp-route-id="@o.LoadId" title="ویرایش پیشنهاد"><i class="bi bi-pencil"></i> ویرایش</a>
+                                <a class="btn2 ghost sm" href="@Url.Action("Thread", "Messages", new { key = "offer:" + o.OfferId })" title="گفتگو با صاحب بار"><i class="bi bi-chat-dots"></i></a>
+                                <form method="post" asp-action="Withdraw" asp-route-id="@o.OfferId" class="inline" data-confirm="پیشنهاد روی بار @o.LoadCode پس گرفته شود؟">
+                                    <input type="hidden" name="returnUrl" value="@here" />
+                                    <button type="submit" class="btn2 ghost sm"><i class="bi bi-arrow-counterclockwise"></i> پس گرفتن</button>
+                                </form>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr>
+                    <td colspan="7" class="empty">
+                        <i class="bi bi-tags"></i>
+                        @(s switch
+                        {
+                            "pending" => "پیشنهادی در انتظار پاسخ ندارید.",
+                            "accepted" => "هنوز پیشنهادی از شما پذیرفته نشده است.",
+                            "rejected" => "پیشنهاد ردشده، پس‌گرفته یا منقضی ندارید.",
+                            _ => "هنوز روی هیچ باری پیشنهاد نداده‌اید."
+                        })
+                        <div class="form-actions" style="justify-content:center">
+                            <a class="btn2 pri" asp-controller="Loads" asp-action="Nearby"><i class="bi bi-geo"></i> بارهای نزدیک من</a>
+                            <a class="btn2 ghost" asp-action="Create"><i class="bi bi-plus-circle"></i> ثبت پیشنهاد</a>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

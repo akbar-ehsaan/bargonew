@@ -1,0 +1,55 @@
+@model ReportTripsVm
+@{
+    var statusOrder = new[] { TripStatus.AwaitingAssignment, TripStatus.Assigned, TripStatus.Accepted, TripStatus.ToOrigin, TripStatus.AtOrigin, TripStatus.Loaded, TripStatus.InTransit, TripStatus.Arrived, TripStatus.Unloaded, TripStatus.Delivered, TripStatus.Settled, TripStatus.Cancelled };
+    var byStatus = statusOrder.Where(Model.ByStatus.ContainsKey).Select(s => (Status: s, N: Model.ByStatus[s])).ToList();
+    var maxStatus = byStatus.Count == 0 ? 0 : byStatus.Max(x => x.N);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-signpost-split"></i> گزارش سفرها</h1>
+        <p>سفرهای ساخته‌شده، تحویل‌شده و لغوشده در بازه؛ میانگین زمان از بارگیری تا تحویل و مسافت طی‌شده.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" href="/Admin/Trips"><i class="bi bi-truck"></i> سفرهای جاری</a></div>
+</div>
+
+<partial name="_Range" model="Model.Range" />
+
+<div class="stats" style="margin-top:18px">
+    <div class="stat p"><div class="l"><i class="bi bi-plus-square"></i> ساخته‌شده</div><div class="v">@Fa.N(Model.Created)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-check2-all"></i> تحویل‌شده</div><div class="v">@Fa.N(Model.Delivered)</div></div>
+    <div class="stat r"><div class="l"><i class="bi bi-x-octagon"></i> لغوشده</div><div class="v">@Fa.N(Model.Cancelled) <small>@(Model.Created == 0 ? "" : Fa.N(Model.Cancelled * 100.0 / Model.Created, 0) + "٪ از ساخته‌شده‌ها")</small></div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-stopwatch"></i> میانگین بارگیری تا تحویل</div><div class="v" style="font-size:19px">@BackofficeFormat.Duration(Model.AvgDeliveryMinutes)</div></div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-bar-chart"></i> روند بازه</div>
+        <partial name="_Series" model="Model.Series" />
+    </div>
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-calculator"></i> میانگین‌ها</div>
+            <div class="bd">
+                <div class="kvrow"><span>کرایهٔ هر سفر (ساخته‌شده در بازه)</span><b>@(Model.Created == 0 ? "—" : Fa.Toman(Model.AvgFare))</b></div>
+                <div class="kvrow"><span>مسافت طی‌شده (تحویل‌شده‌ها)</span><b>@(Model.AvgKm is double km ? Fa.N(km, 0) + " کیلومتر" : "—")</b></div>
+                <div class="kvrow"><span>زمان بارگیری تا تحویل</span><b>@BackofficeFormat.Duration(Model.AvgDeliveryMinutes)</b></div>
+            </div>
+        </div>
+        <div class="card2">
+            <div class="hd"><i class="bi bi-activity"></i> وضعیت فعلی سفرهای بازه</div>
+            <div class="bd">
+                @foreach (var (status, n) in byStatus)
+                {
+                    <div style="margin-bottom:8px">
+                        <div style="display:flex;justify-content:space-between;gap:8px;font-size:13px"><span>@Ui.TripPill(status)</span><b>@Fa.N(n)</b></div>
+                        <div style="height:6px;border-radius:6px;background:var(--line-soft);margin-top:3px"><div style="height:6px;border-radius:6px;background:var(--primary);width:@BackofficeFormat.Bar(n, maxStatus)%"></div></div>
+                    </div>
+                }
+                @if (byStatus.Count == 0)
+                {
+                    <div class="empty-state" style="padding:20px"><i class="bi bi-signpost-split"></i>در این بازه سفری ساخته نشده است.</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

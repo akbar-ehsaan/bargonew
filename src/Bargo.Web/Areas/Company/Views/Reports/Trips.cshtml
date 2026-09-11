@@ -1,0 +1,107 @@
+@model TripsReportVm
+@{
+    var maxMonth = Model.ByMonth.Count == 0 ? 0 : Model.ByMonth.Max(x => x.Count);
+    var maxWeekday = Model.ByWeekday.Count == 0 ? 0 : Model.ByWeekday.Max(x => x.Count);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-123"></i> تعداد سفر</h1>
+        <p>شمار سفرهای شرکت در بازه به تفکیک وضعیت، ماه، منبع بار و روز هفته — بر پایهٔ تاریخ ساخت سفر.</p>
+    </div>
+</div>
+
+<partial name="_ReportHead" />
+
+<div class="stats cols5">
+    <div class="stat p"><div class="l"><i class="bi bi-signpost-split"></i> کل سفرها</div><div class="v">@Fa.N(Model.Total)<small>@Fa.N(Model.PerDay, 1) در روز</small></div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-flag"></i> تحویل‌شده</div><div class="v">@Fa.N(Model.Done)<small>@Fa.N(Model.DonePct)٪</small></div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-lightning"></i> در جریان</div><div class="v">@Fa.N(Model.Active)</div></div>
+    <div class="stat r"><div class="l"><i class="bi bi-slash-circle"></i> لغوشده</div><div class="v">@Fa.N(Model.Cancelled)<small>@Fa.N(Model.CancelPct)٪</small></div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-cash"></i> میانگین کرایهٔ تحویل‌شده</div><div class="v">@Fa.Toman(Model.AvgFare)</div></div>
+</div>
+
+@if (Model.Total == 0)
+{
+    <div class="card2"><div class="empty-state"><i class="bi bi-123"></i><b>در این بازه سفری ساخته نشده است</b>بازه را گسترده‌تر کنید یا از «تخصیص بار» سفر بسازید.</div></div>
+}
+else
+{
+    <div class="grid2">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-calendar3"></i> به تفکیک ماه</div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>ماه</th><th style="width:45%">سفر</th><th>کرایهٔ تحویل‌شده</th></tr></thead>
+                    <tbody>
+                    @foreach (var m in Model.ByMonth)
+                    {
+                        <tr>
+                            <td data-label="ماه"><b>@m.Label</b></td>
+                            <td data-label="سفر"><div class="small"><b>@Fa.N(m.Count)</b></div><partial name="_Bar" model="new BarVm(m.Count, maxMonth)" /></td>
+                            <td data-label="کرایه" class="nowrap">@Fa.Toman(m.Amount)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-toggles"></i> به تفکیک وضعیت</div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>وضعیت</th><th style="width:45%">سفر</th><th>جمع کرایه</th></tr></thead>
+                    <tbody>
+                    @foreach (var s in Model.ByStatus)
+                    {
+                        <tr>
+                            <td data-label="وضعیت">@Ui.TripPill(s.Key)</td>
+                            <td data-label="سفر"><div class="small"><b>@Fa.N(s.Count)</b> <span class="muted">(@Fa.N(s.Count * 100.0 / Model.Total)٪)</span></div><partial name="_Bar" model='new BarVm(s.Count, Model.Total, s.Key == TripStatus.Cancelled ? "var(--no)" : TripStatus.Done.Contains(s.Key) ? "var(--ok)" : "var(--primary)")' /></td>
+                            <td data-label="کرایه" class="nowrap">@Fa.Toman(s.Amount)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-shop"></i> منبع بار</div>
+            <div class="bd">
+                @foreach (var s in Model.BySource)
+                {
+                    <div class="kvrow" style="display:block">
+                        <div style="display:flex;justify-content:space-between;gap:10px"><span>@s.Label</span><b>@Fa.N(s.Count) سفر · @Fa.Toman(s.Amount)</b></div>
+                        <partial name="_Bar" model="new BarVm(s.Count, Model.Total)" />
+                    </div>
+                }
+                <p class="small muted" style="margin:10px 0 0">بارهای مشتریان شرکت کمیسیون ندارند و کرایه‌شان بیرون از بارگو دریافت می‌شود.</p>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-calendar-week"></i> روز هفته</div>
+            <div class="bd">
+                @foreach (var w in Model.ByWeekday)
+                {
+                    <div class="kvrow" style="display:block;padding:5px 0">
+                        <div style="display:flex;justify-content:space-between;gap:10px"><span>@w.Label</span><b>@Fa.N(w.Count)</b></div>
+                        <partial name="_Bar" model="new BarVm(w.Count, maxWeekday)" />
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-info-circle"></i> جمع بازه</div>
+        <div class="bd">
+            <dl class="kv">
+                <dt>کرایهٔ سفرهای تحویل‌شده</dt><dd>@Fa.Toman(Model.Fare)</dd>
+                <dt>سهم شرکت (پس از کمیسیون)</dt><dd>@Fa.Toman(Model.CarrierShare)</dd>
+                <dt>تناژ تحویل‌شده</dt><dd>@Fa.N(Model.Tons, 1) تن</dd>
+                <dt>کیلومتر طی‌شده</dt><dd>@Fa.N(Model.Km) کیلومتر</dd>
+            </dl>
+        </div>
+    </div>
+}

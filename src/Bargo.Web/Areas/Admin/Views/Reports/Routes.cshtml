@@ -1,0 +1,58 @@
+@model ReportRoutesVm
+@{
+    var max = Model.Rows.Count == 0 ? 0 : Model.Rows.Max(r => r.Trips);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-signpost-2"></i> مسیرهای پرتردد</h1>
+        <p>۲۰ جفت‌شهرِ پرتکرار بر پایهٔ سفرهای ساخته‌شده در بازه — با میانگین کرایه و مسافت، و در صورت تعریف، مسیر مرجع.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" href="/Admin/Regions/Lanes"><i class="bi bi-signpost-2"></i> مبادی و مقاصد</a></div>
+</div>
+
+<partial name="_Range" model="Model.Range" />
+
+<div class="card2" style="margin-top:18px">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>مسیر</th><th style="min-width:200px">سفر</th><th>میانگین کرایه</th><th>میانگین مسافت</th><th>مسیر مرجع</th><th>کرایه هر کیلومتر</th></tr></thead>
+            <tbody>
+            @{ var i = 0; }
+            @foreach (var r in Model.Rows)
+            {
+                i++;
+                var km = r.AvgKm ?? r.LaneKm;
+                <tr>
+                    <td class="num muted">@Fa.N(i)</td>
+                    <td>@Ui.Route(r.From, r.To)</td>
+                    <td>
+                        <div class="small">@Fa.N(r.Trips) سفر</div>
+                        <div style="height:7px;border-radius:6px;background:var(--line-soft)"><div style="height:7px;border-radius:6px;background:var(--primary);width:@BackofficeFormat.Bar(r.Trips, max)%"></div></div>
+                    </td>
+                    <td class="nowrap"><b>@Fa.Toman(r.AvgFare)</b></td>
+                    <td class="nowrap">@(r.AvgKm is double a ? Fa.N(a, 0) + " کیلومتر" : "—")</td>
+                    <td class="small">
+                        @if (r.LaneKm is double lk)
+                        {
+                            <span>@Fa.N(lk, 0) کیلومتر</span>
+                            @if (r.LaneRatePerTon is long rate)
+                            {
+                                <span class="sub">@Fa.Toman(rate) هر تن</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="muted">تعریف نشده</span>
+                        }
+                    </td>
+                    <td class="nowrap">@(km is double k && k > 0 ? Fa.Toman((long)Math.Round(r.AvgFare / k)) : "—")</td>
+                </tr>
+            }
+            @if (Model.Rows.Count == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-signpost-2"></i>در این بازه سفری ساخته نشده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

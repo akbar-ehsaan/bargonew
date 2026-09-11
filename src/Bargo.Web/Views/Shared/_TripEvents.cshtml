@@ -1,0 +1,22 @@
+@model IEnumerable<TripEvent>
+@* خط زمانی رویدادهای سفر — «چه کسی، کی، چه کرد». *@
+@if (!Model.Any())
+{
+    <div class="empty-state"><i class="bi bi-clock-history"></i>هنوز رویدادی ثبت نشده است.</div>
+}
+else
+{
+    <ul class="timeline">
+        @foreach (var e in Model.OrderByDescending(x => x.CreatedAt))
+        {
+            <li>
+                <b>@(e.FromStatus == e.ToStatus ? (e.Note ?? TripStatus.Label(e.ToStatus)) : TripStatus.Label(e.ToStatus))</b>
+                @if (e.FromStatus != e.ToStatus && !string.IsNullOrEmpty(e.Note))
+                {
+                    <span class="muted"> — @e.Note</span>
+                }
+                <div class="when">@Fa.Stamp(e.CreatedAt) · @(e.ActorName ?? OwnerKind.Label(e.ActorKind))@(e.Lat is null ? "" : " · موقعیت ثبت شد")</div>
+            </li>
+        }
+    </ul>
+}

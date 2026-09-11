@@ -1,0 +1,513 @@
+@model TripCaseVm
+@{
+    var t = Model.Trip;
+    var l = t.Load!;
+    var ret = Context.Request.Path + Context.Request.QueryString;
+    var selfCarried = l.CompanyId is not null && l.CompanyId == t.CompanyId;
+    string Who(string kind, int id) => Model.Owners.TryGetValue($"{kind}:{id}", out var o) ? o.Name : $"{OwnerKind.Label(kind)} #{Fa.N(id)}";
+    string DriverName(int? id) => id is int d ? (Model.DriverNames.TryGetValue(d, out var n) ? n : $"راننده #{Fa.N(d)}") : "—";
+    string Plate(int? id) => id is int v ? (Model.VehiclePlates.TryGetValue(v, out var p) ? p : $"#{Fa.N(v)}") : "—";
+    string InvoiceKind(string k) => k switch { "freight" => "کرایه", "commission" => "کمیسیون", "subscription" => "اشتراک", _ => k };
+    string PayMethod(string m) => m switch { "gateway" => "درگاه", "wallet" => "کیف پول", "manual" => "دستی", _ => m };
+    string PayPurpose(string p) => p switch { "charge" => "شارژ کیف پول", "fare" => "کرایهٔ سفر", "subscription" => "اشتراک", _ => p };
+    string ActorLabel(string kind) => kind switch { "system" => "سامانه", Roles.Admin => "مدیر", _ => OwnerKind.Label(kind) };
+}
+<div class="page-head">
+    <div>
+        <h1>
+            <i class="bi bi-folder2-open"></i> پروندهٔ سفر <span class="num">@t.Code</span>
+            @Ui.TripPill(t.Status)
+            @if (t.IsProblem) { @Ui.Pill("مشکل‌دار", "no") }
+            @if (t.IsPaid) { @Ui.Pill("کرایه پرداخت‌شده", "ok") } else { @Ui.Pill("کرایه پرداخت‌نشده", "wait") }
+        </h1>
+        <p>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name) · @l.Title · @OpsLabels.Ton(l.WeightTon) تن · @CarrierKind.Label(t.CarrierKind) · ساخته‌شده @Fa.Stamp(t.CreatedAt)</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-arrow-right"></i> سفرها</a>
+        <a class="btn2 ghost" href="/Admin/Loads/Detail/@t.LoadId"><i class="bi bi-box-seam"></i> پروندهٔ بار @l.Code</a>
+        <a class="btn2 ghost" href="/t/@t.TrackToken" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-left"></i> صفحهٔ رهگیری گیرنده</a>
+    </div>
+</div>
+
+@if (Model.Reasons.Count > 0)
+{
+    <div class="alert2 err">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            <b>در صف سفرهای مشکل‌دار:</b>
+            @foreach (var r in Model.Reasons) { <div><i class="bi bi-dot"></i> @r</div> }
+        </div>
+    </div>
+}
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-signpost-split"></i> مراحل سفر <span class="end muted small">@(t.StartedAt is DateTime st ? "حرکت " + Fa.Stamp(st) : "")@(t.LoadedAt is DateTime ld ? " · بارگیری " + Fa.Stamp(ld) : "")@(t.DeliveredAt is DateTime dv ? " · تحویل " + Fa.Stamp(dv) : "")@(t.SettledAt is DateTime se ? " · تسویه " + Fa.Stamp(se) : "")</span></div>
+    <div class="bd"><partial name="_TripSteps" model="t" /></div>
+</div>
+
+<div class="grid-side">
+    <div class="stack">
+        @* ---------- طرفین ---------- *@
+        <div class="grid3">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-person-workspace"></i> صاحب بار</div>
+                <div class="bd">
+                    <div class="kvrow"><span>نام</span><b>@if (Model.LoadOwnerHref is not null) { <a class="lnk" href="@Model.LoadOwnerHref">@Model.LoadOwnerName</a> } else { @Model.LoadOwnerName }</b></div>
+                    <div class="kvrow"><span>موبایل</span><b class="num">@(Model.LoadOwnerMobile ?? "—")</b></div>
+                    <div class="kvrow"><span>گیرنده</span><b>@(l.ReceiverName ?? "—") <span class="num">@l.ReceiverMobile</span></b></div>
+                    @if (selfCarried) { <div class="kvrow"><span>نوع</span><b>بار مشتریِ خودِ شرکت</b></div> }
+                </div>
+            </div>
+            <div class="card2">
+                <div class="hd"><i class="bi bi-person-badge"></i> راننده</div>
+                <div class="bd">
+                    @if (t.Driver is { } d)
+                    {
+                        <div class="kvrow"><span>نام</span><b><a class="lnk" href="/Admin/Users/Driver/@d.DriverId">@d.FullName</a></b></div>
+                        <div class="kvrow"><span>موبایل</span><b class="num">@d.Mobile</b></div>
+                        <div class="kvrow"><span>حساب</span>@Ui.AccountPill(d.Status)</div>
+                        <div class="kvrow"><span>امتیاز</span>@Ui.Stars(d.RatingAvg, d.RatingCount)</div>
+                    }
+                    else
+                    {
+                        <p class="muted small">هنوز راننده‌ای تعیین نشده است.</p>
+                    }
+                    <div class="kvrow"><span>خودرو</span><b>@OpsUi.Plate(t.Vehicle?.PlateNo) <span class="muted small">@t.Vehicle?.VehicleType?.Name</span></b></div>
+                </div>
+            </div>
+            <div class="card2">
+                <div class="hd"><i class="bi bi-buildings"></i> شرکت حمل‌ونقل</div>
+                <div class="bd">
+                    @if (t.Company is { } c)
+                    {
+                        <div class="kvrow"><span>نام</span><b><a class="lnk" href="/Admin/Users/Company/@c.CompanyId">@c.Name</a></b></div>
+                        <div class="kvrow"><span>موبایل</span><b class="num">@c.Mobile</b></div>
+                        <div class="kvrow"><span>حساب</span>@Ui.AccountPill(c.Status)</div>
+                        <div class="kvrow"><span>سهم راننده</span><b>@(t.DriverShare is long ds ? Fa.Toman(ds) : "—")@(t.DriverSharePaidAt is DateTime dp ? " · پرداخت " + Fa.Date(dp) : "")</b></div>
+                    }
+                    else
+                    {
+                        <p class="muted small">سفر با رانندهٔ مستقل انجام می‌شود.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* ---------- بار و پیشنهاد ---------- *@
+        <div class="grid2">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-box-seam"></i> بار <span class="end"><a class="lnk num" href="/Admin/Loads/Detail/@l.LoadId">@l.Code</a></span></div>
+                <div class="bd">
+                    <dl class="kv">
+                        <dt>کالا</dt><dd>@l.Title · @l.CargoType@(string.IsNullOrEmpty(l.Packaging) ? "" : " · " + l.Packaging)</dd>
+                        <dt>وزن</dt><dd>@OpsLabels.Ton(l.WeightTon) تن</dd>
+                        <dt>مبدا</dt><dd>@l.OriginCity?.Name — @l.OriginAddress</dd>
+                        <dt>مقصد</dt><dd>@l.DestCity?.Name — @l.DestAddress</dd>
+                        <dt>زمان بارگیری</dt><dd>@Fa.Stamp(l.LoadingFrom)</dd>
+                        <dt>حرکت برنامه‌ریزی‌شده</dt><dd>@Fa.Stamp(t.ScheduledDepartureAt)</dd>
+                        <dt>ارزش اعلامی</dt><dd>@Fa.Toman(l.DeclaredValue)@(l.InsuranceRequested ? " · درخواست بیمه" : "")</dd>
+                        <dt>وضعیت بار</dt><dd>@Ui.LoadPill(l.Status)</dd>
+                    </dl>
+                </div>
+            </div>
+            <div class="card2">
+                <div class="hd"><i class="bi bi-tags"></i> پیشنهاد پذیرفته‌شده</div>
+                <div class="bd">
+                    @if (Model.Offer is { } o)
+                    {
+                        <dl class="kv">
+                            <dt>حمل‌کننده</dt><dd>@o.CarrierName <span class="muted small">(@CarrierKind.Label(o.CarrierKind))</span></dd>
+                            <dt>مبلغ</dt><dd class="num">@Fa.Toman(o.Amount)</dd>
+                            <dt>رسیدن به مبدا</dt><dd>@OpsLabels.Hours(o.EtaHours)</dd>
+                            <dt>خودروی پیشنهادی</dt><dd>@OpsUi.Plate(o.Vehicle?.PlateNo)</dd>
+                            <dt>توضیح</dt><dd>@(o.Note ?? "—")</dd>
+                            <dt>ثبت / پذیرش</dt><dd>@Fa.Stamp(o.CreatedAt) / @Fa.Stamp(o.RespondedAt)</dd>
+                        </dl>
+                    }
+                    else
+                    {
+                        <p class="muted small">@(selfCarried ? "بدون پیشنهاد — شرکت بارِ مشتری خودش را با ناوگان خودش حمل می‌کند." : "پیشنهادی به این سفر متصل نیست.")</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* ---------- مالی ---------- *@
+        <div class="card2">
+            <div class="hd"><i class="bi bi-cash-stack"></i> مالی <span class="end">@(t.IsPaid ? Ui.Pill("کرایه نزد بارگو", "ok") : Ui.Pill("کرایه دریافت نشده", "wait"))</span></div>
+            <div class="bd">
+                <div class="stats cols5" style="margin-bottom:14px">
+                    <div class="stat t"><div class="l"><i class="bi bi-cash"></i> کرایه</div><div class="v">@Fa.Toman(t.Fare)</div></div>
+                    <div class="stat p"><div class="l"><i class="bi bi-percent"></i> کمیسیون @Fa.N(t.CommissionPercent, 1)٪</div><div class="v">@Fa.Toman(t.Commission)</div></div>
+                    <div class="stat s"><div class="l"><i class="bi bi-truck"></i> سهم حمل‌کننده</div><div class="v">@Fa.Toman(t.CarrierShare)</div></div>
+                    <div class="stat i"><div class="l"><i class="bi bi-person-badge"></i> سهم رانندهٔ شرکت</div><div class="v">@(t.DriverShare is long dsh ? Fa.Toman(dsh) : "—")</div></div>
+                    <div class="stat @(Model.Refunds.Count > 0 ? "w" : "i")"><div class="l"><i class="bi bi-arrow-counterclockwise"></i> استرداد</div><div class="v">@Fa.Toman(Model.Refunds.Where(r => r.Status == "done").Sum(r => r.Amount))</div></div>
+                </div>
+                @if (selfCarried)
+                {
+                    <div class="alert2 info"><i class="bi bi-info-circle"></i><div class="grow">بار مشتریِ خودِ شرکت: کرایه بیرون از بارگو دریافت می‌شود، کمیسیونی ندارد و در تسویه پولی جابه‌جا نمی‌شود.</div></div>
+                }
+
+                <div class="sec-title" style="margin-top:0"><i class="bi bi-credit-card"></i> پرداخت‌ها</div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>#</th><th>پرداخت‌کننده</th><th>مبلغ</th><th>بابت</th><th>روش</th><th>وضعیت</th><th>زمان</th></tr></thead>
+                        <tbody>
+                        @foreach (var p in Model.Payments)
+                        {
+                            <tr>
+                                <td class="num">@Fa.N(p.PaymentId)</td>
+                                <td>@Who(p.PayerKind, p.PayerId)</td>
+                                <td class="nowrap"><b>@Fa.Toman(p.Amount)</b></td>
+                                <td>@PayPurpose(p.Purpose)</td>
+                                <td>@PayMethod(p.Method)@if (!string.IsNullOrEmpty(p.RefId)) { <span class="sub num">پیگیری: @p.RefId</span> }</td>
+                                <td>@Ui.PaymentPill(p.Status)@if (!string.IsNullOrEmpty(p.FailReason)) { <span class="sub">@p.FailReason</span> }</td>
+                                <td class="nowrap">@Fa.Stamp(p.PaidAt ?? p.CreatedAt)</td>
+                            </tr>
+                        }
+                        @if (Model.Payments.Count == 0)
+                        {
+                            <tr><td colspan="7" class="empty"><i class="bi bi-credit-card"></i>پرداختی برای این سفر ثبت نشده است.</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="sec-title"><i class="bi bi-wallet2"></i> گردش کیف پول‌ها</div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>زمان</th><th>کیف پول</th><th>نوع</th><th>مبلغ</th><th>مانده</th><th>شرح</th></tr></thead>
+                        <tbody>
+                        @foreach (var x in Model.Txns)
+                        {
+                            <tr>
+                                <td class="nowrap">@Fa.Stamp(x.CreatedAt)</td>
+                                <td>@Who(x.OwnerKind, x.OwnerId)</td>
+                                <td>@WalletTxnKind.Label(x.Kind)</td>
+                                <td>@OpsUi.Signed(x.Amount)</td>
+                                <td class="nowrap">@Fa.Toman(x.BalanceAfter)</td>
+                                <td class="small">@(x.Note ?? "—")</td>
+                            </tr>
+                        }
+                        @if (Model.Txns.Count == 0)
+                        {
+                            <tr><td colspan="6" class="empty"><i class="bi bi-wallet2"></i>هنوز پولی برای این سفر جابه‌جا نشده است.</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (Model.Invoices.Count > 0 || Model.Refunds.Count > 0)
+                {
+                    <div class="grid2" style="margin-top:14px">
+                        <div>
+                            <div class="sec-title" style="margin-top:0"><i class="bi bi-receipt-cutoff"></i> فاکتورها</div>
+                            @foreach (var i in Model.Invoices)
+                            {
+                                <div class="kvrow"><span><span class="num">@i.No</span> · @InvoiceKind(i.Kind) برای @Who(i.OwnerKind, i.OwnerId)<br /><small class="muted">@Fa.Stamp(i.IssuedAt)@(i.Tax > 0 ? $" · مالیات {Fa.Toman(i.Tax)}" : "")</small></span><b class="num">@Fa.Toman(i.Total)</b></div>
+                            }
+                            @if (Model.Invoices.Count == 0) { <p class="muted small">فاکتوری صادر نشده است.</p> }
+                        </div>
+                        <div>
+                            <div class="sec-title" style="margin-top:0"><i class="bi bi-arrow-counterclockwise"></i> استردادها</div>
+                            @foreach (var r in Model.Refunds)
+                            {
+                                <div class="kvrow"><span>به @Who(r.OwnerKind, r.OwnerId) — @r.Reason<br /><small class="muted">@Fa.Stamp(r.DoneAt ?? r.CreatedAt)</small></span><span><b class="num">@Fa.Toman(r.Amount)</b> @Ui.Pill(OpsUi.RefundLabel(r.Status), OpsUi.RefundTone(r.Status))</span></div>
+                            }
+                            @if (Model.Refunds.Count == 0) { <p class="muted small">استردادی ثبت نشده است.</p> }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* ---------- تحویل ---------- *@
+        <div class="grid2">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-shield-check"></i> تأیید تحویل</div>
+                <div class="bd">
+                    <dl class="kv">
+                        <dt>تحویل</dt><dd>@(t.DeliveredAt is null ? Ui.Pill("هنوز تحویل نشده", "wait") : Ui.Pill(Fa.Stamp(t.DeliveredAt), "ok"))</dd>
+                        <dt>کد یکبارمصرف</dt><dd>@(Model.DeliveryOtpRequired ? "الزامی (تنظیمات)" : "غیرفعال (تنظیمات)")</dd>
+                        <dt>ارسال کد</dt><dd>@(t.DeliveryOtpSentAt is null ? "ارسال نشده" : Fa.Stamp(t.DeliveryOtpSentAt))@(t.DeliveryOtpHash is null ? "" : " · کد فعال است")</dd>
+                        <dt>تلاش نادرست</dt><dd class="num">@Fa.N(t.DeliveryOtpAttempts)@(t.DeliveryOtpAttempts >= 5 ? " — قفل شده" : "")</dd>
+                        @if (Model.DeliveryEvent is { } de)
+                        {
+                            <dt>ثبت‌کننده</dt><dd>@(de.ActorName ?? ActorLabel(de.ActorKind)) <span class="muted small">(@ActorLabel(de.ActorKind))</span></dd>
+                            <dt>موقعیت ثبت</dt><dd>@(de.Lat is double dla && de.Lng is double dlg ? Html.Raw($"<span class=\"num\">{dla:0.00000}, {dlg:0.00000}</span>") : Html.Raw("<span class=\"muted\">بدون موقعیت</span>"))</dd>
+                            <dt>یادداشت</dt><dd>@(string.IsNullOrEmpty(de.Note) ? "—" : de.Note)</dd>
+                        }
+                        else if (Model.LastEvent is { } le)
+                        {
+                            <dt>آخرین رویداد</dt><dd>@TripStatus.Label(le.ToStatus) · @(le.ActorName ?? ActorLabel(le.ActorKind)) · @Fa.Stamp(le.CreatedAt)</dd>
+                            <dt>موقعیت آخرین رویداد</dt><dd>@(le.Lat is double lla && le.Lng is double llg ? Html.Raw($"<span class=\"num\">{lla:0.00000}, {llg:0.00000}</span>") : Html.Raw("<span class=\"muted\">بدون موقعیت</span>"))</dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+            <div class="card2">
+                <div class="hd"><i class="bi bi-file-earmark-text"></i> بارنامه و اسناد <span class="end"><a class="btn2 sm ghost" href="/Admin/Waybills">بارنامه‌ها</a></span></div>
+                <div class="bd">
+                    @if (t.Waybill is { } w)
+                    {
+                        <div class="kvrow"><span>شمارهٔ بارنامه</span><b class="num">@w.Number</b></div>
+                        <div class="kvrow"><span>وضعیت</span>@Ui.Pill(OpsUi.WaybillLabel(w.Status), OpsUi.WaybillTone(w.Status))</div>
+                        <div class="kvrow"><span>ثبت</span><b>@ActorLabel(w.IssuedByKind) · @Fa.Stamp(w.IssuedAt)</b></div>
+                        <div class="kvrow"><span>فایل</span>@OpsUi.File(w.FilePath)</div>
+                    }
+                    else
+                    {
+                        <p class="muted small">بارنامه‌ای ثبت نشده است.</p>
+                    }
+                    @if (Model.Documents.Count > 0)
+                    {
+                        <div class="sec-title"><i class="bi bi-folder2-open"></i> اسناد سفر</div>
+                        <div>
+                            @foreach (var doc in Model.Documents)
+                            {
+                                <div class="kvrow"><span><b>@TripDocumentKind.Label(doc.Kind)</b> @(string.IsNullOrEmpty(doc.Title) ? "" : "— " + doc.Title)<br /><small class="muted">@ActorLabel(doc.UploadedByKind) · @Fa.Stamp(doc.CreatedAt)</small></span>@OpsUi.File(doc.FilePath)</div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* ---------- نقشه ---------- *@
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-map"></i> مسیر طی‌شده
+                <span class="end muted small">
+                    @Fa.N(Model.PointCount) نقطه
+                    @if (Model.FirstPointAt is DateTime fp) { <text>· از @Fa.Stamp(fp)</text> }
+                    @if (Model.LastPointAt is DateTime lp) { <text>· تا @Fa.Stamp(lp)</text> }
+                    @if (Model.MaxSpeed is double ms) { <text>· بیشینه سرعت @Fa.N(ms) km/h</text> }
+                    · @Fa.N(t.TravelledKm) کیلومتر@(t.PlannedKm is double pk ? $" از {Fa.N(pk)}" : "")
+                </span>
+            </div>
+            <div class="bd">
+                @if (Model.Markers.Count == 0 && Model.Line.Count == 0)
+                {
+                    <div class="empty-state"><i class="bi bi-map"></i><b>موقعیتی ثبت نشده</b>مبدا و مقصد مختصات ندارند و راننده هنوز GPS نفرستاده است.</div>
+                }
+                else
+                {
+                    <div class="map" data-map='@Json.Serialize(new { markers = Model.Markers, line = Model.Line, fit = true })'></div>
+                    <p class="muted small" style="margin:8px 0 0">نشانگر خاکستری: موقعیتِ ثبت‌شدهٔ هر رویداد (اعلام حضور، بارگیری، تحویل…). خط: نقاط GPS راننده.</p>
+                }
+            </div>
+        </div>
+
+        @* ---------- رویدادها و تخصیص ---------- *@
+        <div class="grid2">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-clock-history"></i> رویدادهای سفر <span class="end muted small">@Fa.N(Model.Events.Count) رویداد</span></div>
+                <div class="bd"><partial name="_TripEvents" model="Model.Events" /></div>
+            </div>
+            <div class="card2">
+                <div class="hd"><i class="bi bi-arrow-repeat"></i> سابقهٔ تخصیص راننده و خودرو</div>
+                <div class="bd">
+                    @foreach (var a in Model.Assignments)
+                    {
+                        <div class="kvrow">
+                            <span>
+                                @if (a.PreviousDriverId is int pd && pd != a.DriverId) { <b>@DriverName(pd)</b> <i class="bi bi-arrow-left"></i> }
+                                @if (a.PreviousDriverId == a.DriverId && a.DriverId > 0 && a.Reason is not null && a.Reason.Contains("رد")) { <b>@DriverName(a.DriverId)</b> <span class="muted">(رد مأموریت)</span> }
+                                else { <b>@DriverName(a.DriverId)</b> }
+                                @if (a.VehicleId is not null) { <span class="muted"> · </span>@OpsUi.Plate(Plate(a.VehicleId)) }
+                                <br /><small class="muted">@Fa.Stamp(a.CreatedAt) · توسط @(a.ByName ?? "—")@(string.IsNullOrEmpty(a.Reason) ? "" : " — " + a.Reason)</small>
+                            </span>
+                        </div>
+                    }
+                    @if (Model.Assignments.Count == 0)
+                    {
+                        <div class="empty-state"><i class="bi bi-arrow-repeat"></i>تخصیصی ثبت نشده است.</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* ---------- گفتگو ---------- *@
+        <div class="card2">
+            <div class="hd"><i class="bi bi-chat-dots"></i> گفتگوی طرفین <span class="end muted small">@Fa.N(Model.Messages.Count) پیام</span></div>
+            @if (Model.Messages.Count == 0)
+            {
+                <div class="empty-state"><i class="bi bi-chat"></i>پیامی در این سفر رد و بدل نشده است.</div>
+            }
+            else
+            {
+                <div class="thread">
+                    @foreach (var m in Model.Messages)
+                    {
+                        <div class="bubble @(m.FromKind == OwnerKind.Driver ? "me" : "them")">
+                            <div class="who">@m.FromName <span class="muted">(@OwnerKind.Label(m.FromKind)) ← @OwnerKind.Label(m.ToKind)</span></div>
+                            <div>@m.Body</div>
+                            <div class="when">@Fa.Stamp(m.CreatedAt)@(m.ReadAt is null ? " · خوانده نشده" : "")</div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @* ---------- شکایات، تیکت، امتیاز، تخلف ---------- *@
+        <div class="grid2">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-exclamation-diamond"></i> شکایات این سفر</div>
+                <div class="bd">
+                    @foreach (var cp in Model.Complaints)
+                    {
+                        <a class="kvrow" href="/Admin/Complaints/Detail/@cp.ComplaintId">
+                            <span><b>@cp.Title</b> <span class="muted small">@cp.Code</span><br /><small class="muted">@ComplaintKind.Label(cp.Kind) · از سوی @cp.FromName (@OwnerKind.Label(cp.FromKind))@(cp.AgainstKind is null ? "" : " علیه " + OwnerKind.Label(cp.AgainstKind)) · @Fa.Date(cp.CreatedAt)</small></span>
+                            <span>@Ui.ComplaintPill(cp.Status)@if (cp.CompensationAmount is long ca) { <span class="sub num">غرامت @Fa.Toman(ca)</span> }</span>
+                        </a>
+                    }
+                    @if (Model.Complaints.Count == 0) { <div class="empty-state"><i class="bi bi-emoji-smile"></i>شکایتی برای این سفر ثبت نشده است.</div> }
+                    @if (Model.Tickets.Count > 0)
+                    {
+                        <div class="sec-title"><i class="bi bi-life-preserver"></i> تیکت‌ها</div>
+                        <div>
+                            @foreach (var tk in Model.Tickets)
+                            {
+                                <a class="kvrow" href="/Admin/Support/Thread/@tk.TicketId"><span><b>@tk.Subject</b><br /><small class="muted">@TicketCategory.Label(tk.Category) · @tk.OwnerName · @Fa.Ago(tk.UpdatedAt)</small></span>@Ui.TicketPill(tk.Status)</a>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="card2">
+                <div class="hd"><i class="bi bi-star"></i> امتیاز و تخلف</div>
+                <div class="bd">
+                    @foreach (var r in Model.Ratings)
+                    {
+                        <div class="kvrow"><span>@OwnerKind.Label(r.FromKind) به @OwnerKind.Label(r.ToKind)@(string.IsNullOrEmpty(r.Comment) ? "" : " — " + r.Comment)<br /><small class="muted">@Fa.Stamp(r.CreatedAt)</small></span><span class="stars"><i class="bi bi-star-fill"></i> @Fa.N(r.Score)</span></div>
+                    }
+                    @if (Model.Ratings.Count == 0) { <p class="muted small">امتیازی ثبت نشده است.</p> }
+                    @if (Model.Violations.Count > 0)
+                    {
+                        <div class="sec-title"><i class="bi bi-exclamation-octagon"></i> تخلفات</div>
+                        <div>
+                            @foreach (var v in Model.Violations)
+                            {
+                                <div class="kvrow"><span><b>@v.Title</b>@(v.Driver is null ? "" : " — " + v.Driver.FullName)<br /><small class="muted">@Fa.Date(v.CreatedAt)</small></span>@Ui.Pill(OpsUi.PenaltyLabel(v.Penalty), OpsUi.PenaltyTone(v.Penalty))</div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ================= ستون کنار: اقدامات ================= *@
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-lightning"></i> اقدام مدیر</div>
+            <div class="bd">
+                @if (t.Status is TripStatus.Settled or TripStatus.Cancelled)
+                {
+                    <div class="alert2 info"><i class="bi bi-info-circle"></i><div class="grow">این سفر @(t.Status == TripStatus.Settled ? "تسویه شده" : "لغو شده") و بسته است.@(t.Status == TripStatus.Cancelled && !string.IsNullOrEmpty(t.CancelReason) ? " علت: " + t.CancelReason : "")</div></div>
+                }
+
+                @if (Model.NextSteps.Count > 0)
+                {
+                    <form method="post" asp-action="Move" asp-route-id="@t.TripId" data-confirm="مرحلهٔ سفر @t.Code از سوی مدیر تغییر کند؟ طرفین اعلان می‌گیرند.">
+                        <div class="fld">
+                            <label>یادداشت (اختیاری؛ در رویداد ثبت می‌شود)</label>
+                            <input name="note" maxlength="1000" placeholder="مثلاً: تأیید تلفنی گیرنده" />
+                        </div>
+                        <div class="form-actions">
+                            @foreach (var s in Model.NextSteps)
+                            {
+                                <button class="btn2 @(s == TripStatus.Delivered ? "grn" : "pri")" name="to" value="@s"><i class="bi bi-arrow-left-circle"></i> @TripFlow.ActionLabel(s)</button>
+                            }
+                        </div>
+                        @if (Model.NextSteps.Contains(TripStatus.Delivered))
+                        {
+                            <p class="muted small">تأیید تحویل توسط مدیر بدون کد گیرنده ثبت می‌شود — فقط در اختلاف و پس از تماس با گیرنده.@(t.IsPaid ? " چون کرایه پرداخت شده، تسویه خودکار انجام می‌شود." : "")</p>
+                        }
+                    </form>
+                }
+
+                @if (Model.CanSettle)
+                {
+                    <form method="post" asp-action="Settle" asp-route-id="@t.TripId" style="margin-top:10px"
+                          data-confirm="سفر @t.Code تسویه شود؟ @Fa.Toman(t.CarrierShare) به کیف پول حمل‌کننده و @Fa.Toman(t.Commission) به کیف پول بارگو می‌نشیند.">
+                        <button class="btn2 grn block" @(t.IsPaid ? "" : "disabled")><i class="bi bi-cash-coin"></i> تسویهٔ سفر</button>
+                        @if (!t.IsPaid) { <p class="muted small">کرایه هنوز از صاحب بار دریافت نشده است؛ تا پرداخت، تسویه ممکن نیست.</p> }
+                    </form>
+                }
+
+                @if (Model.CanAssign)
+                {
+                    <hr style="border:0;border-top:1px dashed var(--line);margin:14px 0" />
+                    <form method="post" asp-action="Assign" asp-route-id="@t.TripId" data-confirm="راننده/خودروی این سفر شرکتی از سوی مدیر تعیین شود؟">
+                        <div class="fld">
+                            <label>@(t.DriverId is null ? "تخصیص راننده" : "تعویض راننده") <span class="req">*</span></label>
+                            <select name="driverId" required>
+                                <option value="">انتخاب راننده از رانندگان شرکت</option>
+                                @foreach (var d in Model.CompanyDrivers) { <option value="@d.Id" selected="@(t.DriverId == d.Id)">@d.Text</option> }
+                            </select>
+                        </div>
+                        <div class="fld">
+                            <label>خودرو</label>
+                            <select name="vehicleId">
+                                <option value="">بدون تغییر / بعداً</option>
+                                @foreach (var v in Model.CompanyVehicles) { <option value="@v.Id" selected="@(t.VehicleId == v.Id)">@v.Text</option> }
+                            </select>
+                        </div>
+                        <div class="fld"><label>علت</label><input name="reason" maxlength="500" placeholder="مثلاً: شرکت پاسخگو نیست" /></div>
+                        <div class="form-actions"><button class="btn2 soft block"><i class="bi bi-person-check"></i> ثبت تخصیص</button></div>
+                        @if (Model.CompanyDrivers.Count == 0) { <p class="muted small">شرکت رانندهٔ تأییدشده‌ای ندارد.</p> }
+                    </form>
+                }
+
+                @if (Model.CanCancel)
+                {
+                    <hr style="border:0;border-top:1px dashed var(--line);margin:14px 0" />
+                    <form method="post" asp-action="Cancel" asp-route-id="@t.TripId"
+                          data-confirm="سفر @t.Code لغو شود؟@(t.IsPaid ? $" {Fa.Toman(t.Fare)} به صاحب بار مسترد می‌شود." : "")@(t.Status is TripStatus.Loaded or TripStatus.InTransit or TripStatus.Arrived or TripStatus.Unloaded ? " بار روی خودروست؛ سفر در صف مشکل‌دار می‌ماند." : " بار دوباره در بازار قرار می‌گیرد.")">
+                        <div class="fld">
+                            <label>علت لغو <span class="req">*</span> <span class="muted small">(برای طرفین ارسال می‌شود)</span></label>
+                            <textarea name="reason" rows="2" required maxlength="500"></textarea>
+                        </div>
+                        <div class="form-actions"><button class="btn2 red block"><i class="bi bi-x-octagon"></i> لغو سفر</button></div>
+                    </form>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-flag"></i> علامت مشکل‌دار <span class="end">@(t.IsProblem ? Ui.Pill("فعال", "no") : Ui.Pill("ندارد", "mut"))</span></div>
+            <div class="bd">
+                @if (t.IsProblem)
+                {
+                    <div class="alert2 warn"><i class="bi bi-flag-fill"></i><div class="grow">@(t.ProblemNote ?? "بدون شرح")</div></div>
+                    <form method="post" asp-action="ClearProblem" asp-route-id="@t.TripId" data-confirm="علامت مشکل‌دار برداشته شود؟">
+                        <input type="hidden" name="returnUrl" value="@ret" />
+                        <button class="btn2 soft block"><i class="bi bi-check2"></i> رفع شد — برداشتن علامت</button>
+                    </form>
+                }
+                else
+                {
+                    <form method="post" asp-action="MarkProblem" asp-route-id="@t.TripId" data-confirm="این سفر در صف سفرهای مشکل‌دار قرار گیرد؟">
+                        <input type="hidden" name="returnUrl" value="@ret" />
+                        <div class="fld"><label>شرح مشکل <span class="req">*</span> <span class="muted small">(داخلی)</span></label><textarea name="note" rows="2" required maxlength="1000"></textarea></div>
+                        <div class="form-actions"><button class="btn2 ghost block"><i class="bi bi-flag"></i> علامت‌گذاری</button></div>
+                    </form>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-info-circle"></i> شناسه‌ها</div>
+            <div class="bd">
+                <div class="kvrow"><span>شناسهٔ سفر</span><b class="num">@Fa.N(t.TripId)</b></div>
+                <div class="kvrow"><span>کد بار</span><b class="num">@l.Code</b></div>
+                <div class="kvrow"><span>آخرین GPS</span>@OpsUi.Gps(t.LastPointAt)</div>
+                @if (t.EtaAt is DateTime etaAt) { <div class="kvrow"><span>رسیدن تقریبی</span><b>@Fa.Stamp(etaAt)</b></div> }
+                @if (t.CancelledAt is DateTime cancelledAt) { <div class="kvrow"><span>لغو</span><b>@Fa.Stamp(cancelledAt)</b></div> }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

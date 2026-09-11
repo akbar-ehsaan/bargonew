@@ -1,0 +1,182 @@
+@using Bargo.Web.Areas.AdminPanel.Controllers
+@model ContentVm
+@{
+    var kind = Model.Kind;
+    var e = Model.Edit;
+    var hasSlug = ContentController.HasSlug(kind);
+    var hasImage = ContentController.HasImage(kind);
+    var hasLink = ContentController.HasLink(kind);
+    var hasAudience = ContentController.HasAudience(kind);
+    var label = ContentKind.Label(kind);
+    (string Kind, string Icon, string Title)[] tabs =
+    [
+        (ContentKind.Banner, "bi-image", "بنرها"), (ContentKind.News, "bi-newspaper", "اخبار"), (ContentKind.Faq, "bi-question-circle", "سوالات متداول"),
+        (ContentKind.Rule, "bi-journal-text", "قوانین"), (ContentKind.Page, "bi-file-richtext", "صفحات ثابت")
+    ];
+    var current = tabs.First(t => t.Kind == kind);
+    var hint = kind switch
+    {
+        ContentKind.Banner => "بنرهای بالای داشبورد هر پنل. ترتیب کوچک‌تر بالاتر می‌نشیند؛ فقط بنرهای منتشرشده دیده می‌شوند.",
+        ContentKind.News => "اخبار و اطلاعیه‌ها؛ برای همه یا فقط یک پنل.",
+        ContentKind.Faq => "پرسش (عنوان) و پاسخ (متن). با «مخاطب» می‌توانید پاسخ را فقط به رانندگان یا صاحبان بار نشان دهید.",
+        ContentKind.Rule => "قوانین و مقررات استفاده — با نشانی ثابت مثل /p/terms.",
+        _ => "صفحات ثابت سایت (دربارهٔ ما، تماس، حریم خصوصی) — با نشانی ثابت مثل /p/about."
+    };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi @current.Icon"></i> @current.Title</h1>
+        <p>@hint</p>
+    </div>
+    <div class="actions">
+        @if (!Model.ShowForm)
+        {
+            <a class="btn2 pri" asp-action="Index" asp-route-kind="@kind" asp-route-new="true"><i class="bi bi-plus-circle"></i> @label تازه</a>
+        }
+    </div>
+</div>
+
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        <a asp-action="Index" asp-route-kind="@t.Kind" class="@(t.Kind == kind ? "on" : "")"><i class="bi @t.Icon"></i> @t.Title <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(t.Kind))</span></a>
+    }
+</div>
+
+<div class="@(Model.ShowForm ? "grid-side" : "")">
+    <div class="card2">
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead>
+                    <tr>
+                        @if (hasImage) { <th></th> }
+                        <th>عنوان</th>
+                        @if (hasAudience) { <th>مخاطب</th> }
+                        <th>ترتیب</th><th>وضعیت</th><th>به‌روزرسانی</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var c in Model.Items)
+                {
+                    <tr class="@(e?.ContentItemId == c.ContentItemId ? "on" : "")" style="@(e?.ContentItemId == c.ContentItemId ? "background:var(--primary-soft)" : "")">
+                        @if (hasImage)
+                        {
+                            <td style="width:70px">
+                                @if (!string.IsNullOrEmpty(c.ImagePath))
+                                {
+                                    <a href="@DocumentStorage.Url(c.ImagePath)" target="_blank" rel="noopener"><img src="@DocumentStorage.Url(c.ImagePath)" alt="" style="width:60px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--line)" /></a>
+                                }
+                                else
+                                {
+                                    <span class="muted"><i class="bi bi-image" style="font-size:22px"></i></span>
+                                }
+                            </td>
+                        }
+                        <td>
+                            <b>@c.Title</b>
+                            @if (hasSlug && !string.IsNullOrEmpty(c.Slug))
+                            {
+                                <span class="sub num">/p/@c.Slug</span>
+                            }
+                            @if (hasLink && !string.IsNullOrEmpty(c.Link))
+                            {
+                                <span class="sub num"><i class="bi bi-link-45deg"></i> @c.Link</span>
+                            }
+                            @if (kind == ContentKind.Faq)
+                            {
+                                <span class="sub">@(c.Body.Length > 90 ? c.Body[..90] + "…" : c.Body)</span>
+                            }
+                        </td>
+                        @if (hasAudience) { <td><span class="chip">@BackofficeFormat.AudienceLabel(c.Audience)</span></td> }
+                        <td class="num">@Fa.N(c.SortOrder)</td>
+                        <td>@(c.IsPublished ? Ui.Pill("منتشرشده", "ok") : Ui.Pill("پیش‌نویس", "mut"))</td>
+                        <td class="nowrap small">@Fa.Stamp(c.UpdatedAt)</td>
+                        <td>
+                            <div class="row-actions">
+                                <a class="btn2 sm soft" asp-action="Index" asp-route-kind="@kind" asp-route-edit="@c.ContentItemId"><i class="bi bi-pencil"></i> ویرایش</a>
+                                <form method="post" asp-action="TogglePublish" asp-route-id="@c.ContentItemId">
+                                    <button class="btn2 sm ghost" title="@(c.IsPublished ? "خروج از انتشار" : "انتشار")"><i class="bi @(c.IsPublished ? "bi-eye-slash" : "bi-eye")"></i></button>
+                                </form>
+                                <form method="post" asp-action="Delete" asp-route-id="@c.ContentItemId" data-confirm="«@c.Title» برای همیشه حذف شود؟">
+                                    <button class="btn2 sm ghost"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Items.Count == 0)
+                {
+                    <tr><td colspan="7" class="empty"><i class="bi @current.Icon"></i>هنوز @(label)‌ی ثبت نشده است.@if (!Model.ShowForm) { <br /><a class="lnk" asp-action="Index" asp-route-kind="@kind" asp-route-new="true">اولین @label را بسازید</a> }</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (Model.ShowForm)
+    {
+        <div class="card2">
+            <div class="hd"><i class="bi @(e is null ? "bi-plus-circle" : "bi-pencil-square")"></i> @(e is null ? label + " تازه" : "ویرایش " + label)</div>
+            <div class="bd">
+                <form method="post" asp-action="Save" enctype="multipart/form-data">
+                    <input type="hidden" name="kind" value="@kind" />
+                    @if (e is not null)
+                    {
+                        <input type="hidden" name="id" value="@e.ContentItemId" />
+                    }
+                    <div class="stack" style="gap:12px">
+                        <div class="fld"><label>@(kind == ContentKind.Faq ? "پرسش" : "عنوان") <span class="req">*</span></label><input name="title" value="@e?.Title" maxlength="200" required /></div>
+                        @if (hasSlug)
+                        {
+                            <div class="fld">
+                                <label>نشانی (slug)</label>
+                                <input name="slug" value="@e?.Slug" dir="ltr" maxlength="100" pattern="[a-z0-9][a-z0-9-]{1,99}" placeholder="terms" />
+                                <span class="hint">حروف کوچک لاتین، رقم و خط تیره؛ صفحه در /p/{slug} نمایش داده می‌شود. خالی بماند از عنوان لاتین ساخته می‌شود.</span>
+                            </div>
+                        }
+                        <div class="fld">
+                            <label>@(kind == ContentKind.Faq ? "پاسخ" : "متن") @if (kind != ContentKind.Banner) { <span class="req">*</span> }</label>
+                            <textarea name="body" rows="@(kind is ContentKind.Banner or ContentKind.Faq ? 4 : 10)">@e?.Body</textarea>
+                            @if (kind == ContentKind.Banner) { <span class="hint">متن کوتاه زیر بنر — اختیاری.</span> }
+                        </div>
+                        @if (hasImage)
+                        {
+                            <div class="fld">
+                                <label>تصویر</label>
+                                @if (!string.IsNullOrEmpty(e?.ImagePath))
+                                {
+                                    <img src="@DocumentStorage.Url(e.ImagePath)" alt="" style="max-height:120px;border-radius:8px;border:1px solid var(--line);object-fit:cover" />
+                                    <label class="check" style="margin-top:4px"><input type="checkbox" name="removeImage" value="true" /> حذف تصویر فعلی</label>
+                                }
+                                <input type="file" name="image" accept=".jpg,.jpeg,.png,.webp" />
+                                <span class="hint">jpg، png یا webp تا ۸ مگابایت. @(kind == ContentKind.Banner ? "نسبت پیشنهادی ۳ به ۱." : "")</span>
+                            </div>
+                        }
+                        @if (hasLink)
+                        {
+                            <div class="fld"><label>پیوند</label><input name="link" value="@e?.Link" dir="ltr" placeholder="/Driver/Loads یا https://…" /><span class="hint">با کلیک روی @label به این نشانی می‌رود؛ اختیاری.</span></div>
+                        }
+                        @if (hasAudience)
+                        {
+                            <div class="fld">
+                                <label>مخاطب</label>
+                                <select name="audience">
+                                    @foreach (var a in ContentController.Audiences)
+                                    {
+                                        <option value="@a" selected="@((e?.Audience ?? "all") == a)">@BackofficeFormat.AudienceLabel(a)</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                        <div class="fld"><label>ترتیب نمایش</label><input name="sortOrder" value="@(e?.SortOrder ?? 0)" inputmode="numeric" dir="ltr" /><span class="hint">عدد کوچک‌تر بالاتر.</span></div>
+                        <label class="check"><input type="checkbox" name="isPublished" value="true" checked="@(e?.IsPublished ?? true)" /><input type="hidden" name="isPublished" value="false" /> منتشر شود</label>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn2 pri"><i class="bi bi-check2"></i> ذخیره</button>
+                        <a class="btn2 ghost" asp-action="Index" asp-route-kind="@kind">انصراف</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+</div>

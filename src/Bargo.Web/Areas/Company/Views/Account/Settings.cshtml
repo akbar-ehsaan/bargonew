@@ -1,0 +1,88 @@
+@{
+    var accepts = (bool)ViewBag.AcceptsDirectRequests;
+    var share = (decimal)ViewBag.DriverSharePercent;
+    var canEdit = (bool)ViewBag.CanEdit;
+    var myName = (string)ViewBag.MyName;
+    var myMobile = (string)ViewBag.MyMobile;
+    var myTitle = (string)ViewBag.MyTitle;
+    var myLastLogin = ViewBag.MyLastLoginAt as DateTime?;
+    var shareBox = share.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-gear"></i> تنظیمات</h1>
+        <p>تنظیمات شرکت برای همهٔ کاربران اعمال می‌شود؛ گذرواژه فقط برای حساب خودتان است.</p>
+    </div>
+</div>
+
+<partial name="_Tabs" />
+
+<div class="grid2">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-building-gear"></i> تنظیمات شرکت</div>
+        <div class="bd">
+            @if (!canEdit)
+            {
+                <div class="alert2 info"><i class="bi bi-lock"></i><div class="grow">تغییر این تنظیمات فقط با دسترسی «کاربران» (مدیر شرکت) ممکن است.</div></div>
+            }
+            <form method="post" asp-action="Settings">
+                <div class="form-grid">
+                    <div class="fld full">
+                        <label class="check">
+                            <input type="checkbox" name="acceptsDirectRequests" value="true" checked="@accepts" disabled="@(!canEdit)" />
+                            پذیرش درخواست مستقیم از صاحبان بار
+                        </label>
+                        <span class="hint">اگر روشن باشد، صاحب بار می‌تواند بارش را مستقیم برای این شرکت بفرستد (بارهای دریافتی). اگر خاموش باشد، شرکت فقط از بازار بار پیشنهاد می‌دهد.</span>
+                    </div>
+                    <div class="fld">
+                        <label>سهم پیش‌فرض راننده از کرایهٔ خالص</label>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <input name="driverSharePercent" value="@shareBox" dir="ltr" inputmode="decimal" style="max-width:120px" disabled="@(!canEdit)" />
+                            <b>٪</b>
+                        </div>
+                        <span class="hint">درصدی از کرایه پس از کسر کمیسیون بارگو که هنگام تخصیص، به‌طور پیش‌فرض برای راننده در نظر گرفته می‌شود (۰ تا ۱۰۰). برای هر سفر قابل تغییر است.</span>
+                    </div>
+                </div>
+                @if (canEdit)
+                {
+                    <div class="form-actions"><button class="btn2 pri"><i class="bi bi-check2"></i> ذخیرهٔ تنظیمات</button></div>
+                }
+            </form>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-person-circle"></i> حساب من</div>
+            <div class="bd">
+                <div class="kvrow"><span>نام</span><b>@myName</b></div>
+                <div class="kvrow"><span>موبایل ورود</span><b dir="ltr">@Fa.Digits(myMobile)</b></div>
+                <div class="kvrow"><span>عنوان</span><b>@CompanyLabels.UserTitle(myTitle)</b></div>
+                <div class="kvrow"><span>آخرین ورود</span><b>@(myLastLogin is DateTime l ? Fa.Stamp(l) : "—")</b></div>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-key"></i> تغییر گذرواژه</div>
+            <div class="bd">
+                <form method="post" asp-action="ChangePassword" autocomplete="off">
+                    <div class="form-grid">
+                        <div class="fld full">
+                            <label>گذرواژهٔ فعلی <span class="req">*</span></label>
+                            <input type="password" name="current" dir="ltr" required autocomplete="current-password" />
+                        </div>
+                        <div class="fld">
+                            <label>گذرواژهٔ تازه <span class="req">*</span></label>
+                            <input type="password" name="next" dir="ltr" minlength="6" required autocomplete="new-password" />
+                        </div>
+                        <div class="fld">
+                            <label>تکرار گذرواژهٔ تازه <span class="req">*</span></label>
+                            <input type="password" name="confirm" dir="ltr" minlength="6" required autocomplete="new-password" />
+                        </div>
+                    </div>
+                    <div class="form-actions"><button class="btn2 ghost"><i class="bi bi-key"></i> تغییر گذرواژه</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

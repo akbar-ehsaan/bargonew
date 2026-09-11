@@ -1,0 +1,31 @@
+@model List<ContentItem>
+<div class="page-head">
+    <div><h1><i class="bi bi-telephone"></i> تماس با پشتیبانی</h1></div>
+    <div class="actions"><a class="btn2 pri" asp-action="Create"><i class="bi bi-plus-lg"></i> ثبت تیکت</a></div>
+</div>
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-question-circle"></i> سوالات متداول</div>
+        <div class="bd">
+            @foreach (var f in Model)
+            {
+                <details style="border-bottom:1px dashed var(--line);padding:8px 0">
+                    <summary style="font-weight:800;cursor:pointer">@f.Title</summary>
+                    <p class="muted" style="margin:6px 0 0;white-space:pre-line">@f.Body</p>
+                </details>
+            }
+            @if (Model.Count == 0)
+            {
+                <div class="empty-state"><i class="bi bi-question-circle"></i>هنوز سوالی ثبت نشده است.</div>
+            }
+        </div>
+    </div>
+    <div class="card2">
+        <div class="hd"><i class="bi bi-headset"></i> راه‌های ارتباط</div>
+        <div class="bd">
+            <div class="kvrow"><span>تلفن پشتیبانی</span><b class="num">@Fa.Digits((string)ViewBag.Phone)</b></div>
+            <div class="kvrow"><span>ساعات پاسخگویی</span><b>شنبه تا پنجشنبه ۸ تا ۲۰</b></div>
+            <p class="muted small">مشکل بار در مسیر (تصادف، توقیف، خسارت) را با اولویت «فوری» ثبت کنید.</p>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,224 @@
+@model OpsLoadForm
+@{
+    var cities = (List<OpsCityOption>)ViewBag.Cities;
+    var types = (List<VehicleType>)ViewBag.VehicleTypes;
+    var customers = (List<OpsOption>)ViewBag.Customers;
+    var errors = ViewBag.Errors as List<string>;
+    var own = Model.Mode != "market";
+
+    // async چون <option selected> تگ‌هلپر است و Razor درون تابع محلی فقط نسخهٔ async را می‌پذیرد
+    async Task CitySelect(string name, int? selected)
+    {
+        <select name="@name" required>
+            <option value="">انتخاب کنید</option>
+            @foreach (var g in cities.GroupBy(c => c.Province))
+            {
+                <optgroup label="@g.Key">
+                    @foreach (var c in g)
+                    {
+                        <option value="@c.CityId" selected="@(selected == c.CityId)">@c.Name</option>
+                    }
+                </optgroup>
+            }
+        </select>
+    }
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-plus-square"></i> ثبت بار برای مشتری</h1>
+        <p>باری که مشتری به شرکت سپرده است؛ با ناوگان خودتان حملش کنید یا در بازار بارگو به حمل‌کنندهٔ دیگری بسپارید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index" asp-route-tab="published"><i class="bi bi-shop"></i> بارهای منتشرشده</a>
+        <a class="btn2 ghost" asp-action="Index" asp-route-tab="unassigned"><i class="bi bi-hourglass-split"></i> در انتظار تخصیص</a>
+    </div>
+</div>
+
+@if (errors is { Count: > 0 })
+{
+    <div class="alert2 err" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            @foreach (var e in errors)
+            {
+                <div>@e</div>
+            }
+        </div>
+    </div>
+}
+
+<form method="post" asp-action="Create">
+    <div class="grid-side">
+        <div class="card2">
+            <div class="bd">
+                <div class="form-grid">
+                    <div class="form-sec" id="sec-cargo"><i class="bi bi-box"></i> مشخصات بار</div>
+                    <div class="fld full">
+                        <label>عنوان بار <span class="req">*</span></label>
+                        <input name="Title" value="@Model.Title" maxlength="150" required placeholder="مثلاً: کانتینر قطعات صنعتی" />
+                    </div>
+                    <div class="fld">
+                        <label>نوع کالا <span class="req">*</span></label>
+                        <input name="CargoType" value="@Model.CargoType" maxlength="60" required list="cargo-types" />
+                        <datalist id="cargo-types">
+                            @foreach (var c in new[] { "مواد غذایی", "مصالح ساختمانی", "لوازم خانگی", "کالای وارداتی", "دارو", "مواد شیمیایی", "فرآورده‌های نفتی", "محصولات کشاورزی", "ماشین‌آلات", "آهن‌آلات", "سایر" })
+                            {
+                                <option value="@c"></option>
+                            }
+                        </datalist>
+                    </div>
+                    <div class="fld">
+                        <label>بسته‌بندی</label>
+                        <input name="Packaging" value="@Model.Packaging" maxlength="40" placeholder="پالت، کارتن، فله، کیسه…" />
+                    </div>
+
+                    <div class="form-sec" id="sec-route"><i class="bi bi-signpost-2"></i> مبدا و مقصد</div>
+                    <div class="fld"><label>شهر مبدا <span class="req">*</span></label>@{ await CitySelect("OriginCityId", Model.OriginCityId); }</div>
+                    <div class="fld"><label>شهر مقصد <span class="req">*</span></label>@{ await CitySelect("DestCityId", Model.DestCityId); }</div>
+                    <div class="fld">
+                        <label>نشانی بارگیری <span class="req">*</span></label>
+                        <input name="OriginAddress" value="@Model.OriginAddress" required placeholder="خیابان، انبار، پلاک" />
+                    </div>
+                    <div class="fld">
+                        <label>نشانی تخلیه <span class="req">*</span></label>
+                        <input name="DestAddress" value="@Model.DestAddress" required />
+                    </div>
+
+                    <div class="form-sec" id="sec-time"><i class="bi bi-calendar-check"></i> زمان بارگیری و خودرو</div>
+                    <div class="fld">
+                        <label>تاریخ بارگیری <span class="req">*</span></label>
+                        <input name="LoadingDate" data-jdate value="@Fa.DateBox(Model.LoadingDate)" placeholder="۱۴۰۵/۰۶/۲۱" required />
+                    </div>
+                    <div class="fld">
+                        <label>ساعت بارگیری</label>
+                        <select name="LoadingHour">
+                            @for (var h = 0; h < 24; h++)
+                            {
+                                <option value="@h" selected="@(Model.LoadingHour == h)">@Fa.Digits(h.ToString("00")):۰۰</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld">
+                        <label>نوع خودرو</label>
+                        <select name="VehicleTypeId">
+                            <option value="">فرقی ندارد</option>
+                            @foreach (var t in types)
+                            {
+                                <option value="@t.VehicleTypeId" selected="@(Model.VehicleTypeId == t.VehicleTypeId)">@t.Name (@OpsLabels.Ton(t.CapacityTon) تن)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld">
+                        <label>وزن (تن) <span class="req">*</span></label>
+                        <input name="WeightTon" value="@Model.WeightTon" inputmode="decimal" dir="ltr" required placeholder="24" />
+                    </div>
+                    <div class="fld">
+                        <label>حجم (مترمکعب)</label>
+                        <input name="VolumeM3" value="@Model.VolumeM3" inputmode="decimal" dir="ltr" />
+                    </div>
+
+                    <div class="form-sec" id="sec-value"><i class="bi bi-cash-coin"></i> کرایه و ارزش بار</div>
+                    <div class="fld">
+                        <label>نوع کرایه</label>
+                        <select name="PriceMode">
+                            <option value="@PriceMode.Negotiable" selected="@(Model.PriceMode != PriceMode.Fixed)">توافقی</option>
+                            <option value="@PriceMode.Fixed" selected="@(Model.PriceMode == PriceMode.Fixed)">کرایه ثابت</option>
+                        </select>
+                        <span class="hint">در بازار، کرایهٔ ثابت یعنی حمل‌کنندگان فقط همین مبلغ را درخواست می‌دهند.</span>
+                    </div>
+                    <div class="fld">
+                        <label>کرایه (تومان)</label>
+                        <input name="PriceToman" class="money" value="@Model.PriceToman" />
+                        <span class="hint">برای حمل با ناوگان خودتان: کرایه‌ای که از مشتری می‌گیرید (مبنای سهم راننده).</span>
+                    </div>
+                    <div class="fld">
+                        <label>ارزش تقریبی بار (تومان)</label>
+                        <input name="DeclaredValueToman" class="money" value="@Model.DeclaredValueToman" />
+                    </div>
+                    <div class="fld">
+                        <label>بیمه</label>
+                        <label class="check"><input type="checkbox" name="InsuranceRequested" value="true" checked="@Model.InsuranceRequested" /> بار نیاز به بیمه دارد</label>
+                    </div>
+
+                    <div class="form-sec" id="sec-media"><i class="bi bi-person-lines-fill"></i> گیرنده و توضیحات</div>
+                    <div class="fld">
+                        <label>نام گیرنده</label>
+                        <input name="ReceiverName" value="@Model.ReceiverName" maxlength="100" />
+                    </div>
+                    <div class="fld">
+                        <label>موبایل گیرنده</label>
+                        <input name="ReceiverMobile" value="@Model.ReceiverMobile" inputmode="tel" dir="ltr" placeholder="09xxxxxxxxx" />
+                        <span class="hint">کد تحویل بار برای همین شماره پیامک می‌شود.</span>
+                    </div>
+                    <div class="fld full">
+                        <label>توضیحات</label>
+                        <textarea name="Description" maxlength="2000" placeholder="شرایط بارگیری، ساعت کاری انبار، نکات ایمنی…">@Model.Description</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stack">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-buildings"></i> مشتری</div>
+                <div class="bd">
+                    <div class="form-grid">
+                        <div class="fld full">
+                            <label>مشتری ثبت‌شده</label>
+                            <select name="CustomerId">
+                                <option value="">— انتخاب نشده —</option>
+                                @foreach (var c in customers)
+                                {
+                                    <option value="@c.Id" selected="@(Model.CustomerId == c.Id)">@c.Label</option>
+                                }
+                            </select>
+                            @if (customers.Count == 0)
+                            {
+                                <span class="hint">هنوز مشتری ثبت نکرده‌اید؛ مشتری تازه را پایین تعریف کنید.</span>
+                            }
+                        </div>
+                        <div class="fld full"><span class="hint">یا مشتری تازه (اگر از فهرست انتخاب نکرده‌اید):</span></div>
+                        <div class="fld full">
+                            <label>نام مشتری تازه</label>
+                            <input name="NewCustomerName" value="@Model.NewCustomerName" maxlength="150" />
+                        </div>
+                        <div class="fld">
+                            <label>موبایل</label>
+                            <input name="NewCustomerMobile" value="@Model.NewCustomerMobile" inputmode="tel" dir="ltr" />
+                        </div>
+                        <div class="fld">
+                            <label>نوع</label>
+                            <select name="NewCustomerKind">
+                                <option value="corporate" selected="@(Model.NewCustomerKind != "person")">شرکتی</option>
+                                <option value="person" selected="@(Model.NewCustomerKind == "person")">شخص حقیقی</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card2">
+                <div class="hd"><i class="bi bi-diagram-3"></i> روش حمل</div>
+                <div class="bd">
+                    <div class="form-grid">
+                        <div class="fld full">
+                            <label class="check">
+                                <input type="radio" name="Mode" value="own" checked="@own" />
+                                <span><b>حمل با ناوگان خودمان</b><br /><span class="muted small">سفر فوراً ساخته می‌شود و به صفحهٔ تخصیص راننده و خودرو می‌روید. کمیسیونی کسر نمی‌شود.</span></span>
+                            </label>
+                        </div>
+                        <div class="fld full">
+                            <label class="check">
+                                <input type="radio" name="Mode" value="market" checked="@(!own)" />
+                                <span><b>انتشار در بازار بارگو</b><br /><span class="muted small">رانندگان و شرکت‌های دیگر تا دو روز پس از زمان بارگیری پیشنهاد می‌دهند؛ شما یکی را انتخاب می‌کنید.</span></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn2 pri lg block"><i class="bi bi-check2-circle"></i> ثبت بار</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>

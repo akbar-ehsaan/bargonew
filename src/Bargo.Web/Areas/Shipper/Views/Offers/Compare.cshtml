@@ -1,0 +1,250 @@
+@model OfferCompareVm
+@{
+    var l = Model.Load;
+    var mode = Model.Mode;
+    var pendingRows = Model.Rows.Count(x => x.Status == OfferStatus.Pending);
+    (string Key, string Label, string Icon, string Hint)[] modes =
+    [
+        ("price", "قیمت", "bi-cash-coin", "مرتب‌شده از کمترین مبلغ."),
+        ("driver", "سابقهٔ حمل‌کننده", "bi-person-badge", "مرتب‌شده بر اساس شمار سفرهای انجام‌شده و امتیاز؛ سابقهٔ همکاری با شما و لغوها کنار هر پیشنهاد آمده است."),
+        ("vehicle", "خودرو", "bi-truck-front", "خودروهایی که ظرفیتشان برای وزن این بار کافی است بالاتر آمده‌اند، سپس بر اساس مدارک معتبر."),
+        ("rating", "امتیاز", "bi-star", "مرتب‌شده بر اساس میانگین و شمار امتیازهای ثبت‌شده.")
+    ];
+    var modeHint = modes.First(x => x.Key == mode).Hint;
+    string ModeHref(string key) => $"/Shipper/Offers/Compare/{l.LoadId}" + (key == "price" ? "" : "?view=" + key);
+    // ستونی که مرتب‌سازیِ نمای جاری روی آن است
+    Microsoft.AspNetCore.Html.IHtmlContent SortMark(string key) =>
+        key == mode ? Html.Raw("<i class=\"bi bi-sort-down\"></i> ") : Microsoft.AspNetCore.Html.HtmlString.Empty;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-bar-chart-steps"></i> مقایسهٔ پیشنهادهای بار <span class="num">@l.Code</span> @Ui.LoadPill(l.Status)</h1>
+        <p>
+            @Ui.Route(l.OriginCity?.Name, l.DestCity?.Name) · @(string.IsNullOrEmpty(l.CargoType) ? "" : l.CargoType + " · ")@ShipperUi.Ton(l.WeightTon)
+            · @(l.VehicleType?.Name ?? "خودرو انتخاب نشده") · بارگیری @Fa.Stamp(l.LoadingFrom)
+            · @PriceMode.Label(l.PriceMode)@(l.Price is long lp ? " " + Fa.Toman(lp) : "")
+        </p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Shipper/Loads/Detail/@l.LoadId"><i class="bi bi-box-seam"></i> جزئیات بار</a>
+        <a class="btn2 ghost" href="/Shipper/Offers"><i class="bi bi-arrow-right"></i> همهٔ پیشنهادها</a>
+    </div>
+</div>
+
+@if (Model.Switchable.Count > 1)
+{
+    <div class="card2">
+        <form method="get" action="/Shipper/Offers/Compare" class="filters">
+            @if (mode != "price")
+            {
+                <input type="hidden" name="view" value="@mode" />
+            }
+            <div class="fld">
+                <label>بار دیگر</label>
+                <select name="id">
+                    @foreach (var sw in Model.Switchable)
+                    {
+                        <option value="@sw.LoadId" selected="@(sw.LoadId == l.LoadId)">@sw.Code — @sw.From ← @sw.To@(sw.PendingOffers > 0 ? " (" + Fa.N(sw.PendingOffers) + " پیشنهاد)" : "")</option>
+                    }
+                </select>
+            </div>
+            <button type="submit" class="btn2 soft"><i class="bi bi-arrow-left-right"></i> نمایش</button>
+        </form>
+    </div>
+}
+
+@if (!Model.CanDecide)
+{
+    <div class="alert2 info">
+        <i class="bi bi-info-circle-fill"></i>
+        <div class="grow">
+            این بار در وضعیت «@LoadStatus.Label(l.Status)» است و پیشنهاد تازه‌ای پذیرفته نمی‌شود. سابقهٔ پیشنهادها برای مراجعه نمایش داده شده است.
+        </div>
+        @if (Model.TripId is int tripId)
+        {
+            <a class="btn2 soft sm" href="/Shipper/Orders/Detail/@tripId"><i class="bi bi-receipt"></i> صفحهٔ سفارش</a>
+        }
+    </div>
+}
+
+<div class="tabs">
+    @foreach (var m in modes)
+    {
+        <a href="@ModeHref(m.Key)" class="@(mode == m.Key ? "on" : "")"><i class="bi @m.Icon"></i> @m.Label</a>
+    }
+</div>
+
+<div class="card2">
+    <div class="hd">
+        <i class="bi bi-tags"></i> @(Model.CanDecide ? "پیشنهادهای در انتظار تصمیم" : "پیشنهادهای این بار")
+        <span class="end muted small">@Fa.N(Model.Rows.Count) پیشنهاد · @modeHint</span>
+    </div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead>
+            <tr>
+                <th>@SortMark("driver")حمل‌کننده</th>
+                <th>@SortMark("rating")امتیاز و سابقه</th>
+                <th>@SortMark("vehicle")خودرو</th>
+                <th>مدارک</th>
+                <th>@SortMark("price")مبلغ</th>
+                <th>رسیدن به مبدا</th>
+                <th>توضیح</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                var enoughCapacity = r.CapacityTon is decimal capTon && capTon >= l.WeightTon;
+                <tr>
+                    @* ---- حمل‌کننده ---- *@
+                    <td>
+                        @if (r.DriverId is int driverId)
+                        {
+                            <a class="lnk" href="/Shipper/Offers/Driver/@driverId">@r.CarrierName</a>
+                        }
+                        else
+                        {
+                            <b>@r.CarrierName</b>
+                        }
+                        @if (r.IsFavorite)
+                        {
+                            <i class="bi bi-heart-fill" style="color:var(--no)" title="رانندهٔ مورد علاقهٔ شما"></i>
+                        }
+                        <span class="sub">@CarrierKind.Label(r.CarrierKind)@(r.DriverCompany is null ? "" : " · عضو " + r.DriverCompany)@(r.City is null ? "" : " · " + r.City)</span>
+                        @if (mode == "driver")
+                        {
+                            <span class="sub">عضو بارگو از @Fa.Date(r.MemberSince)</span>
+                            <span class="sub">@Fa.N(r.TripCount) سفر انجام‌شده · @Fa.N(r.TripsWithMe) سفر با شما</span>
+                            <span class="sub">@(r.CancelledByCarrier > 0 ? Ui.Pill(Fa.N(r.CancelledByCarrier) + " لغو از سوی حمل‌کننده", "wait") : Ui.Pill("بدون لغو", "ok"))</span>
+                        }
+                        else if (r.TripsWithMe > 0)
+                        {
+                            <span class="sub">@Fa.N(r.TripsWithMe) سفر موفق با شما</span>
+                        }
+                    </td>
+
+                    @* ---- امتیاز ---- *@
+                    <td>
+                        @Ui.Stars(r.RatingAvg, r.RatingCount)
+                        @if (mode == "rating")
+                        {
+                            <span class="sub">@(r.RatingCount == 0 ? "هنوز امتیازی ثبت نشده" : "میانگین " + Fa.N(r.RatingAvg, 1) + " از ۵ در " + Fa.N(r.RatingCount) + " امتیاز")</span>
+                            <span class="sub">@Fa.N(r.TripCount) سفر · @Fa.N(r.CancelledByCarrier) لغو</span>
+                        }
+                        else
+                        {
+                            <span class="sub">@Fa.N(r.TripCount) سفر</span>
+                        }
+                    </td>
+
+                    @* ---- خودرو ---- *@
+                    <td>
+                        @if (r.CarrierKind == CarrierKind.Company && string.IsNullOrEmpty(r.PlateNo))
+                        {
+                            <span>ناوگان شرکت</span>
+                            <span class="sub">@Fa.N(r.FleetSize) خودروی فعال و تأییدشده · تخصیص پس از پذیرش</span>
+                        }
+                        else if (!string.IsNullOrEmpty(r.PlateNo))
+                        {
+                            <span class="plate">@r.PlateNo</span>
+                            <span class="sub">@(r.VehicleType ?? "—")@(string.IsNullOrEmpty(r.BodyKind) ? "" : " · " + r.BodyKind)</span>
+                            @if (r.CapacityTon is decimal cap)
+                            {
+                                <span class="sub">ظرفیت @ShipperUi.Ton(cap) @(enoughCapacity ? Ui.Pill("کافی", "ok") : Ui.Pill("کمتر از وزن بار", "no"))</span>
+                            }
+                            @if (!r.VehicleFromOffer)
+                            {
+                                <span class="sub muted">خودروی فعال راننده (در پیشنهاد مشخص نشده)</span>
+                            }
+                            @if (mode == "vehicle")
+                            {
+                                var makeModel = string.Join(" ", new[] { r.Brand, r.VehicleModel }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                                <span class="sub">@(makeModel.Length == 0 ? "مدل ثبت نشده" : makeModel)@(r.Year is int yr ? " · مدل " + Fa.Digits(yr.ToString()) : "")</span>
+                                <span class="sub">بیمه: @Ui.Expiry(r.InsuranceExpiresAt)</span>
+                                <span class="sub">معاینه فنی: @Ui.Expiry(r.InspectionExpiresAt)</span>
+                                <span class="sub">مدارک خودرو: @Ui.Pill(ShipperUi.VerifyLabel(r.VehicleVerify), ShipperUi.VerifyTone(r.VehicleVerify))</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="muted">خودرویی ثبت نشده</span>
+                        }
+                    </td>
+
+                    @* ---- مدارک و آمادگی ---- *@
+                    <td>
+                        @Ui.Pill(Fa.N(r.VerifiedDocs) + " مدرک معتبر", r.VerifiedDocs > 0 ? "ok" : "mut")
+                        <span class="sub">@(r.Ready ? Ui.Pill("آمادهٔ حمل", "ok") : Ui.Pill("کمبود مدرک", "wait"))</span>
+                        @foreach (var issue in r.Issues)
+                        {
+                            <span class="sub">• @issue</span>
+                        }
+                    </td>
+
+                    @* ---- مبلغ ---- *@
+                    <td class="nowrap">
+                        <b class="num" style="@(mode == "price" ? "font-size:15px" : null)">@Fa.Toman(r.Amount)</b>
+                        @if (r.IsLowest)
+                        {
+                            <span class="sub">@Ui.Pill("کمترین قیمت", "ok")</span>
+                        }
+                        @if (l.Price is long loadPrice && loadPrice != r.Amount)
+                        {
+                            var diff = r.Amount - loadPrice;
+                            <span class="sub">@(diff < 0 ? Fa.Toman(-diff) + " کمتر" : Fa.Toman(diff) + " بیشتر") از کرایهٔ اعلامی</span>
+                        }
+                        @if (!Model.CanDecide)
+                        {
+                            <span class="sub">@Ui.OfferPill(r.Status)</span>
+                        }
+                    </td>
+
+                    <td>@(r.EtaHours is int eta ? Fa.N(eta) + " ساعت" : "—")<span class="sub">ثبت @Fa.Ago(r.CreatedAt)</span></td>
+                    <td class="small">@(string.IsNullOrWhiteSpace(r.Note) ? "—" : r.Note)</td>
+
+                    @* ---- اقدام ---- *@
+                    <td>
+                        <div class="row-actions">
+                            @if (Model.CanDecide && r.Status == OfferStatus.Pending)
+                            {
+                                <form method="post" asp-action="Accept" asp-route-id="@r.OfferId" class="inline"
+                                      data-confirm="پیشنهاد @r.CarrierName با مبلغ @Fa.Toman(r.Amount) پذیرفته شود؟@(r.Ready ? "" : " این حمل‌کننده هنوز کمبود مدرک دارد.") پیشنهادهای دیگر این بار رد می‌شوند و باید کرایه را از کیف پول پرداخت کنید.">
+                                    <button type="submit" class="btn2 grn sm"><i class="bi bi-check2"></i> پذیرش</button>
+                                </form>
+                                <form method="post" asp-action="Reject" asp-route-id="@r.OfferId" class="inline" data-confirm="پیشنهاد @r.CarrierName رد شود؟">
+                                    <button type="submit" class="btn2 ghost sm"><i class="bi bi-x"></i> رد</button>
+                                </form>
+                            }
+                            @if (r.Status is OfferStatus.Pending or OfferStatus.Accepted)
+                            {
+                                <a class="btn2 ghost sm" href="@Url.Action("Thread", "Messages", new { key = "offer:" + r.OfferId })" title="پیام به پیشنهاددهنده"><i class="bi bi-chat-dots"></i> پیام</a>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Rows.Count == 0)
+            {
+                <tr>
+                    <td colspan="8" class="empty">
+                        <i class="bi bi-tags"></i>
+                        @(Model.CanDecide
+                            ? "هنوز پیشنهادی در انتظار برای این بار نیست. به‌محض رسیدن پیشنهاد، اعلان دریافت می‌کنید."
+                            : "برای این بار پیشنهادی ثبت نشده است.")
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.CanDecide && pendingRows > 0)
+{
+    <p class="muted small">
+        پس از پذیرش، سفارش ساخته می‌شود و کرایه باید از کیف پول پرداخت شود تا حمل قطعی شود. کرایه تا تحویل بار با کد گیرنده نزد بارگو امانت می‌ماند.
+        شمارهٔ تماس حمل‌کننده پس از پذیرش در صفحهٔ سفارش نمایش داده می‌شود.
+    </p>
+}

@@ -1,0 +1,248 @@
+@model PageVm<ContractRow>
+@{
+    var status = ViewBag.Status as string;
+    var customerId = ViewData["CustomerId"] as int?;
+    var q = ViewBag.Q as string;
+    var customers = (List<SelectItem>)ViewBag.Customers;
+    var statusCounts = (Dictionary<string, int>)ViewBag.StatusCounts;
+    var activeCount = (int)ViewBag.ActiveCount;
+    var activeAmount = (long)ViewBag.ActiveAmount;
+    var expiringCount = (int)ViewBag.ExpiringCount;
+    var overdueCount = (int)ViewBag.OverdueCount;
+
+    var allCount = statusCounts.Values.Sum();
+    var filtered = status is not null || customerId is not null || q is not null;
+    var customerName = customerId is int fc ? customers.FirstOrDefault(c => c.Id == fc)?.Text : null;
+    var now = DateTime.UtcNow;
+    var soon = now.AddDays(30);
+    int CountOf(string s) => statusCounts.TryGetValue(s, out var n) ? n : 0;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-file-earmark-medical"></i> قراردادها @(customerName is null ? "" : "— " + customerName)</h1>
+        <p>قراردادهای شرکت با مشتریان دفتر: دورهٔ اعتبار، مبلغ، فایل امضاشده و وضعیت. قراردادِ ثبت‌شده حذف نمی‌شود؛ پایانش را با تغییر وضعیت ثبت کنید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-person-lines-fill"></i> مشتریان</a>
+        @if (customerId is not null)
+        {
+            <a class="btn2 ghost" asp-action="History" asp-route-customerId="@customerId"><i class="bi bi-clock-history"></i> سوابق همکاری مشتری</a>
+        }
+        else
+        {
+            <a class="btn2 ghost" asp-action="History"><i class="bi bi-clock-history"></i> سوابق همکاری</a>
+        }
+    </div>
+</div>
+
+@if (ViewData["ShipperCount"] is not null && ViewData["PersonCount"] is not null && ViewData["CorporateCount"] is not null)
+{
+    <partial name="_Tabs" />
+}
+
+@if (overdueCount > 0)
+{
+    <div class="alert2 warn">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            تاریخ پایان @Fa.N(overdueCount) قرارداد فعال گذشته است. وضعیت آن‌ها را به «منقضی» یا «فسخ‌شده» تغییر دهید.
+            <a class="lnk" asp-action="Contracts" asp-route-status="active">نمایش قراردادهای فعال</a>
+        </div>
+    </div>
+}
+
+<div class="stats">
+    <div class="stat s"><div class="l"><i class="bi bi-file-earmark-check"></i> قرارداد فعال</div><div class="v">@Fa.N(activeCount)</div></div>
+    <div class="stat p"><div class="l"><i class="bi bi-cash-stack"></i> جمع مبلغ قراردادهای فعال</div><div class="v">@Fa.Toman(activeAmount)</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-hourglass-split"></i> پایان در ۳۰ روز آینده</div><div class="v">@Fa.N(expiringCount)</div></div>
+    <div class="stat r"><div class="l"><i class="bi bi-calendar-x"></i> فعال با تاریخ پایان گذشته</div><div class="v">@Fa.N(overdueCount)</div></div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <form method="get" asp-action="Contracts" class="filters">
+            <div class="fld narrow">
+                <label>وضعیت</label>
+                <select name="status">
+                    <option value="">همه (@Fa.N(allCount))</option>
+                    @foreach (var s in CompanyLabels.ContractStatuses)
+                    {
+                        <option value="@s" selected="@(status == s)">@CompanyLabels.ContractStatus(s) (@Fa.N(CountOf(s)))</option>
+                    }
+                </select>
+            </div>
+            <div class="fld">
+                <label>مشتری</label>
+                <select name="customerId">
+                    <option value="">همهٔ مشتریان</option>
+                    @foreach (var c in customers)
+                    {
+                        <option value="@c.Id" selected="@(customerId == c.Id)">@c.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="fld"><label>جستجو</label><input name="q" value="@q" placeholder="عنوان قرارداد یا نام مشتری" /></div>
+            <button class="btn2 ghost"><i class="bi bi-funnel"></i> فیلتر</button>
+            @if (filtered)
+            {
+                <a class="btn2 ghost" asp-action="Contracts"><i class="bi bi-x-lg"></i> حذف فیلتر</a>
+            }
+        </form>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>قرارداد</th><th>مشتری</th><th>دوره</th><th>مبلغ</th><th>وضعیت</th><th>فایل</th><th>تغییر وضعیت</th></tr></thead>
+                <tbody>
+                @foreach (var r in Model.Rows)
+                {
+                    var expiring = r.Status == "active" && r.EndsAt is DateTime e && e >= now && e < soon;
+                    <tr>
+                        <td>
+                            <b>@r.Title</b>
+                            @if (!string.IsNullOrEmpty(r.Note))
+                            {
+                                <span class="sub">@r.Note</span>
+                            }
+                            <span class="sub">ثبت @Fa.Date(r.CreatedAt)</span>
+                        </td>
+                        <td>
+                            @if (r.CustomerId is int rc)
+                            {
+                                <a class="lnk" asp-action="History" asp-route-customerId="@rc">@(r.CustomerName ?? "—")</a>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
+                        <td class="nowrap">
+                            @Fa.Date(r.StartsAt) تا @(r.EndsAt is null ? "بدون تاریخ پایان" : Fa.Date(r.EndsAt))
+                            @if (r.Overdue)
+                            {
+                                <span class="sub">تاریخ پایان گذشته است</span>
+                            }
+                            else if (expiring)
+                            {
+                                <span class="sub">کمتر از ۳۰ روز تا پایان</span>
+                            }
+                        </td>
+                        <td class="nowrap">@Fa.Toman(r.Amount)</td>
+                        <td>
+                            @Ui.Pill(CompanyLabels.ContractStatus(r.Status), CompanyLabels.ContractTone(r.Status))
+                            @if (r.Overdue)
+                            {
+                                @Ui.Pill("پایان گذشته", "no")
+                            }
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(r.FilePath))
+                            {
+                                <a class="btn2 ghost sm" href="@DocumentStorage.Url(r.FilePath)" target="_blank" rel="noopener"><i class="bi bi-file-earmark"></i> مشاهده</a>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
+                        <td>
+                            <form method="post" asp-action="SetContractStatus" asp-route-id="@r.ContractId" class="row-actions" data-confirm="وضعیت قرارداد «@r.Title» تغییر کند؟">
+                                <div class="fld">
+                                    <select name="status" aria-label="وضعیت تازهٔ قرارداد">
+                                        @foreach (var s in CompanyLabels.ContractStatuses)
+                                        {
+                                            if (r.Status is "expired" or "terminated" && s == "draft") { continue; }
+                                            <option value="@s" selected="@(r.Status == s)">@CompanyLabels.ContractStatus(s)</option>
+                                        }
+                                    </select>
+                                </div>
+                                <button class="btn2 ghost sm" title="ثبت وضعیت"><i class="bi bi-check2"></i> ثبت</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Total == 0)
+                {
+                    <tr>
+                        <td colspan="7" class="empty">
+                            <i class="bi bi-file-earmark-medical"></i>
+                            @(filtered
+                                ? "قراردادی با این فیلترها پیدا نشد."
+                                : customers.Count == 0
+                                    ? "هنوز قراردادی ثبت نشده است. برای ثبت قرارداد، ابتدا مشتری را در دفتر مشتریان شرکت ثبت کنید."
+                                    : "هنوز قراردادی ثبت نشده است. نخستین قرارداد را از فرم کنار صفحه ثبت کنید.")
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Pager" />
+    </div>
+
+    <div class="card2" id="add">
+        <div class="hd"><i class="bi bi-file-earmark-plus"></i> ثبت قرارداد</div>
+        <div class="bd">
+            @if (customers.Count == 0)
+            {
+                <p class="small muted">قرارداد به یک مشتری از دفتر مشتریان شرکت بسته می‌شود و هنوز مشتری‌ای ثبت نشده است.</p>
+                <div class="form-actions">
+                    <a class="btn2 soft" asp-action="Index" asp-route-kind="corporate"><i class="bi bi-building"></i> مشتریان شرکتی</a>
+                    <a class="btn2 soft" asp-action="Index" asp-route-kind="person"><i class="bi bi-person"></i> مشتریان حقیقی</a>
+                </div>
+            }
+            else
+            {
+                <form method="post" asp-action="AddContract" enctype="multipart/form-data">
+                    <div class="form-grid">
+                        <div class="fld full">
+                            <label>مشتری <span class="req">*</span></label>
+                            <select name="customerId" required>
+                                <option value="">انتخاب کنید</option>
+                                @foreach (var c in customers)
+                                {
+                                    <option value="@c.Id" selected="@(customerId == c.Id)">@c.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="fld full">
+                            <label>عنوان قرارداد <span class="req">*</span></label>
+                            <input name="title" minlength="3" maxlength="150" required />
+                            <span class="hint">مثلاً «قرارداد حمل سالانهٔ مصالح ساختمانی».</span>
+                        </div>
+                        <div class="fld">
+                            <label>تاریخ شروع <span class="req">*</span></label>
+                            <input type="text" name="startsAt" data-jdate dir="ltr" value="@Fa.DateBox(DateTime.UtcNow)" required />
+                        </div>
+                        <div class="fld">
+                            <label>تاریخ پایان</label>
+                            <input type="text" name="endsAt" data-jdate dir="ltr" />
+                        </div>
+                        <div class="fld">
+                            <label>مبلغ (تومان)</label>
+                            <input name="amountToman" class="money" inputmode="numeric" />
+                        </div>
+                        <div class="fld">
+                            <label>وضعیت</label>
+                            <select name="status">
+                                <option value="active">@CompanyLabels.ContractStatus("active")</option>
+                                <option value="draft">@CompanyLabels.ContractStatus("draft")</option>
+                            </select>
+                        </div>
+                        <div class="fld full">
+                            <span class="hint">تاریخ پایان و مبلغ اختیاری‌اند. قرارداد فعالی که تاریخ پایانش گذشته باشد، «منقضی» ثبت می‌شود.</span>
+                        </div>
+                        <div class="fld full">
+                            <label>فایل قرارداد</label>
+                            <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" />
+                            <span class="hint">نسخهٔ امضاشده به‌صورت PDF یا تصویر خوانا (jpg، png، webp) — حداکثر ۸ مگابایت.</span>
+                        </div>
+                        <div class="fld full">
+                            <label>یادداشت</label>
+                            <textarea name="note" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="form-actions"><button class="btn2 pri block"><i class="bi bi-plus-lg"></i> ثبت قرارداد</button></div>
+                </form>
+            }
+        </div>
+    </div>
+</div>

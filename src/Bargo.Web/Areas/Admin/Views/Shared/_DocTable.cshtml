@@ -1,0 +1,128 @@
+@model PageVm<DocumentRowVm>
+@*
+    جدول مشترک مدارک — صف بررسی، تأییدشده/ردشده، منقضی، هشدارها و «مدارک رانندگان».
+    ViewData["Mode"]: queue (تأیید/رد) | expired | alerts (یادآوری) | list (فقط نمایش + تأیید/رد برای در انتظارها)
+    ViewData["ReturnUrl"]: نشانی برگشت پس از اقدام. ViewData["WarnDays"]: آستانهٔ هشدار.
+*@
+@{
+    var mode = ViewData["Mode"] as string ?? "queue";
+    var returnUrl = ViewData["ReturnUrl"] as string ?? "";
+    var warnDays = ViewData["WarnDays"] as int? ?? 30;
+    var now = DateTime.UtcNow;
+    var emptyText = mode switch
+    {
+        "expired" => "مدرک منقضی‌ای نیست — همهٔ مدارک تأییدشده معتبرند یا تمدید شده‌اند.",
+        "alerts" => $"هیچ مدرکی تا {Fa.N(warnDays)} روز آینده منقضی نمی‌شود.",
+        _ => "مدرکی با این شرایط پیدا نشد."
+    };
+}
+<div class="tbl-wrap">
+    <table class="tbl">
+        <thead>
+        <tr>
+            <th>مدرک</th>
+            <th>صاحب</th>
+            <th>فایل</th>
+            <th>شماره</th>
+            <th>اعتبار تا</th>
+            <th>بارگذاری</th>
+            <th>وضعیت</th>
+            <th>اقدام</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var r in Model.Rows)
+        {
+            var d = r.Doc;
+            var open = d.Status == AccountStatus.Pending;
+            <tr>
+                <td>
+                    <b>@DocumentKind.Label(d.Kind)</b>
+                    <span class="sub">@OwnerKind.Label(d.OwnerKind) · #@Fa.N(d.DocumentId)</span>
+                </td>
+                <td>
+                    @OpsUi.Owner(r.Owner)
+                    @if (r.LiveTrips > 0)
+                    {
+                        <span class="sub" style="color:var(--no);font-weight:800"><i class="bi bi-truck"></i> @Fa.N(r.LiveTrips) سفر در حال انجام</span>
+                    }
+                </td>
+                <td>@OpsUi.File(d.FilePath)</td>
+                <td class="num">@(string.IsNullOrEmpty(d.Number) ? "—" : d.Number)</td>
+                <td>
+                    @Ui.Expiry(d.ExpiresAt, warnDays)
+                    @if (d.ExpiresAt is DateTime e && e >= now && mode == "alerts")
+                    {
+                        <span class="sub">@Fa.N((int)Math.Ceiling((e - now).TotalDays)) روز مانده</span>
+                    }
+                    @if (r.RenewalPending)
+                    {
+                        <span class="sub" style="color:var(--wait);font-weight:800"><i class="bi bi-arrow-repeat"></i> نسخهٔ تازه در صف بررسی</span>
+                    }
+                </td>
+                <td class="nowrap">@Fa.Date(d.UploadedAt)<span class="sub">@Fa.Ago(d.UploadedAt)</span></td>
+                <td>
+                    @Ui.AccountPill(d.Status)
+                    @if (d.ReviewedAt is not null)
+                    {
+                        <span class="sub">@Fa.Stamp(d.ReviewedAt)@(r.ReviewerName is null ? "" : " · " + r.ReviewerName)</span>
+                    }
+                    @if (!string.IsNullOrEmpty(d.ReviewNote))
+                    {
+                        <span class="sub">@d.ReviewNote</span>
+                    }
+                    @if (r.LastRemindAt is DateTime lr)
+                    {
+                        <span class="sub"><i class="bi bi-bell"></i> یادآوری: @Fa.Ago(lr)</span>
+                    }
+                </td>
+                <td style="min-width:250px">
+                    @if (mode == "alerts" || mode == "expired")
+                    {
+                        <div class="stack" style="gap:6px">
+                            <form method="post" asp-area="Admin" asp-controller="Documents" asp-action="Remind" asp-route-id="@d.DocumentId">
+                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                <button class="btn2 sm soft"><i class="bi bi-bell"></i> یادآوری تمدید</button>
+                            </form>
+                            <a class="btn2 sm ghost" href="/Admin/Documents?status=pending&owner=@(d.OwnerKind):@(d.OwnerId)"><i class="bi bi-hourglass-split"></i> مدارک در انتظارِ همین صاحب</a>
+                        </div>
+                    }
+                    else if (open)
+                    {
+                        <form method="post" asp-area="Admin" asp-controller="Documents" asp-action="Review" asp-route-id="@d.DocumentId" class="stack" style="gap:6px"
+                              data-confirm="تصمیم ثبت شود؟ صاحب مدرک با اعلان باخبر می‌شود.">
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <div class="fld"><input name="note" placeholder="یادداشت (برای رد الزامی)" maxlength="1000" /></div>
+                            <div class="row-actions">
+                                <button class="btn2 sm grn" name="decision" value="approved"><i class="bi bi-check2-circle"></i> تأیید</button>
+                                <button class="btn2 sm red" name="decision" value="rejected"><i class="bi bi-x-circle"></i> رد</button>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <form method="post" asp-area="Admin" asp-controller="Documents" asp-action="Review" asp-route-id="@d.DocumentId" class="row-actions"
+                              data-confirm="@(d.Status == AccountStatus.Approved ? "تأیید این مدرک پس گرفته شود؟ علت برای صاحب مدرک ارسال می‌شود." : "این مدرک ردشده تأیید شود؟")">
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            @if (d.Status == AccountStatus.Approved)
+                            {
+                                <div class="fld" style="flex:1;min-width:120px"><input name="note" placeholder="علت پس‌گرفتن تأیید" required maxlength="1000" /></div>
+                                <button class="btn2 sm ghost" name="decision" value="rejected"><i class="bi bi-x-circle"></i> رد</button>
+                            }
+                            else
+                            {
+                                <button class="btn2 sm ghost" name="decision" value="approved"><i class="bi bi-check2-circle"></i> تأیید</button>
+                            }
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        @if (Model.Total == 0)
+        {
+            <tr><td colspan="8" class="empty"><i class="bi bi-folder2-open"></i>@emptyText</td></tr>
+        }
+        </tbody>
+    </table>
+</div>
+<partial name="_Pager" model="Model.Pager" />

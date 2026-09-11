@@ -1,0 +1,311 @@
+@model DriverDetailVm
+@{
+    var d = Model.Driver;
+    var ret = Context.Request.Path + Context.Request.QueryString;
+    var blocking = Model.Issues.Count(i => i.Blocking);
+    var pendingDocs = Model.Documents.Count(x => x.Status == AccountStatus.Pending) + Model.VehicleDocuments.Count(x => x.Status == AccountStatus.Pending);
+    string Admin(int? id) => id is int a && Model.AdminNames.TryGetValue(a, out var n) ? n : "—";
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-person-badge"></i> @d.FullName @Ui.AccountPill(d.Status)</h1>
+        <p>
+            <span class="num">@d.Mobile</span> · کد ملی <span class="num">@d.NationalCode</span>
+            · @(d.City is null ? "بدون شهر" : $"{d.City.Name} ({d.City.Province?.Name})")
+            · @(d.CompanyId is int cid ? $"رانندهٔ شرکت " : "رانندهٔ مستقل")@if (d.CompanyId is int cid2) { <a class="lnk" href="/Admin/Users/Company/@cid2">@d.Company?.Name</a> }
+            · عضویت @Fa.Date(d.CreatedAt)
+        </p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Drivers"><i class="bi bi-arrow-right"></i> فهرست رانندگان</a>
+        <a class="btn2 ghost" href="/Admin/Finance?owner=driver&ownerId=@d.DriverId"><i class="bi bi-wallet2"></i> گردش کیف پول</a>
+        <a class="btn2 ghost" href="/Admin/Documents?owner=driver:@d.DriverId"><i class="bi bi-folder2-open"></i> مدارک در صف</a>
+    </div>
+</div>
+
+<div class="stats cols5">
+    <a class="stat p" href="/Admin/Trips?q=@d.Mobile"><div class="l"><i class="bi bi-signpost-split"></i> کل سفرها</div><div class="v">@Fa.N(Model.TripTotal)</div></a>
+    <div class="stat s"><div class="l"><i class="bi bi-check2-all"></i> تحویل‌شده</div><div class="v">@Fa.N(Model.TripDone)</div></div>
+    <div class="stat @(Model.TripCancelled > 0 ? "w" : "i")"><div class="l"><i class="bi bi-x-octagon"></i> لغوشده</div><div class="v">@Fa.N(Model.TripCancelled)</div></div>
+    <div class="stat @(d.WalletBalance < 0 ? "r" : "t")"><div class="l"><i class="bi bi-wallet2"></i> موجودی کیف پول</div><div class="v">@Fa.Toman(d.WalletBalance)</div></div>
+    <div class="stat @(Model.Violations.Count > 0 ? "r" : "i")"><div class="l"><i class="bi bi-exclamation-octagon"></i> تخلفات</div><div class="v">@Fa.N(Model.Violations.Count)</div></div>
+</div>
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-card-list"></i> مشخصات</div>
+            <div class="bd">
+                <dl class="kv">
+                    <dt>نام و نام خانوادگی</dt><dd>@d.FullName</dd>
+                    <dt>تاریخ تولد</dt><dd>@Fa.Date(d.BirthDate)</dd>
+                    <dt>نشانی</dt><dd>@(string.IsNullOrEmpty(d.Address) ? "—" : d.Address)</dd>
+                    <dt>گواهینامه</dt><dd><span class="num">@(d.LicenseNo ?? "—")</span> @Ui.Expiry(d.LicenseExpiresAt, Model.WarnDays)</dd>
+                    <dt>کارت هوشمند</dt><dd><span class="num">@(d.SmartCardNo ?? "—")</span> @Ui.Expiry(d.SmartCardExpiresAt, Model.WarnDays)</dd>
+                    <dt>شبا</dt><dd class="num">@(d.Sheba ?? "—")</dd>
+                    <dt>امتیاز</dt><dd>@Ui.Stars(d.RatingAvg, d.RatingCount)</dd>
+                    <dt>تأیید حساب</dt><dd>@(d.ApprovedAt is null ? "هنوز تأیید نشده" : Fa.Stamp(d.ApprovedAt))</dd>
+                    <dt>آماده بار</dt><dd>@(d.IsAvailable ? Ui.Pill("روشن", "ok") : Ui.Pill("خاموش", "mut"))</dd>
+                    <dt>آخرین حضور</dt><dd>@(d.LastSeenAt is DateTime ls ? $"{Fa.Ago(ls)} ({Fa.Stamp(ls)})" : "هرگز")</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-clipboard2-check"></i> آمادگی گرفتن بار
+                <span class="end">@(blocking == 0 ? Ui.Pill("آماده", "ok") : Ui.Pill($"{Fa.N(blocking)} مانع", "no"))</span>
+            </div>
+            <div class="bd">
+                @if (Model.Issues.Count == 0)
+                {
+                    <div class="empty-state"><i class="bi bi-check2-circle"></i><b>هیچ مانعی نیست</b>حساب، مدارک و خودرو همه معتبرند.</div>
+                }
+                else
+                {
+                    foreach (var i in Model.Issues)
+                    {
+                        <div class="kvrow"><span><i class="bi @(i.Blocking ? "bi-x-circle-fill" : "bi-exclamation-triangle-fill")" style="color:var(--@(i.Blocking ? "no" : "wait"))"></i> @i.Text</span>@Ui.Pill(i.Blocking ? "مسدودکننده" : "هشدار", i.Blocking ? "no" : "wait")</div>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-folder2-open"></i> مدارک راننده
+                <span class="end">
+                    @foreach (var c in Model.Checklist)
+                    {
+                        @Ui.Pill($"{DocumentKind.Label(c.Kind)}: {c.Text}", c.Tone)
+                    }
+                </span>
+            </div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>مدرک</th><th>شماره</th><th>انقضا</th><th>وضعیت</th><th>بررسی</th><th>بارگذاری</th><th>فایل</th></tr></thead>
+                    <tbody>
+                    @foreach (var x in Model.Documents)
+                    {
+                        <tr>
+                            <td><b>@DocumentKind.Label(x.Kind)</b></td>
+                            <td class="num">@(x.Number ?? "—")</td>
+                            <td>@Ui.Expiry(x.ExpiresAt, Model.WarnDays)</td>
+                            <td>
+                                @Ui.AccountPill(x.Status)
+                                @if (!string.IsNullOrEmpty(x.ReviewNote))
+                                {
+                                    <span class="sub">@x.ReviewNote</span>
+                                }
+                            </td>
+                            <td class="small">@(x.ReviewedAt is null ? "—" : $"{Admin(x.ReviewedByAdminId)} · {Fa.Date(x.ReviewedAt)}")</td>
+                            <td class="nowrap">@Fa.Stamp(x.UploadedAt)</td>
+                            <td>@OpsUi.File(x.FilePath)</td>
+                        </tr>
+                    }
+                    @if (Model.Documents.Count == 0)
+                    {
+                        <tr><td colspan="7" class="empty"><i class="bi bi-file-earmark-x"></i>هنوز مدرکی بارگذاری نشده است.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-truck-front"></i> خودروها <span class="end"><a class="btn2 sm ghost" href="/Admin/Fleet">همهٔ خودروها</a></span></div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>پلاک</th><th>نوع</th><th>مشخصات</th><th>ظرفیت</th><th>بیمه</th><th>معاینه فنی</th><th>وضعیت</th><th>تأیید</th><th>مدارک خودرو</th></tr></thead>
+                    <tbody>
+                    @foreach (var v in Model.Vehicles)
+                    {
+                        var vdocs = Model.VehicleDocuments.Where(x => x.OwnerId == v.VehicleId).ToList();
+                        var vcheck = DocCheck.For(DocumentKind.ForVehicle, vdocs);
+                        <tr>
+                            <td>@OpsUi.Plate(v.PlateNo)</td>
+                            <td>@(v.VehicleType?.Name ?? "—")</td>
+                            <td>@(string.Join(" ", new[] { v.Brand, v.Model, v.Year?.ToString() }.Where(s => !string.IsNullOrEmpty(s))) is { Length: > 0 } spec ? spec : "—")</td>
+                            <td class="num">@OpsLabels.Ton(v.CapacityTon) تن</td>
+                            <td>@Ui.Expiry(v.InsuranceExpiresAt, Model.WarnDays)</td>
+                            <td>@Ui.Expiry(v.InspectionExpiresAt, Model.WarnDays)</td>
+                            <td>@Ui.VehiclePill(v.Status)</td>
+                            <td>@Ui.AccountPill(v.VerifyStatus)</td>
+                            <td>
+                                @foreach (var c in vcheck)
+                                {
+                                    @Ui.Pill($"{DocumentKind.Label(c.Kind)}: {c.Text}", c.Tone)
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Vehicles.Count == 0)
+                    {
+                        <tr><td colspan="9" class="empty"><i class="bi bi-truck-front"></i>@(d.CompanyId is null ? "خودرویی ثبت نکرده است؛ رانندهٔ مستقل بدون خودرو نمی‌تواند بار بگیرد." : "خودروی شخصی ندارد؛ خودرو را شرکت هنگام تخصیص می‌دهد.")</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-signpost-split"></i> سفرها <span class="end"><span class="muted small">@Fa.N(Model.Trips.Count) از @Fa.N(Model.TripTotal) سفر اخیر</span></span></div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>سفر</th><th>مسیر</th><th>بار</th><th>کرایه</th><th>وضعیت</th><th>ثبت</th></tr></thead>
+                    <tbody>
+                    @foreach (var t in Model.Trips)
+                    {
+                        <tr data-href="/Admin/Trips/Case/@t.TripId">
+                            <td><a class="lnk num" href="/Admin/Trips/Case/@t.TripId">@t.Code</a>@if (t.CompanyId is int tc) { <span class="sub">برای <a class="lnk" href="/Admin/Users/Company/@tc">@t.CompanyName</a></span> }</td>
+                            <td>@Ui.Route(t.From, t.To)</td>
+                            <td>@t.LoadTitle<span class="sub">@OpsLabels.Ton(t.WeightTon) تن</span></td>
+                            <td class="nowrap">@Fa.Toman(t.Fare)</td>
+                            <td>
+                                @Ui.TripPill(t.Status)
+                                @if (t.IsProblem) { @Ui.Pill("مشکل‌دار", "no") }
+                                @if (t.Status == TripStatus.Cancelled && !string.IsNullOrEmpty(t.CancelReason)) { <span class="sub">@t.CancelReason</span> }
+                            </td>
+                            <td class="nowrap">@Fa.Date(t.CreatedAt)</td>
+                        </tr>
+                    }
+                    @if (Model.Trips.Count == 0)
+                    {
+                        <tr><td colspan="6" class="empty"><i class="bi bi-signpost-split"></i>هنوز سفری نداشته است.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="grid2">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-wallet2"></i> کیف پول <span class="end"><b>@Fa.Toman(d.WalletBalance)</b></span></div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>زمان</th><th>نوع</th><th>مبلغ</th><th>مانده</th></tr></thead>
+                        <tbody>
+                        @foreach (var t in Model.Txns)
+                        {
+                            <tr>
+                                <td class="nowrap">@Fa.Stamp(t.CreatedAt)</td>
+                                <td>@WalletTxnKind.Label(t.Kind)@if (t.TripId is int tid) { <span class="sub"><a class="lnk" href="/Admin/Trips/Case/@tid">سفر</a>@(string.IsNullOrEmpty(t.Note) ? "" : " · " + t.Note)</span> } else if (!string.IsNullOrEmpty(t.Note)) { <span class="sub">@t.Note</span> }</td>
+                                <td>@OpsUi.Signed(t.Amount)</td>
+                                <td class="nowrap">@Fa.Toman(t.BalanceAfter)</td>
+                            </tr>
+                        }
+                        @if (Model.Txns.Count == 0)
+                        {
+                            <tr><td colspan="4" class="empty"><i class="bi bi-wallet2"></i>تراکنشی ثبت نشده است.</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+                @if (Model.Payouts.Count > 0)
+                {
+                    <div class="bd">
+                        <div class="sec-title" style="margin-top:0"><i class="bi bi-bank"></i> درخواست‌های برداشت</div>
+                        @foreach (var p in Model.Payouts)
+                        {
+                            <div class="kvrow"><span>@Fa.Date(p.CreatedAt) · <span class="num">@p.Sheba</span></span><b class="num">@Fa.Toman(p.Amount)</b> @Ui.PayoutPill(p.Status)</div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="card2">
+                <div class="hd"><i class="bi bi-star"></i> امتیازها <span class="end">@Ui.Stars(d.RatingAvg, d.RatingCount)</span></div>
+                <div class="bd">
+                    @foreach (var r in Model.Ratings)
+                    {
+                        <div class="kvrow">
+                            <span><span class="stars"><i class="bi bi-star-fill"></i> @Fa.N(r.Score)</span> @(string.IsNullOrEmpty(r.Comment) ? "" : "— " + r.Comment)<br /><small class="muted">@OwnerKind.Label(r.FromKind) · @Fa.Date(r.CreatedAt)</small></span>
+                            @if (r.Trip is not null) { <a class="lnk num" href="/Admin/Trips/Case/@r.TripId">@r.Trip.Code</a> }
+                        </div>
+                    }
+                    @if (Model.Ratings.Count == 0)
+                    {
+                        <div class="empty-state"><i class="bi bi-star"></i>هنوز امتیازی نگرفته است.</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="grid2">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-exclamation-octagon"></i> تخلفات <span class="end"><a class="btn2 sm ghost" href="/Admin/Drivers/Violations">همهٔ تخلفات</a></span></div>
+                <div class="bd">
+                    @foreach (var v in Model.Violations)
+                    {
+                        <div class="kvrow">
+                            <span><b>@v.Title</b>@(string.IsNullOrEmpty(v.Description) ? "" : " — " + v.Description)<br /><small class="muted">@Fa.Date(v.CreatedAt) · ثبت: @Admin(v.CreatedByAdminId)@(v.TripId is int vt ? " · " : "")@if (v.TripId is int vt2) { <a class="lnk" href="/Admin/Trips/Case/@vt2">سفر</a> }</small></span>
+                            <span>
+                                @Ui.Pill(OpsUi.PenaltyLabel(v.Penalty), OpsUi.PenaltyTone(v.Penalty))
+                                @if (v.FineAmount is long f) { <span class="sub num">@Fa.Toman(f)</span> }
+                                @if (v.SuspendedUntil is DateTime su) { <span class="sub">تا @Fa.Date(su)</span> }
+                            </span>
+                        </div>
+                    }
+                    @if (Model.Violations.Count == 0)
+                    {
+                        <div class="empty-state"><i class="bi bi-shield-check"></i>تخلفی ثبت نشده است.</div>
+                    }
+                </div>
+            </div>
+
+            <div class="card2">
+                <div class="hd"><i class="bi bi-exclamation-diamond"></i> شکایات</div>
+                <div class="bd">
+                    @foreach (var c in Model.Complaints)
+                    {
+                        var against = c.AgainstKind == OwnerKind.Driver && c.AgainstId == d.DriverId;
+                        <a class="kvrow" href="/Admin/Complaints/Detail/@c.ComplaintId">
+                            <span>@Ui.Pill(against ? "علیه راننده" : "از سوی راننده", against ? "no" : "inf") <b>@c.Title</b><br /><small class="muted">@ComplaintKind.Label(c.Kind) · @Fa.Date(c.CreatedAt)@(c.Trip is null ? "" : " · " + c.Trip.Code)</small></span>
+                            @Ui.ComplaintPill(c.Status)
+                        </a>
+                    }
+                    @if (Model.Complaints.Count == 0)
+                    {
+                        <div class="empty-state"><i class="bi bi-emoji-smile"></i>شکایتی ثبت نشده است.</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stack">
+        <partial name="_AccountActions" model="new AccountActionVm { Kind = OwnerKind.Driver, Id = d.DriverId, Name = d.FullName, Status = d.Status, StatusReason = d.StatusReason, ReturnUrl = ret }" />
+
+        @if (pendingDocs > 0)
+        {
+            <div class="alert2 warn"><i class="bi bi-hourglass-split"></i><div class="grow">@Fa.N(pendingDocs) مدرک این راننده در انتظار بررسی است. <a class="lnk" href="/Admin/Documents?owner=driver:@d.DriverId">بررسی</a></div></div>
+        }
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-broadcast-pin"></i> موقعیت</div>
+            <div class="bd">
+                <div class="kvrow"><span>آخرین GPS</span>@OpsUi.Gps(d.LastSeenAt)</div>
+                @if (d.LastLat is double la && d.LastLng is double lg)
+                {
+                    <div class="kvrow"><span>مختصات</span><b class="num small">@la.ToString("0.0000"), @lg.ToString("0.0000")</b></div>
+                    <div class="map short" data-map='@Json.Serialize(new { markers = new[] { new MapMarker(la, lg, "idle", $"{d.FullName}\nآخرین موقعیت: {(d.LastSeenAt is DateTime s ? Fa.Ago(s) : "—")}") }, fit = true })'></div>
+                }
+                else
+                {
+                    <p class="muted small">هنوز موقعیتی از این راننده ثبت نشده است.</p>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-link-45deg"></i> پیوندها</div>
+            <div class="bd">
+                <a class="kvrow" href="/Admin/Trips?q=@d.Mobile"><span><i class="bi bi-signpost-split"></i> همهٔ سفرهای راننده</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" href="/Admin/Finance/Payouts?owner=driver"><span><i class="bi bi-bank"></i> تسویه رانندگان</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" href="/Admin/Complaints?from=driver"><span><i class="bi bi-exclamation-diamond"></i> شکایات رانندگان</span><i class="bi bi-chevron-left"></i></a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

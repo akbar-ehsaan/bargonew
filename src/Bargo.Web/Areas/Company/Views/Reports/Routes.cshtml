@@ -1,0 +1,50 @@
+@model List<RouteRow>
+@{
+    var total = Model.Sum(x => x.Trips);
+    var maxTrips = Model.Count == 0 ? 0 : Model.Max(x => x.Trips);
+    var maxFare = Model.Count == 0 ? 0 : Model.Max(x => x.AvgFare);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-signpost-2"></i> مسیرهای پرتردد</h1>
+        <p>مسیرهای مبدا ← مقصد که ناوگان شرکت در بازه بیشتر روی آن‌ها کار کرده، با میانگین کرایه و مسافت — مبنای قیمت‌دهی و برنامه‌ریزی برگشت.</p>
+    </div>
+</div>
+
+<partial name="_ReportHead" />
+
+<div class="stats cols3">
+    <div class="stat p"><div class="l"><i class="bi bi-signpost-2"></i> مسیر</div><div class="v">@Fa.N(Model.Count)</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-signpost-split"></i> سفر</div><div class="v">@Fa.N(total)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-trophy"></i> پرتردد‌ترین</div><div class="v" style="font-size:17px">@if (Model.Count > 0) { @Ui.Route(Model[0].Origin, Model[0].Dest) } else { <span class="muted">—</span> }</div></div>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>مسیر</th><th style="width:22%">سفر</th><th>تحویل‌شده</th><th>مسافت</th><th style="width:20%">میانگین کرایه</th><th>کرایه بر کیلومتر</th><th>تناژ</th></tr></thead>
+            <tbody>
+            @{ var rank = 0; }
+            @foreach (var r in Model)
+            {
+                rank++;
+                var perKm = r.AvgKm is double km && km > 0 ? (long?)(r.AvgFare / km) : null;
+                <tr>
+                    <td data-label="#" class="num">@Fa.N(rank)</td>
+                    <td data-label="مسیر">@Ui.Route(r.Origin, r.Dest)</td>
+                    <td data-label="سفر"><div class="small"><b>@Fa.N(r.Trips)</b> <span class="muted">(@Fa.N(total == 0 ? 0 : r.Trips * 100.0 / total)٪)</span></div><partial name="_Bar" model="new BarVm(r.Trips, maxTrips)" /></td>
+                    <td data-label="تحویل‌شده" class="num">@Fa.N(r.Done)</td>
+                    <td data-label="مسافت" class="num">@(r.AvgKm is double k ? Fa.N(k) + " km" : "—")</td>
+                    <td data-label="میانگین کرایه"><div class="small nowrap">@(r.AvgFare == 0 ? "—" : Fa.Toman(r.AvgFare))</div><partial name="_Bar" model='new BarVm(r.AvgFare, maxFare, "var(--ok)")' /></td>
+                    <td data-label="بر کیلومتر" class="nowrap">@(perKm is long p ? Fa.Toman(p) : "—")</td>
+                    <td data-label="تناژ" class="num">@Fa.N(r.Tons, 1)</td>
+                </tr>
+            }
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-signpost-2"></i>در این بازه سفری ثبت نشده است تا مسیری شمرده شود.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

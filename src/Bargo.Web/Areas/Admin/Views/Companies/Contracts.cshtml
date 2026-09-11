@@ -1,0 +1,89 @@
+@model PageVm<Contract>
+@{
+    var q = ViewBag.Q as string;
+    var status = ViewBag.Status as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    var statuses = (string[])ViewBag.Statuses;
+    int C(string s) => counts.TryGetValue(s, out var n) ? n : 0;
+    var now = DateTime.UtcNow;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-file-earmark-medical"></i> قراردادهای شرکت‌ها</h1>
+        <p>قراردادهایی که شرکت‌های حمل‌ونقل با مشتریانشان در پنل خود ثبت کرده‌اند — برای رسیدگی به اختلاف و گزارش؛ مدیر آن‌ها را ویرایش نمی‌کند.</p>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Contracts" asp-route-q="@q" class="@(status is null ? "on" : "")">همه <span class="n">@Fa.N(counts.Values.Sum())</span></a>
+    @foreach (var s in statuses)
+    {
+        <a asp-action="Contracts" asp-route-status="@s" asp-route-q="@q" class="@(status == s ? "on" : "")">@OpsUi.ContractLabel(s) <span class="n">@Fa.N(C(s))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Contracts" class="filters">
+        <input type="hidden" name="status" value="@status" />
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="عنوان قرارداد، نام شرکت یا مشتری" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Contracts" asp-route-status="@status">پاک کردن</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>قرارداد</th><th>شرکت</th><th>مشتری</th><th>بازه</th><th>مبلغ</th><th>وضعیت</th><th>فایل</th></tr></thead>
+            <tbody>
+            @foreach (var c in Model.Rows)
+            {
+                var ended = c.EndsAt is DateTime e && e < now;
+                <tr>
+                    <td>
+                        <b>@c.Title</b>
+                        @if (!string.IsNullOrEmpty(c.Note))
+                        {
+                            <span class="sub">@c.Note</span>
+                        }
+                    </td>
+                    <td><a class="lnk" href="/Admin/Users/Company/@c.CompanyId">@(c.Company?.Name ?? "—")</a></td>
+                    <td>
+                        @if (c.Customer is null)
+                        {
+                            <span class="muted">—</span>
+                        }
+                        else
+                        {
+                            <b>@c.Customer.Name</b><span class="sub">@(c.Customer.Kind == "corporate" ? "شرکتی" : "حقیقی")@(c.Customer.Mobile is null ? "" : " · " + c.Customer.Mobile)</span>
+                        }
+                    </td>
+                    <td class="nowrap">
+                        @Fa.Date(c.StartsAt)
+                        @if (c.EndsAt is not null)
+                        {
+                            <text> تا </text>@Fa.Date(c.EndsAt)
+                            @if (ended && c.Status == "active")
+                            {
+                                <span class="sub" style="color:var(--no);font-weight:800">بازه گذشته، هنوز «فعال»</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="sub">بدون تاریخ پایان</span>
+                        }
+                    </td>
+                    <td class="nowrap">@(c.Amount is long a ? Fa.Toman(a) : "—")</td>
+                    <td>@Ui.Pill(OpsUi.ContractLabel(c.Status), OpsUi.ContractTone(c.Status))</td>
+                    <td>@OpsUi.File(c.FilePath)</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-file-earmark-medical"></i>@(status is null && string.IsNullOrEmpty(q) ? "هنوز هیچ شرکتی قراردادی ثبت نکرده است." : "قراردادی با این شرایط پیدا نشد.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

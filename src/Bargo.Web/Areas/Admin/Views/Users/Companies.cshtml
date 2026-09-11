@@ -1,0 +1,65 @@
+@model PageVm<CompanyRow>
+@{
+    var q = ViewBag.Q as string;
+    var status = ViewBag.Status as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    int C(string s) => counts.TryGetValue(s, out var n) ? n : 0;
+    string[] tabs = [AccountStatus.Pending, AccountStatus.Approved, AccountStatus.Suspended, AccountStatus.Rejected];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-buildings"></i> شرکت‌های حمل‌ونقل</h1>
+        <p>شرکت‌ها با رانندگان، ناوگان و سفرهای جاری‌شان. برای پرونده روی ردیف بزنید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Admin/Companies/Requests"><i class="bi bi-envelope-paper"></i> درخواست‌های عضویت</a>
+        <a class="btn2 ghost" href="/Admin/Companies/Activity"><i class="bi bi-activity"></i> وضعیت فعالیت</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Companies" asp-route-q="@q" class="@(status is null ? "on" : "")">همه <span class="n">@Fa.N(counts.Values.Sum())</span></a>
+    @foreach (var s in tabs)
+    {
+        <a asp-action="Companies" asp-route-status="@s" asp-route-q="@q" class="@(status == s ? "on" : "")">@AccountStatus.Label(s) <span class="n">@Fa.N(C(s))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" class="filters">
+        <input type="hidden" name="status" value="@status" />
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="نام شرکت، شناسهٔ ملی، مدیرعامل یا موبایل" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Companies" asp-route-status="@status">پاک کردن</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>شرکت</th><th>شناسهٔ ملی</th><th>مدیرعامل</th><th>شهر</th><th>رانندگان</th><th>خودروها</th><th>سفر در راه</th><th>کیف پول</th><th>وضعیت</th><th>عضویت</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr data-href="/Admin/Users/Company/@r.CompanyId">
+                    <td><a class="lnk" href="/Admin/Users/Company/@r.CompanyId">@r.Name</a><span class="sub num">@r.Mobile</span></td>
+                    <td class="num">@r.NationalId</td>
+                    <td>@r.ManagerName</td>
+                    <td>@(r.City ?? "—")</td>
+                    <td class="num">@Fa.N(r.Drivers)</td>
+                    <td class="num">@Fa.N(r.Vehicles)</td>
+                    <td class="num">@Fa.N(r.ActiveTrips)</td>
+                    <td class="nowrap">@Fa.Toman(r.WalletBalance)</td>
+                    <td>@Ui.AccountPill(r.Status)</td>
+                    <td class="nowrap">@Fa.Date(r.CreatedAt)</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="10" class="empty"><i class="bi bi-buildings"></i>شرکتی با این شرایط پیدا نشد.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

@@ -1,0 +1,78 @@
+@model List<OpsBoardColumn>
+@{
+    var total = Model.Sum(c => c.Trips.Count);
+    string Icon(string s) => s switch
+    {
+        TripStatus.AwaitingAssignment => "bi-hourglass-split",
+        TripStatus.Assigned => "bi-send-check",
+        TripStatus.Accepted => "bi-check2",
+        TripStatus.ToOrigin => "bi-sign-turn-right",
+        TripStatus.AtOrigin => "bi-geo-alt",
+        TripStatus.Loaded => "bi-box-arrow-in-down",
+        TripStatus.InTransit => "bi-truck",
+        TripStatus.Arrived => "bi-pin-map",
+        TripStatus.Unloaded => "bi-box-arrow-up",
+        TripStatus.Delivered => "bi-shield-check",
+        _ => "bi-dot"
+    };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-boxes"></i> وضعیت بارها</h1>
+        <p>هر بار در کدام مرحله است — از صف تخصیص تا تحویل. سفرهای تسویه‌شده و لغوشده در «سفرها» هستند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-map"></i> نقشهٔ آنلاین</a>
+        <a class="btn2 ghost" href="/Company/Dispatch"><i class="bi bi-person-check"></i> صف تخصیص</a>
+    </div>
+</div>
+
+@if (total == 0)
+{
+    <div class="card2">
+        <div class="empty-state">
+            <i class="bi bi-boxes"></i>
+            <b>بار فعالی در جریان نیست</b>
+            با پذیرش پیشنهاد در بازار بار یا ثبت بار برای مشتری، سفر ساخته می‌شود و این‌جا ستون به ستون جلو می‌رود.
+        </div>
+    </div>
+}
+else
+{
+    <div class="loads">
+        @foreach (var col in Model)
+        {
+            var tone = TripStatus.Tone(col.Status);
+            <div class="card2">
+                <div class="hd">
+                    <i class="bi @Icon(col.Status)"></i> @TripStatus.Label(col.Status)
+                    <span class="end">@Ui.Pill(Fa.N(col.Trips.Count), col.Trips.Count == 0 ? "mut" : tone)</span>
+                </div>
+                <div class="bd">
+                    @if (col.Trips.Count == 0)
+                    {
+                        <div class="muted small">—</div>
+                    }
+                    @foreach (var t in col.Trips)
+                    {
+                        var l = t.Load!;
+                        var isStale = TripStatus.Live.Contains(t.Status) && (t.LastPointAt is null || DateTime.UtcNow - t.LastPointAt.Value > TimeSpan.FromMinutes(30));
+                        <div class="kvrow" style="flex-direction:column;align-items:stretch;gap:3px">
+                            <div style="display:flex;justify-content:space-between;gap:8px">
+                                <a class="num" href="/Company/Trips/Detail/@t.TripId"><b>@t.Code</b></a>
+                                <span class="muted small nowrap">@Fa.Stamp(t.ScheduledDepartureAt ?? l.LoadingFrom)</span>
+                            </div>
+                            <div>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</div>
+                            <div class="muted small">@l.Title · @OpsLabels.Ton(l.WeightTon) تن</div>
+                            <div class="small">
+                                @if (t.Driver is not null) { <span>@t.Driver.FullName</span> } else { <span class="chip">بدون راننده</span> }
+                                @if (t.Vehicle is not null) { <span class="plate">@t.Vehicle.PlateNo</span> }
+                                @if (isStale) { @Ui.Pill("بدون موقعیت تازه", "no") }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}

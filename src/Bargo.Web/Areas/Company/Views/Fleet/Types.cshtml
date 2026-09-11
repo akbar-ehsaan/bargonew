@@ -1,0 +1,82 @@
+@model List<OpsTypeRow>
+@{
+    var total = Model.Sum(r => r.Total);
+    var active = Model.Sum(r => r.Active);
+    var capacity = Model.Sum(r => r.Capacity);
+    var owned = Model.Where(r => r.Total > 0).ToList();
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-diagram-2"></i> نوع خودرو</h1>
+        <p>انواع خودروی تعریف‌شده در بارگو و سهم هر نوع در ناوگان شرکت. صاحبان بار هنگام ثبت بار، نوع خودروی لازم را از همین فهرست انتخاب می‌کنند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-truck"></i> خودروهای شرکت</a>
+        <a class="btn2 pri" asp-action="Add"><i class="bi bi-plus-lg"></i> افزودن خودرو</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat p"><div class="l"><i class="bi bi-truck"></i> خودروهای شرکت</div><div class="v">@Fa.N(total) <small>در @Fa.N(owned.Count) نوع</small></div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-check2-circle"></i> فعال و تأییدشده</div><div class="v">@Fa.N(active)</div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-box-seam"></i> مجموع ظرفیت ناوگان</div><div class="v">@OpsLabels.Ton(capacity) <small>تن</small></div></div>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>نوع خودرو</th><th>بارگیر</th><th>ظرفیت اسمی</th><th>در ناوگان شرکت</th><th>فعال و تأییدشده</th><th>مجموع ظرفیت</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var r in Model)
+            {
+                <tr>
+                    <td>
+                        <b>@r.Type.Name</b>
+                        @if (!r.Type.IsActive)
+                        {
+                            <span class="sub">این نوع دیگر در بارگو فعال نیست؛ خودروهای موجود همچنان کار می‌کنند.</span>
+                        }
+                    </td>
+                    <td>@(r.Type.BodyKind ?? "—")</td>
+                    <td class="num">@OpsLabels.Ton(r.Type.CapacityTon) تن</td>
+                    <td class="num">
+                        @if (r.Total == 0)
+                        {
+                            <span class="muted">۰</span>
+                        }
+                        else
+                        {
+                            <b>@Fa.N(r.Total)</b>
+                        }
+                    </td>
+                    <td class="num">
+                        @if (r.Total == 0)
+                        {
+                            <span class="muted">—</span>
+                        }
+                        else if (r.Active == r.Total)
+                        {
+                            @Ui.Pill(Fa.N(r.Active), "ok")
+                        }
+                        else
+                        {
+                            @Ui.Pill(Fa.N(r.Active) + " از " + Fa.N(r.Total), r.Active == 0 ? "no" : "wait")
+                        }
+                    </td>
+                    <td class="num">@(r.Total == 0 ? "—" : OpsLabels.Ton(r.Capacity) + " تن")</td>
+                    <td>
+                        @if (r.Total > 0)
+                        {
+                            <a class="btn2 soft sm" asp-action="Index" asp-route-typeId="@r.Type.VehicleTypeId">خودروها</a>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-diagram-2"></i>مدیر بارگو هنوز نوع خودرویی تعریف نکرده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

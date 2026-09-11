@@ -1,0 +1,80 @@
+@model WalletVm
+@{
+    var can = Model.HasValidSheba && Model.Available >= Model.MinPayout;
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-cash-coin"></i> درخواست برداشت</h1><p>مبلغ پس از بررسی مدیر به شبای ثبت‌شده واریز می‌شود و همان لحظه از کیف پول کسر می‌گردد.</p></div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Settlements"><i class="bi bi-bank"></i> سوابق تسویه</a></div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-cash-coin"></i> مبلغ برداشت</div>
+        <div class="bd">
+            @if (!Model.HasValidSheba)
+            {
+                <div class="alert2 warn"><i class="bi bi-bank"></i><div class="grow">شمارهٔ شبا ثبت نشده است. ابتدا آن را در <a class="lnk" href="/Driver/Profile">حساب کاربری</a> وارد کنید.</div></div>
+            }
+            else if (Model.Available < Model.MinPayout)
+            {
+                <div class="alert2 info"><i class="bi bi-info-circle"></i><div class="grow">
+                    موجودی قابل برداشت @Fa.Toman(Model.Available) است و حداقل هر درخواست @Fa.Toman(Model.MinPayout).
+                    @if (Model.Reserved > 0) { <span>(@Fa.Toman(Model.Reserved) در <a class="lnk" asp-action="Settlements">درخواست‌های باز</a> رزرو شده است.)</span> }
+                </div></div>
+            }
+            <form method="post" asp-action="Withdraw">
+                <div class="form-grid">
+                    <div class="fld">
+                        <label>مبلغ (تومان) <span class="req">*</span></label>
+                        <input name="amountToman" class="money" required value="@(can ? (Model.Available / 10).ToString() : "")" disabled="@(!can)" />
+                        <span class="hint">حداقل @Fa.Toman(Model.MinPayout) و حداکثر @Fa.Toman(Model.Available)</span>
+                    </div>
+                    <div class="fld">
+                        <label>واریز به شبا</label>
+                        <input value="@(Model.HasValidSheba ? Model.Sheba : "ثبت نشده")" dir="ltr" readonly />
+                        <span class="hint">تغییر شبا از حساب کاربری</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn2 pri" disabled="@(!can)"><i class="bi bi-send"></i> ثبت درخواست</button>
+                    <a class="btn2 ghost" asp-action="Index">بازگشت به کیف پول</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-wallet2"></i> وضعیت کیف پول</div>
+            <div class="bd">
+                <div class="kvrow"><span>موجودی</span><b>@Fa.Toman(Model.Balance)</b></div>
+                <div class="kvrow"><span>رزرو در درخواست‌های باز</span><b>@Fa.Toman(Model.Reserved)</b></div>
+                <div class="kvrow"><span>قابل برداشت</span><b style="color:var(--ok)">@Fa.Toman(Model.Available)</b></div>
+                <div class="kvrow"><span>حداقل هر درخواست</span><b>@Fa.Toman(Model.MinPayout)</b></div>
+            </div>
+        </div>
+        @if (Model.OpenPayouts.Count > 0)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-hourglass-split"></i> درخواست‌های باز</div>
+                <div class="bd">
+                    @foreach (var p in Model.OpenPayouts)
+                    {
+                        <div class="kvrow"><span>@Fa.Date(p.CreatedAt) · @Ui.PayoutPill(p.Status)</span><b>@Fa.Toman(p.Amount)</b></div>
+                    }
+                </div>
+            </div>
+        }
+        <div class="card2">
+            <div class="hd"><i class="bi bi-question-circle"></i> روند واریز</div>
+            <div class="bd small">
+                <ol style="margin:0;padding-right:18px">
+                    <li>درخواست ثبت می‌شود و مبلغ از «قابل برداشت» رزرو می‌شود.</li>
+                    <li>مدیر مالی درخواست را بررسی و تأیید یا رد می‌کند (رد با توضیح).</li>
+                    <li>پس از واریز بانکی، مبلغ از کیف پول کسر و شمارهٔ پیگیری بانک ثبت می‌شود.</li>
+                </ol>
+                <p class="muted" style="margin:10px 0 0">تا پیش از بررسی مدیر می‌توانید درخواست را از «تسویه‌حساب» پس بگیرید.</p>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,75 @@
+@model PageVm<LoadRow>
+@{
+    var q = ViewBag.Q as string;
+    var status = ViewBag.Status as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    var reported = (int)ViewBag.Reported;
+    int C(string k) => counts.TryGetValue(k, out var n) ? n : 0;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-boxes"></i> @ViewData["Title"]</h1>
+        <p>همهٔ بارهای ثبت‌شده در سامانه. «فعال» یعنی قطعی‌شده ولی راننده هنوز راه نیفتاده؛ «در حال حمل» یعنی سفر زنده دارد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 @(reported > 0 ? "red" : "ghost")" asp-action="Reported"><i class="bi bi-flag"></i> بارهای گزارش‌شده @if (reported > 0) { <span class="n" style="opacity:.9">(@Fa.N(reported))</span> }</a>
+        <a class="btn2 ghost" href="/Admin/Live/Loads"><i class="bi bi-broadcast"></i> بارهای در حال حمل روی نقشه</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Index" asp-route-q="@q" class="@(status is null ? "on" : "")">همه <span class="n">@Fa.N(C("all"))</span></a>
+    @foreach (var t in Bargo.Web.Areas.AdminPanel.Controllers.LoadsController.Tabs)
+    {
+        <a asp-action="Index" asp-route-status="@t.Key" asp-route-q="@q" class="@(status == t.Key ? "on" : "")"><i class="bi @t.Icon"></i> @t.Label <span class="n">@Fa.N(C(t.Key))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" class="filters">
+        <input type="hidden" name="status" value="@status" />
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="کد بار، عنوان، نوع کالا، شهر مبدا/مقصد، نام یا موبایل صاحب بار" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Index" asp-route-status="@status">پاک کردن</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>بار</th><th>مسیر</th><th>کالا</th><th>صاحب بار</th><th>بارگیری</th><th>کرایه</th><th>وضعیت</th><th>سفر</th><th>ثبت</th></tr></thead>
+            <tbody>
+            @foreach (var l in Model.Rows)
+            {
+                <tr data-href="/Admin/Loads/Detail/@l.LoadId">
+                    <td><a class="lnk num" href="/Admin/Loads/Detail/@l.LoadId">@l.Code</a>@if (l.IsReported) { <span class="sub">@Ui.Pill("گزارش‌شده", "no")</span> }</td>
+                    <td>@Ui.Route(l.From, l.To)</td>
+                    <td>@l.Title<span class="sub">@l.CargoType · @OpsLabels.Ton(l.WeightTon) تن</span></td>
+                    <td>
+                        @if (l.ShipperId is int sid) { <a class="lnk" href="/Admin/Users/Shipper/@sid">@l.OwnerName</a> }
+                        else if (l.CompanyId is int cid) { <a class="lnk" href="/Admin/Users/Company/@cid">@l.OwnerName</a><span class="sub">بار مشتری شرکت</span> }
+                        else { <span class="muted">—</span> }
+                    </td>
+                    <td class="nowrap">@Fa.Date(l.LoadingFrom)</td>
+                    <td class="nowrap">@Fa.Toman(l.Price)<span class="sub">@PriceMode.Label(l.PriceMode)</span></td>
+                    <td>
+                        @Ui.LoadPill(l.Status)
+                        @if (l.PendingOffers > 0) { <span class="sub">@Fa.N(l.PendingOffers) پیشنهاد در انتظار</span> }
+                        @if (l.Status == LoadStatus.Cancelled && !string.IsNullOrEmpty(l.CancelReason)) { <span class="sub">@l.CancelReason</span> }
+                    </td>
+                    <td>
+                        @if (l.TripId is int tid) { <a class="lnk num" href="/Admin/Trips/Case/@tid">@l.TripCode</a><span class="sub">@TripStatus.Label(l.TripStatus ?? "")</span> }
+                        else { <span class="muted">—</span> }
+                    </td>
+                    <td class="nowrap">@Fa.Ago(l.CreatedAt)</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="9" class="empty"><i class="bi bi-boxes"></i>@(string.IsNullOrEmpty(q) && status is null ? "هنوز باری در سامانه ثبت نشده است." : "باری با این شرایط پیدا نشد.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

@@ -1,0 +1,89 @@
+@model TariffsVm
+@{
+    var e = Model.Edit;
+    var isPercent = e?.Percent is not null;
+    var locked = e is not null && Model.SystemKeys.Contains(e.Key);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-tags"></i> تعرفه خدمات</h1>
+        <p>بیمهٔ بار، نمایش ویژه، هزینهٔ عضویت و هر خدمت پولی دیگر — مبلغ ثابت یا درصد.</p>
+    </div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-list-ul"></i> تعرفه‌ها <span class="end muted small">@Fa.N(Model.Items.Count) مورد</span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>عنوان</th><th>کلید</th><th>مبلغ / درصد</th><th>وضعیت</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var t in Model.Items)
+                {
+                    <tr>
+                        <td><b>@t.Title</b>@if (Model.SystemKeys.Contains(t.Key))
+                            {
+                                <span class="sub"><i class="bi bi-lock"></i> تعرفهٔ سامانه</span>
+                            }</td>
+                        <td class="num small">@t.Key</td>
+                        <td class="nowrap"><b>@(t.Percent is decimal p ? Fa.N(p, 3) + "٪" : Fa.Toman(t.Amount))</b></td>
+                        <td>@(t.IsActive ? Ui.Pill("فعال", "ok") : Ui.Pill("غیرفعال", "mut"))</td>
+                        <td>
+                            <div class="row-actions">
+                                <a class="btn2 sm soft" asp-action="Tariffs" asp-route-edit="@t.TariffId"><i class="bi bi-pencil"></i> ویرایش</a>
+                                @if (!Model.SystemKeys.Contains(t.Key))
+                                {
+                                    <form method="post" asp-action="DeleteTariff" asp-route-id="@t.TariffId" data-confirm="تعرفهٔ «@t.Title» حذف شود؟">
+                                        <button class="btn2 sm ghost"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Items.Count == 0)
+                {
+                    <tr><td colspan="5" class="empty"><i class="bi bi-tags"></i>تعرفه‌ای تعریف نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi @(e is null ? "bi-plus-circle" : "bi-pencil-square")"></i> @(e is null ? "تعرفهٔ تازه" : "ویرایش تعرفه")</div>
+        <div class="bd">
+            <form method="post" asp-action="SaveTariff">
+                @if (e is not null)
+                {
+                    <input type="hidden" name="id" value="@e.TariffId" />
+                }
+                <div class="stack" style="gap:12px">
+                    <div class="fld">
+                        <label>کلید <span class="req">*</span></label>
+                        <input name="key" value="@e?.Key" dir="ltr" pattern="[a-z][a-z0-9_]{1,39}" required readonly="@locked" placeholder="cargo_insurance" />
+                        <span class="hint">@(locked ? "کلید تعرفهٔ سامانه در کد استفاده می‌شود و تغییر نمی‌کند." : "حروف کوچک لاتین، رقم و _ — کد برنامه تعرفه را با همین کلید می‌خواند.")</span>
+                    </div>
+                    <div class="fld"><label>عنوان <span class="req">*</span></label><input name="title" value="@e?.Title" maxlength="100" required /></div>
+                    <div class="fld">
+                        <label>نوع</label>
+                        <select name="mode">
+                            <option value="amount" selected="@(!isPercent)">مبلغ ثابت (تومان)</option>
+                            <option value="percent" selected="@isPercent">درصد</option>
+                        </select>
+                    </div>
+                    <div class="fld"><label>مبلغ (تومان)</label><input name="amountToman" class="money" value="@(e?.Amount is long a ? (a / 10).ToString() : "")" /></div>
+                    <div class="fld"><label>درصد</label><input name="percent" value="@BackofficeLookup.Invariant(e?.Percent)" inputmode="decimal" dir="ltr" placeholder="0.15" /></div>
+                    <label class="check"><input type="checkbox" name="isActive" value="true" checked="@(e?.IsActive ?? true)" /><input type="hidden" name="isActive" value="false" /> فعال</label>
+                </div>
+                <div class="form-actions">
+                    <button class="btn2 pri"><i class="bi bi-check2"></i> ذخیره</button>
+                    @if (e is not null)
+                    {
+                        <a class="btn2 ghost" asp-action="Tariffs">انصراف</a>
+                    }
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

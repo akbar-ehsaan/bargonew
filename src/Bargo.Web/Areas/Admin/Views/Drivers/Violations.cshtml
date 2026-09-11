@@ -1,0 +1,184 @@
+@model DriverViolationsVm
+@{
+    string[] penalties = ["warning", "fine", "suspension"];
+    var searchErr = ViewBag.SearchErr as string;
+    var f = Model.Found;
+    var now = DateTime.UtcNow;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-exclamation-octagon"></i> تخلفات رانندگان</h1>
+        <p>تخلفی که مدیر ثبت می‌کند: اخطار، جریمه یا تعلیق حساب. راننده (و شرکتش) اعلان می‌گیرد و هر ثبت ردّ حسابرسی دارد. «تعلیق» همان لحظه حساب راننده را می‌بندد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Suspended"><i class="bi bi-pause-circle"></i> رانندگان تعلیق‌شده</a>
+        <a class="btn2 ghost" href="/Admin/Complaints/Violations"><i class="bi bi-exclamation-diamond"></i> تخلفات در شکایات</a>
+    </div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="tabs" style="margin:0;padding:0 18px">
+            <a asp-action="Violations" asp-route-q="@Model.Q" class="@(Model.Penalty is null ? "on" : "")">همه <span class="n">@Fa.N(Model.Counts.Values.Sum())</span></a>
+            @foreach (var p in penalties)
+            {
+                <a asp-action="Violations" asp-route-penalty="@p" asp-route-q="@Model.Q" class="@(Model.Penalty == p ? "on" : "")">@OpsUi.PenaltyLabel(p) <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(p))</span></a>
+            }
+        </div>
+        <form method="get" asp-action="Violations" class="filters">
+            <input type="hidden" name="penalty" value="@Model.Penalty" />
+            <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@Model.Q" placeholder="عنوان تخلف، نام یا موبایل راننده" /></div>
+            <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+            @if (!string.IsNullOrEmpty(Model.Q))
+            {
+                <a class="btn2 ghost" asp-action="Violations" asp-route-penalty="@Model.Penalty">پاک کردن</a>
+            }
+        </form>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>راننده</th><th>تخلف</th><th>مجازات</th><th>سفر</th><th>ثبت</th></tr></thead>
+                <tbody>
+                @foreach (var v in Model.Page.Rows)
+                {
+                    <tr>
+                        <td>
+                            @if (v.Driver is not null)
+                            {
+                                <a class="lnk" href="/Admin/Users/Driver/@v.DriverId">@v.Driver.FullName</a><span class="sub num">@v.Driver.Mobile</span>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
+                        <td>
+                            <b>@v.Title</b>
+                            @if (!string.IsNullOrEmpty(v.Description))
+                            {
+                                <span class="sub" style="white-space:pre-line">@v.Description</span>
+                            }
+                        </td>
+                        <td>
+                            @Ui.Pill(OpsUi.PenaltyLabel(v.Penalty), OpsUi.PenaltyTone(v.Penalty))
+                            @if (v.FineAmount is long fine)
+                            {
+                                <span class="sub">@Fa.Toman(fine)</span>
+                            }
+                            @if (v.Penalty == "suspension")
+                            {
+                                <span class="sub">@(v.SuspendedUntil is DateTime u ? (u < now ? "مهلت تا " + Fa.Date(u) + " گذشته" : "تا " + Fa.Date(u)) : "تا اطلاع ثانوی")</span>
+                            }
+                        </td>
+                        <td>
+                            @if (v.TripId is int tid)
+                            {
+                                <a class="lnk num" href="/Admin/Trips/Case/@tid">@(Model.TripCodes.GetValueOrDefault(tid) ?? "#" + tid)</a>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
+                        <td class="nowrap">@Fa.Stamp(v.CreatedAt)<span class="sub">@(Model.AdminNames.GetValueOrDefault(v.CreatedByAdminId) ?? "مدیر")</span></td>
+                    </tr>
+                }
+                @if (Model.Page.Total == 0)
+                {
+                    <tr><td colspan="5" class="empty"><i class="bi bi-shield-check"></i>@(Model.Penalty is null && string.IsNullOrEmpty(Model.Q) ? "هنوز تخلفی ثبت نشده است." : "تخلفی با این شرایط پیدا نشد.")</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Page.Pager" />
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-search"></i> راننده را پیدا کنید</div>
+            <div class="bd">
+                <form method="get" asp-action="Violations" class="row-actions">
+                    <div class="fld" style="flex:1"><input name="mobile" value="@Model.Mobile" placeholder="شمارهٔ موبایل راننده" inputmode="tel" dir="ltr" /></div>
+                    <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+                </form>
+                @if (searchErr is not null)
+                {
+                    <div class="val-err" style="margin-top:8px">@searchErr</div>
+                }
+                <div class="hint muted small" style="margin-top:8px">از پروندهٔ راننده هم می‌توانید با پیوند «ثبت تخلف» به این فرم بیایید.</div>
+            </div>
+        </div>
+
+        @if (f is not null)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-person-badge"></i> @f.FullName <span class="end">@Ui.AccountPill(f.Status)</span></div>
+                <div class="bd">
+                    <dl class="kv">
+                        <dt>موبایل</dt><dd class="num">@f.Mobile</dd>
+                        <dt>شرکت</dt><dd>@(f.Company?.Name ?? "مستقل")</dd>
+                        <dt>سفرها</dt><dd>@Fa.N(f.TripCount) تحویل‌شده · @Ui.Stars(f.RatingAvg, f.RatingCount)</dd>
+                        <dt>تخلفات قبلی</dt><dd>@(Model.FoundViolations > 0 ? Fa.N(Model.FoundViolations) : "ندارد")</dd>
+                    </dl>
+                    <div style="margin-top:8px"><a class="lnk small" href="/Admin/Users/Driver/@f.DriverId">پروندهٔ کامل راننده</a></div>
+                </div>
+            </div>
+
+            <div class="card2">
+                <div class="hd"><i class="bi bi-plus-circle"></i> ثبت تخلف</div>
+                <div class="bd">
+                    <form method="post" asp-action="AddViolation" data-confirm="تخلف برای «@f.FullName» ثبت شود؟ راننده با اعلان باخبر می‌شود.">
+                        <input type="hidden" name="driverId" value="@f.DriverId" />
+                        <div class="stack" style="gap:12px">
+                            <div class="fld">
+                                <label>سفر مربوط <span class="muted small">(اختیاری)</span></label>
+                                @if (Model.FoundTrips.Count > 0)
+                                {
+                                    <select name="tripCode">
+                                        <option value="">بدون سفر مشخص</option>
+                                        @foreach (var t in Model.FoundTrips)
+                                        {
+                                            <option value="@t.Code">@t.Code · @t.From ← @t.To · @TripStatus.Label(t.Status)</option>
+                                        }
+                                    </select>
+                                    <span class="hint">۸ سفر اخیر راننده؛ برای سفر قدیمی‌تر کد را در پروندهٔ راننده پیدا کنید.</span>
+                                }
+                                else
+                                {
+                                    <input name="tripCode" placeholder="کد سفر، مثل T-050621-0042" dir="ltr" />
+                                }
+                            </div>
+                            <div class="fld"><label>عنوان تخلف <span class="req">*</span></label><input name="title" maxlength="60" required placeholder="مثلاً: تأخیر بی‌اطلاع در بارگیری" /></div>
+                            <div class="fld"><label>شرح</label><textarea name="description" rows="3" maxlength="1000" placeholder="جزئیات و مستندات — برای راننده ارسال می‌شود"></textarea></div>
+                            <div class="fld">
+                                <label>مجازات <span class="req">*</span></label>
+                                <select name="penalty" required>
+                                    <option value="warning">اخطار</option>
+                                    <option value="fine">جریمه</option>
+                                    <option value="suspension">تعلیق حساب</option>
+                                </select>
+                            </div>
+                            <div class="fld"><label>مبلغ جریمه (تومان) <span class="muted small">فقط برای «جریمه»</span></label><input name="fineAmountToman" class="money" inputmode="numeric" placeholder="۵۰۰,۰۰۰" /></div>
+                            <div class="fld"><label>پایان تعلیق <span class="muted small">فقط برای «تعلیق»؛ خالی = تا اطلاع ثانوی</span></label><input name="suspendedUntil" data-jdate placeholder="۱۴۰۵/۰۷/۰۱" /></div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn2 red"><i class="bi bi-exclamation-octagon"></i> ثبت تخلف</button>
+                            <a class="btn2 ghost" asp-action="Violations">انصراف</a>
+                        </div>
+                        @if (f.Status == AccountStatus.Suspended)
+                        {
+                            <div class="hint muted small" style="margin-top:8px"><i class="bi bi-info-circle"></i> حساب این راننده هم‌اکنون تعلیق است؛ تخلف ثبت می‌شود ولی وضعیت حساب تغییری نمی‌کند.</div>
+                        }
+                    </form>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card2">
+                <div class="bd">
+                    <div class="empty-state"><i class="bi bi-person-plus"></i><b>راننده‌ای انتخاب نشده</b>برای ثبت تخلف، اول راننده را با شمارهٔ موبایل پیدا کنید.</div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

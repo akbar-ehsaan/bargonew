@@ -1,0 +1,79 @@
+@model OpsMarketVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-shop"></i> بازار بار</h1>
+        <p>بارهای منتشرشده در بارگو که هنوز حمل‌کننده ندارند. روی هر بار پیشنهاد بدهید؛ پس از پذیرش، سفر در صف تخصیص شرکت می‌نشیند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Incoming"><i class="bi bi-inbox"></i> بارهای دریافتی</a>
+    </div>
+</div>
+
+@if (Model.DirectCount > 0)
+{
+    <div class="alert2 info">
+        <i class="bi bi-envelope-paper-fill"></i>
+        <div class="grow">@Fa.N(Model.DirectCount) درخواست حمل مستقیماً برای شرکت شما فرستاده شده است.</div>
+        <a class="btn2 soft sm" asp-action="Incoming">مشاهده</a>
+    </div>
+}
+
+<div class="card2">
+    <form method="get" asp-action="Market" class="filters">
+        <div class="fld">
+            <label>استان مبدا</label>
+            <select name="origin">
+                <option value="">همه</option>
+                @foreach (var p in Model.Provinces)
+                {
+                    <option value="@p.ProvinceId" selected="@(Model.Origin == p.ProvinceId)">@p.Name</option>
+                }
+            </select>
+        </div>
+        <div class="fld">
+            <label>استان مقصد</label>
+            <select name="dest">
+                <option value="">همه</option>
+                @foreach (var p in Model.Provinces)
+                {
+                    <option value="@p.ProvinceId" selected="@(Model.Dest == p.ProvinceId)">@p.Name</option>
+                }
+            </select>
+        </div>
+        <div class="fld">
+            <label>نوع خودرو</label>
+            <select name="vehicleTypeId">
+                <option value="">همه</option>
+                @foreach (var t in Model.VehicleTypes)
+                {
+                    <option value="@t.VehicleTypeId" selected="@(Model.VehicleTypeId == t.VehicleTypeId)">@t.Name</option>
+                }
+            </select>
+        </div>
+        <div class="fld narrow">
+            <label>بارگیری از تاریخ</label>
+            <input name="date" data-jdate value="@Fa.DateBox(Model.Date)" placeholder="۱۴۰۵/۰۶/۲۱" />
+        </div>
+        <div class="row-actions">
+            <button type="submit" class="btn2 pri"><i class="bi bi-funnel"></i> فیلتر</button>
+            <a class="btn2 ghost" asp-action="Market">پاک کردن</a>
+        </div>
+    </form>
+    <div class="bd">
+        @if (Model.Page.Total == 0)
+        {
+            <div class="empty-state"><i class="bi bi-box-seam"></i><b>باری با این فیلترها در بازار نیست</b>فیلترها را تغییر دهید یا کمی بعد دوباره سر بزنید.</div>
+        }
+        else
+        {
+            <p class="muted small" style="margin-top:0">@Fa.N(Model.Page.Total) بار در بازار</p>
+            <div class="loads">
+                @foreach (var c in Model.Page.Rows)
+                {
+                    <partial name="_LoadCard" model="c" />
+                }
+            </div>
+        }
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

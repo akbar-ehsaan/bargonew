@@ -1,0 +1,113 @@
+@model OpsDriverListVm
+@{
+    var since = (DateTime)ViewBag.Since;
+    (string Key, string Label, string Icon)[] tabs =
+    [
+        ("", "همه", "bi-people"),
+        ("online", "آنلاین", "bi-broadcast"),
+        ("available", "آماده بار", "bi-check2-circle"),
+        ("busy", "در سفر", "bi-truck"),
+        ("off", "خارج از خدمت", "bi-pause-circle")
+    ];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-activity"></i> وضعیت فعالیت رانندگان</h1>
+        <p>رانندگان تأییدشدهٔ شرکت: چه کسی آنلاین است، چه کسی در سفر و چه کسی «آماده بار». «خارج از خدمت» یعنی راننده در تخصیص پیشنهاد نمی‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Online"><i class="bi bi-map"></i> روی نقشه</a>
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-people"></i> لیست رانندگان</a>
+    </div>
+</div>
+
+<div class="stats">
+    <a class="stat s" asp-action="Activity" asp-route-status="online"><div class="l"><i class="bi bi-broadcast"></i> آنلاین (@Fa.N(CompanyOps.OnlineMinutes) دقیقهٔ اخیر)</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault("online")) <small>از @Fa.N(Model.Counts.GetValueOrDefault("all"))</small></div></a>
+    <a class="stat p" asp-action="Activity" asp-route-status="available"><div class="l"><i class="bi bi-check2-circle"></i> آماده بار</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault("available"))</div></a>
+    <a class="stat i" asp-action="Activity" asp-route-status="busy"><div class="l"><i class="bi bi-truck"></i> در سفر</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault("busy"))</div></a>
+    <a class="stat w" asp-action="Activity" asp-route-status="off"><div class="l"><i class="bi bi-pause-circle"></i> خارج از خدمت</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault("off"))</div></a>
+</div>
+
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        var on = (Model.Status ?? "") == t.Key;
+        <a href="@Url.Action("Activity", new { status = t.Key.Length == 0 ? null : t.Key })" class="@(on ? "on" : "")">
+            <i class="bi @t.Icon"></i> @t.Label <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(t.Key.Length == 0 ? "all" : t.Key))</span>
+        </a>
+    }
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>راننده</th><th>حضور</th><th>آمادگی</th><th>سفر جاری</th><th>سفرها</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var d in Model.Page.Rows)
+            {
+                var busy = Model.Busy.GetValueOrDefault(d.DriverId);
+                var (avLabel, avTone) = OpsLabels.Availability(d, busy);
+                var online = d.LastSeenAt > since;
+                <tr data-href="/Company/Drivers/Detail/@d.DriverId">
+                    <td>
+                        <a class="lnk" asp-action="Detail" asp-route-id="@d.DriverId">@d.FullName</a>
+                        <span class="sub num">@Fa.Digits(d.Mobile)@(d.City is null ? "" : " · " + d.City.Name)</span>
+                    </td>
+                    <td>
+                        @if (online)
+                        {
+                            @Ui.Pill("آنلاین", "ok")
+                        }
+                        else if (d.LastSeenAt is DateTime seen)
+                        {
+                            @Ui.Pill(Fa.Ago(seen), seen > DateTime.UtcNow.AddHours(-2) ? "wait" : "mut")
+                        }
+                        else
+                        {
+                            @Ui.Pill("هرگز", "mut")
+                        }
+                    </td>
+                    <td>@Ui.Pill(avLabel, avTone)</td>
+                    <td>
+                        @if (busy is not null)
+                        {
+                            <a class="lnk num" href="/Company/Trips/Detail/@busy.TripId">@busy.Code</a><span class="sub">@TripStatus.Label(busy.Status)</span>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td class="num">@Fa.N(d.TripCount)</td>
+                    <td>
+                        <form method="post" asp-action="ToggleAvailable" class="inline" data-confirm="@(d.IsAvailable ? $"{d.FullName} خارج از خدمت شود؟ تا روشن‌شدن دوباره در تخصیص پیشنهاد نمی‌شود." : $"{d.FullName} آماده بار شود؟")">
+                            <input type="hidden" name="id" value="@d.DriverId" />
+                            <button class="btn2 @(d.IsAvailable ? "ghost" : "soft") sm">
+                                <i class="bi @(d.IsAvailable ? "bi-pause-circle" : "bi-play-circle")"></i>
+                                @(d.IsAvailable ? "خارج از خدمت" : "آماده بار")
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr>
+                    <td colspan="6" class="empty">
+                        <i class="bi bi-activity"></i>
+                        @(Model.Status switch
+                        {
+                            "online" => "در " + Fa.N(CompanyOps.OnlineMinutes) + " دقیقهٔ اخیر هیچ راننده‌ای آنلاین نبوده است.",
+                            "available" => "راننده‌ای آماده بار نیست.",
+                            "busy" => "هیچ راننده‌ای در سفر نیست.",
+                            "off" => "همهٔ رانندگان در خدمت‌اند.",
+                            _ => "هنوز رانندهٔ تأییدشده‌ای در ناوگان شرکت نیست."
+                        })
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

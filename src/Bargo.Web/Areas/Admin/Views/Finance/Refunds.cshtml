@@ -1,0 +1,89 @@
+@model RefundsVm
+@{
+    (string Key, string Label)[] tabs = [("pending", "در انتظار"), ("done", "انجام‌شده"), ("rejected", "ردشده"), ("all", "همه")];
+    string StatusPill(string s) => s switch { "done" => "ok", "rejected" => "no", _ => "wait" };
+    string StatusLabel(string s) => s switch { "done" => "مسترد شد", "rejected" => "ردشده", _ => "در انتظار" };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-arrow-counterclockwise"></i> استردادها</h1>
+        <p>لغو سفرِ پرداخت‌شده خودکار مسترد می‌شود و اینجا «انجام‌شده» دیده می‌شود؛ درخواست‌های دستی در صف «در انتظار» می‌مانند.</p>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat w"><div class="l"><i class="bi bi-hourglass-split"></i> در انتظار بررسی</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault("pending"))</div></div>
+    <div class="stat p"><div class="l"><i class="bi bi-cash-stack"></i> مبلغ در انتظار</div><div class="v">@Fa.Toman(Model.PendingSum)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-check2-all"></i> انجام‌شده</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault("done"))</div></div>
+</div>
+
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        <a asp-action="Refunds" asp-route-status="@t.Key" class="@(Model.Status == t.Key ? "on" : "")">@t.Label <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(t.Key))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>ذی‌نفع</th><th>مبلغ</th><th>علت</th><th>سفر / پرداخت</th><th>ثبت</th><th>وضعیت</th><th>اقدام</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Page.Rows)
+            {
+                <tr>
+                    <td class="num">@Fa.N(r.RefundId)</td>
+                    <td><b>@Model.Names.Name(r.OwnerKind, r.OwnerId)</b><span class="sub">@OwnerKind.Label(r.OwnerKind) · <span class="num">@Model.Names.Mobile(r.OwnerKind, r.OwnerId)</span></span></td>
+                    <td class="nowrap"><b>@Fa.Toman(r.Amount)</b></td>
+                    <td class="small" style="white-space:pre-line;max-width:320px">@r.Reason</td>
+                    <td>
+                        @if (r.TripId is int tid)
+                        {
+                            <a class="lnk num" href="/Admin/Trips/Case/@tid">@(Model.TripCodes.GetValueOrDefault(tid) ?? "#" + tid)</a>
+                        }
+                        @if (r.PaymentId is int pid)
+                        {
+                            <span class="sub">پرداخت #@Fa.N(pid)</span>
+                        }
+                        @if (r.TripId is null && r.PaymentId is null)
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td class="nowrap">@Fa.Stamp(r.CreatedAt)</td>
+                    <td>
+                        @Ui.Pill(StatusLabel(r.Status), StatusPill(r.Status))
+                        @if (r.DoneAt is not null)
+                        {
+                            <span class="sub">@Fa.Stamp(r.DoneAt)@(r.ReviewedByAdminId is int rid ? " · " + Model.Reviewers.GetValueOrDefault(rid) : "")</span>
+                        }
+                    </td>
+                    <td style="min-width:230px">
+                        @if (r.Status == "pending")
+                        {
+                            <div class="stack" style="gap:6px">
+                                <form method="post" asp-action="CompleteRefund" asp-route-id="@r.RefundId" data-confirm="@Fa.Toman(r.Amount) به کیف پول @Model.Names.Name(r.OwnerKind, r.OwnerId) مسترد شود؟">
+                                    <button class="btn2 sm grn"><i class="bi bi-arrow-counterclockwise"></i> استرداد به کیف پول</button>
+                                </form>
+                                <form method="post" asp-action="RejectRefund" asp-route-id="@r.RefundId" class="row-actions" data-confirm="درخواست استرداد رد شود؟">
+                                    <div class="fld" style="flex:1;min-width:110px"><input name="note" placeholder="علت رد" required /></div>
+                                    <button class="btn2 sm red">رد</button>
+                                </form>
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-arrow-counterclockwise"></i>استردادی در این بخش نیست.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

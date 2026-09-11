@@ -1,0 +1,121 @@
+@model PageVm<CompanyLicenseRow>
+@{
+    var q = ViewBag.Q as string;
+    var filter = ViewBag.Filter as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    var warnDays = (int)ViewBag.WarnDays;
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    var now = DateTime.UtcNow;
+    (string Key, string Label, string Icon)[] tabs =
+    [
+        ("expired", "منقضی", "bi-calendar-x"), ("soon", $"تا {Fa.N(warnDays)} روز دیگر", "bi-alarm"),
+        ("pending", "مدرک در انتظار", "bi-hourglass-split"), ("missing", "بدون مجوز", "bi-question-circle")
+    ];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-award"></i> مجوزهای شرکت‌ها</h1>
+        <p>مجوز فعالیت هر شرکت: شمارهٔ ثبت‌شده روی حساب و آخرین مدرک «مجوز فعالیت» بارگذاری‌شده. نزدیک‌ترین انقضا اول؛ شرکت‌های بدون تاریخ در انتها.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Admin/Documents?status=pending&kind=company_license"><i class="bi bi-hourglass-split"></i> مجوزهای در صف بررسی</a>
+    </div>
+</div>
+
+<div class="stats">
+    <a class="stat r" asp-action="Licenses" asp-route-filter="expired"><div class="l"><i class="bi bi-calendar-x"></i> منقضی</div><div class="v">@Fa.N(counts["expired"])</div></a>
+    <a class="stat w" asp-action="Licenses" asp-route-filter="soon"><div class="l"><i class="bi bi-alarm"></i> در آستانهٔ انقضا</div><div class="v">@Fa.N(counts["soon"])</div></a>
+    <a class="stat p" asp-action="Licenses" asp-route-filter="pending"><div class="l"><i class="bi bi-hourglass-split"></i> مدرک در انتظار بررسی</div><div class="v">@Fa.N(counts["pending"])</div></a>
+    <a class="stat i" asp-action="Licenses" asp-route-filter="missing"><div class="l"><i class="bi bi-question-circle"></i> بدون مجوز ثبت‌شده</div><div class="v">@Fa.N(counts["missing"])</div></a>
+</div>
+
+<div class="tabs">
+    <a asp-action="Licenses" asp-route-q="@q" class="@(filter is null ? "on" : "")">همه</a>
+    @foreach (var t in tabs)
+    {
+        <a asp-action="Licenses" asp-route-filter="@t.Key" asp-route-q="@q" class="@(filter == t.Key ? "on" : "")"><i class="bi @t.Icon"></i> @t.Label <span class="n">@Fa.N(counts[t.Key])</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Licenses" class="filters">
+        <input type="hidden" name="filter" value="@filter" />
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="نام شرکت، شناسهٔ ملی یا موبایل" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Licenses" asp-route-filter="@filter">پاک کردن</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>شرکت</th><th>شمارهٔ مجوز</th><th>اعتبار تا</th><th>مدرک بارگذاری‌شده</th><th>وضعیت مدرک</th><th>حساب</th><th>اقدام</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr>
+                    <td><a class="lnk" href="/Admin/Users/Company/@r.CompanyId">@r.Name</a></td>
+                    <td class="num">@(r.LicenseNo ?? r.DocNumber ?? "—")</td>
+                    <td>
+                        @Ui.Expiry(r.EffectiveExpiry, warnDays)
+                        @if (r.EffectiveExpiry is DateTime e)
+                        {
+                            <span class="sub">@(e < now ? $"{Fa.N((int)(now - e).TotalDays)} روز گذشته" : $"{Fa.N((int)Math.Ceiling((e - now).TotalDays))} روز مانده")</span>
+                        }
+                        else
+                        {
+                            <span class="sub">تاریخ ثبت نشده</span>
+                        }
+                    </td>
+                    <td>
+                        @if (r.DocId is null)
+                        {
+                            <span class="muted">بارگذاری نشده</span>
+                        }
+                        else
+                        {
+                            @OpsUi.File(r.DocPath)
+                            <span class="sub">@Fa.Date(r.DocUploadedAt)</span>
+                        }
+                    </td>
+                    <td>
+                        @if (r.DocStatus is string ds)
+                        {
+                            @Ui.AccountPill(ds)
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td>@Ui.AccountPill(r.Status)</td>
+                    <td>
+                        <div class="row-actions">
+                            @if (r.DocStatus == AccountStatus.Pending && r.DocId is int did)
+                            {
+                                <a class="btn2 sm soft" href="/Admin/Documents?status=pending&kind=company_license&owner=company:@r.CompanyId"><i class="bi bi-patch-check"></i> بررسی مدرک</a>
+                            }
+                            @if (r.EffectiveExpiry is DateTime ex && ex < now.AddDays(warnDays) && r.DocId is int rid)
+                            {
+                                <form method="post" asp-controller="Documents" asp-action="Remind" asp-route-id="@rid">
+                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                    <button class="btn2 sm ghost"><i class="bi bi-bell"></i> یادآوری تمدید</button>
+                                </form>
+                            }
+                            @if (r.DocId is null)
+                            {
+                                <a class="btn2 sm ghost" href="/Admin/Users/Company/@r.CompanyId">پرونده</a>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-award"></i>@(filter is null ? "شرکتی ثبت نشده است." : "شرکتی در این دسته نیست.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

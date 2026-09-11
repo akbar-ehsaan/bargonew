@@ -1,0 +1,47 @@
+@{
+    // نوار وضعیت حساب شرکت — بالای همهٔ صفحه‌های «حساب شرکت»
+    var status = ViewBag.Status as string ?? AccountStatus.Pending;
+    var reason = ViewBag.StatusReason as string;
+    var checks = ViewBag.Checks as List<CompanyDocCheck>;
+    var missing = checks?.Count(c => c.State is "missing" or "rejected" or "expired") ?? 0;
+}
+@if (status == AccountStatus.Pending)
+{
+    <div class="alert2 warn" role="status"><i class="bi bi-hourglass-split"></i>
+        <div class="grow">
+            <b>حساب شرکت در انتظار تأیید است.</b>
+            @if (missing > 0)
+            {
+                <text> @Fa.N(missing) مدرک هنوز بارگذاری یا پذیرفته نشده؛ تا تکمیل مدارک، بررسی آغاز نمی‌شود.</text>
+                <a class="lnk" asp-area="Company" asp-controller="Account" asp-action="Documents">بارگذاری مدارک</a>
+            }
+            else
+            {
+                <text> مدارک کامل است و در صف بررسی مدیر سامانه قرار دارد. نتیجه به شما اعلان می‌شود.</text>
+            }
+            @if (!string.IsNullOrEmpty(reason))
+            {
+                <div class="small" style="margin-top:4px">@reason</div>
+            }
+        </div>
+    </div>
+}
+else if (status == AccountStatus.Rejected)
+{
+    <div class="alert2 err" role="alert"><i class="bi bi-x-octagon-fill"></i>
+        <div class="grow">
+            <b>درخواست عضویت شرکت رد شده است.</b>
+            @if (!string.IsNullOrEmpty(reason)) { <div style="margin-top:4px">علت: @reason</div> }
+            <div class="small" style="margin-top:4px">پس از اصلاح مشخصات یا مدارک، پرونده دوباره بررسی می‌شود.</div>
+        </div>
+    </div>
+}
+else if (status == AccountStatus.Suspended)
+{
+    <div class="alert2 err" role="alert"><i class="bi bi-pause-circle-fill"></i>
+        <div class="grow">
+            <b>حساب شرکت تعلیق شده است.</b> تا رفع تعلیق، بار و سفر تازه ممکن نیست.
+            @if (!string.IsNullOrEmpty(reason)) { <div style="margin-top:4px">علت: @reason</div> }
+        </div>
+    </div>
+}

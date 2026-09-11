@@ -1,0 +1,89 @@
+@model LanesVm
+@{
+    var e = Model.Edit;
+    var byProvince = Model.Cities.GroupBy(c => c.Province).ToList();
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-signpost-2"></i> مبادی و مقاصد</h1>
+        <p>مسیرهای مرجع بین دو شهر با فاصلهٔ مبنا و کرایهٔ راهنمای هر تن. برای برآورد کرایه و زمان رسیدن استفاده می‌شود؛ الزام‌آور نیست.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" href="/Admin/Reports/Routes"><i class="bi bi-graph-up"></i> مسیرهای پرتردد</a></div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-list-ul"></i> مسیرها <span class="end muted small">@Fa.N(Model.Rows.Count) مورد</span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>مسیر</th><th>فاصله</th><th>کرایهٔ مرجع هر تن</th><th>بارهای این مسیر</th><th>وضعیت</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var l in Model.Rows)
+                {
+                    <tr>
+                        <td>@Ui.Route(l.From, l.To)</td>
+                        <td class="nowrap">@Fa.N(l.DistanceKm, 0) کیلومتر</td>
+                        <td class="nowrap">@(l.BaseRatePerTon is long r ? Fa.Toman(r) : "—")</td>
+                        <td class="num">@Fa.N(l.Loads)</td>
+                        <td>@(l.IsActive ? Ui.Pill("فعال", "ok") : Ui.Pill("غیرفعال", "mut"))</td>
+                        <td>
+                            <div class="row-actions">
+                                <a class="btn2 sm soft" asp-action="Lanes" asp-route-edit="@l.Id"><i class="bi bi-pencil"></i></a>
+                                <form method="post" asp-action="DeleteLane" asp-route-id="@l.Id" data-confirm="مسیر @l.From ← @l.To حذف شود؟">
+                                    <button class="btn2 sm ghost"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Rows.Count == 0)
+                {
+                    <tr><td colspan="6" class="empty"><i class="bi bi-signpost-2"></i>هنوز مسیری تعریف نشده است. مسیرهای پرتکرار را از گزارش «مسیرهای پرتردد» پیدا کنید.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi @(e is null ? "bi-plus-circle" : "bi-pencil-square")"></i> @(e is null ? "مسیر تازه" : "ویرایش مسیر")</div>
+        <div class="bd">
+            <form method="post" asp-action="SaveLane">
+                @if (e is not null)
+                {
+                    <input type="hidden" name="id" value="@e.RouteLaneId" />
+                }
+                <div class="stack" style="gap:12px">
+                    @foreach (var (name, label, selected) in new[] { ("originCityId", "مبدا", e?.OriginCityId), ("destCityId", "مقصد", e?.DestCityId) })
+                    {
+                        <div class="fld">
+                            <label>@label <span class="req">*</span></label>
+                            <select name="@name" required>
+                                <option value="">انتخاب کنید…</option>
+                                @foreach (var g in byProvince)
+                                {
+                                    <optgroup label="@g.Key">
+                                        @foreach (var c in g)
+                                        {
+                                            <option value="@c.Id" selected="@(selected == c.Id)">@c.Name</option>
+                                        }
+                                    </optgroup>
+                                }
+                            </select>
+                        </div>
+                    }
+                    <div class="fld"><label>فاصله (کیلومتر) <span class="req">*</span></label><input name="distanceKm" value="@BackofficeLookup.Invariant(e?.DistanceKm)" dir="ltr" inputmode="decimal" required placeholder="450" /></div>
+                    <div class="fld"><label>کرایهٔ مرجع هر تن (تومان)</label><input name="baseRateToman" class="money" value="@(e?.BaseRatePerTon is long br ? (br / 10).ToString() : "")" /><span class="hint">اختیاری — فقط راهنمای صاحب بار و راننده.</span></div>
+                    <label class="check"><input type="checkbox" name="isActive" value="true" checked="@(e?.IsActive ?? true)" /><input type="hidden" name="isActive" value="false" /> فعال</label>
+                </div>
+                <div class="form-actions">
+                    <button class="btn2 pri"><i class="bi bi-check2"></i> ذخیره</button>
+                    @if (e is not null)
+                    {
+                        <a class="btn2 ghost" asp-action="Lanes">انصراف</a>
+                    }
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

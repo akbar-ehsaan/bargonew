@@ -1,0 +1,82 @@
+@model OpsChangeVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi @(Model.FocusVehicle ? "bi-arrow-left-right" : "bi-arrow-repeat")"></i> @ViewData["Title"]</h1>
+        <p>سفرهایی که راننده دارند و هنوز تمام نشده‌اند. هر تغییر با علت ثبت می‌شود و به رانندهٔ قبلی، رانندهٔ تازه و صاحب بار اطلاع داده می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index" asp-route-focus="@(Model.FocusVehicle ? "vehicle" : null)"><i class="bi bi-person-check"></i> صف تخصیص</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Change" class="@(Model.FocusVehicle ? "" : "on")"><i class="bi bi-arrow-repeat"></i> تغییر راننده</a>
+    <a asp-action="Change" asp-route-focus="vehicle" class="@(Model.FocusVehicle ? "on" : "")"><i class="bi bi-arrow-left-right"></i> تغییر خودرو</a>
+</div>
+
+@if (Model.Page.Total == 0)
+{
+    <div class="card2">
+        <div class="empty-state">
+            <i class="bi bi-arrow-repeat"></i>
+            <b>سفر فعالی با راننده ندارید</b>
+            وقتی سفری راننده گرفت و هنوز تحویل نشده، از این‌جا راننده یا خودرویش را عوض می‌کنید.
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack">
+        @foreach (var t in Model.Page.Rows)
+        {
+            var l = t.Load!;
+            var hist = Model.History.GetValueOrDefault(t.TripId) ?? [];
+            var live = TripStatus.Live.Contains(t.Status);
+            <div class="card2">
+                <div class="hd">
+                    <i class="bi bi-signpost-split"></i>
+                    <a class="num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a>
+                    @Ui.TripPill(t.Status)
+                    <span class="end">
+                        @Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)
+                        <span class="muted small nowrap">@l.Title · @OpsLabels.Ton(l.WeightTon) تن</span>
+                    </span>
+                </div>
+                <div class="bd">
+                    @if (live && t.Status is TripStatus.Loaded or TripStatus.InTransit or TripStatus.Arrived or TripStatus.Unloaded)
+                    {
+                        <div class="alert2 warn"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">بار روی خودروست. تعویض راننده در این مرحله یعنی جابه‌جایی فیزیکی بار یا خودرو — فقط در صورت ضرورت.</div></div>
+                    }
+                    <div class="grid-side">
+                        <div>
+                            <div class="kvrow"><span>رانندهٔ فعلی</span><b>@(t.Driver?.FullName ?? "—") <span class="num muted">@Fa.Digits(t.Driver?.Mobile)</span></b></div>
+                            <div class="kvrow"><span>خودروی فعلی</span><b>@if (t.Vehicle is not null) { <span class="plate">@t.Vehicle.PlateNo</span> <span class="muted">@t.Vehicle.VehicleType?.Name</span> } else { <text>تعیین نشده</text> }</b></div>
+                            <div class="kvrow"><span>حرکت</span><b>@Fa.Stamp(t.ScheduledDepartureAt ?? l.LoadingFrom)</b></div>
+                            @if (hist.Count > 0)
+                            {
+                                <div class="sec-title" style="margin:14px 0 8px"><i class="bi bi-clock-history"></i> سابقهٔ تخصیص (@Fa.N(hist.Count))</div>
+                                <ul class="timeline">
+                                    @foreach (var a in hist.Take(5))
+                                    {
+                                        var rejected = a.PreviousDriverId == a.DriverId;
+                                        <li>
+                                            <b>@(rejected ? "رد مأموریت" : a.PreviousDriverId is null ? "تخصیص" : "تعویض")</b> — @(a.Driver?.FullName ?? "—")@if (a.Vehicle is not null) { <text> · </text><span class="plate">@a.Vehicle.PlateNo</span> }
+                                            @if (!string.IsNullOrEmpty(a.Reason)) { <span class="muted"> — @a.Reason</span> }
+                                            <div class="when">@Fa.Stamp(a.CreatedAt) · @(a.ByName ?? "—")</div>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                        <div>
+                            <partial name="_AssignForm" model='new OpsAssignFormVm { Trip = t, Drivers = Model.Drivers, Vehicles = Model.Vehicles, Back = "change", FocusVehicle = Model.FocusVehicle, Compact = true }' />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    <div class="card2" style="margin-top:18px">
+        <partial name="_Pager" model="Model.Page.Pager" />
+    </div>
+}

@@ -1,0 +1,110 @@
+@model PayoutsVm
+@{
+    (string Key, string Label)[] tabs =
+    [
+        ("open", "صف باز"), (PayoutStatus.Pending, "در انتظار بررسی"), (PayoutStatus.Approved, "تأییدشده"),
+        (PayoutStatus.Paid, "واریزشده"), (PayoutStatus.Rejected, "ردشده"), ("all", "همه")
+    ];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-bank"></i> @ViewData["Title"]</h1>
+        <p>کسر از کیف پول فقط هنگام «ثبت واریز» انجام می‌شود؛ تأیید و رد، موجودی را جابه‌جا نمی‌کند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 @(Model.Owner == OwnerKind.Driver ? "pri" : "ghost")" asp-action="Payouts" asp-route-owner="driver">رانندگان</a>
+        <a class="btn2 @(Model.Owner == OwnerKind.Company ? "pri" : "ghost")" asp-action="Payouts" asp-route-owner="company">شرکت‌ها</a>
+        <a class="btn2 @(Model.Owner == OwnerKind.Shipper ? "pri" : "ghost")" asp-action="Payouts" asp-route-owner="shipper">صاحبان بار</a>
+        <a class="btn2 @(Model.Owner is null ? "pri" : "ghost")" asp-action="Payouts">همه</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat w"><div class="l"><i class="bi bi-hourglass-split"></i> درخواست‌های باز</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault("open"))</div></div>
+    <div class="stat p"><div class="l"><i class="bi bi-cash-stack"></i> مبلغ صف باز</div><div class="v">@Fa.Toman(Model.OpenSum)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-check2-all"></i> واریزشده</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault(PayoutStatus.Paid))</div></div>
+</div>
+
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        <a asp-action="Payouts" asp-route-owner="@Model.Owner" asp-route-status="@t.Key" class="@(Model.Status == t.Key ? "on" : "")">@t.Label <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(t.Key))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>درخواست‌کننده</th><th>مبلغ</th><th>موجودی فعلی</th><th>شبا</th><th>ثبت</th><th>وضعیت</th><th>اقدام</th></tr></thead>
+            <tbody>
+            @foreach (var p in Model.Page.Rows)
+            {
+                var bal = Model.Balances.GetValueOrDefault((p.OwnerKind, p.OwnerId));
+                var open = p.Status is PayoutStatus.Pending or PayoutStatus.Approved;
+                <tr>
+                    <td class="num">@Fa.N(p.PayoutRequestId)</td>
+                    <td><b>@p.OwnerName</b><span class="sub">@OwnerKind.Label(p.OwnerKind)</span></td>
+                    <td class="nowrap"><b>@Fa.Toman(p.Amount)</b></td>
+                    <td class="nowrap">
+                        @Fa.Toman(bal)
+                        @if (open && bal < p.Amount)
+                        {
+                            <span class="sub" style="color:var(--no);font-weight:800">کمتر از مبلغ درخواست</span>
+                        }
+                    </td>
+                    <td class="num small">@p.Sheba</td>
+                    <td class="nowrap">@Fa.Stamp(p.CreatedAt)<span class="sub">@Fa.Ago(p.CreatedAt)</span></td>
+                    <td>
+                        @Ui.PayoutPill(p.Status)
+                        @if (p.ReviewedByAdminId is int rid)
+                        {
+                            <span class="sub">@Model.Reviewers.GetValueOrDefault(rid)</span>
+                        }
+                        @if (p.Status == PayoutStatus.Paid)
+                        {
+                            <span class="sub num">پیگیری: @p.BankTrackingNo · @Fa.Date(p.PaidAt)</span>
+                        }
+                        @if (p.Status == PayoutStatus.Rejected && !string.IsNullOrEmpty(p.ReviewNote))
+                        {
+                            <span class="sub">@p.ReviewNote</span>
+                        }
+                    </td>
+                    <td style="min-width:260px">
+                        @if (open)
+                        {
+                            <div class="stack" style="gap:6px">
+                                <form method="post" asp-action="MarkPaid" asp-route-id="@p.PayoutRequestId" asp-route-owner="@Model.Owner" class="row-actions"
+                                      data-confirm="واریز @Fa.Toman(p.Amount) به @p.OwnerName ثبت و از کیف پول کسر شود؟">
+                                    <div class="fld" style="flex:1;min-width:120px"><input name="bankTrackingNo" placeholder="شمارهٔ پیگیری بانک" dir="ltr" required /></div>
+                                    <button class="btn2 sm grn"><i class="bi bi-bank"></i> ثبت واریز</button>
+                                </form>
+                                <div class="row-actions">
+                                    @if (p.Status == PayoutStatus.Pending)
+                                    {
+                                        <form method="post" asp-action="Approve" asp-route-id="@p.PayoutRequestId" asp-route-owner="@Model.Owner">
+                                            <button class="btn2 sm soft"><i class="bi bi-check2"></i> تأیید</button>
+                                        </form>
+                                    }
+                                    <form method="post" asp-action="Reject" asp-route-id="@p.PayoutRequestId" asp-route-owner="@Model.Owner" class="row-actions" data-confirm="درخواست رد شود؟">
+                                        <div class="fld" style="min-width:120px"><input name="note" placeholder="علت رد" required /></div>
+                                        <button class="btn2 sm red"><i class="bi bi-x-lg"></i> رد</button>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-bank"></i>درخواستی در این بخش نیست.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

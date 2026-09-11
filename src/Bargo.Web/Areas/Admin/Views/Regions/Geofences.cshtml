@@ -1,0 +1,83 @@
+@model GeofencesVm
+@{
+    var e = Model.Edit;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-bullseye"></i> محدوده‌های جغرافیایی</h1>
+        <p>دایره‌ای با مرکز و شعاع: منطقهٔ ممنوعه، بندر، پایانه یا محدودهٔ سفارشی — برای هشدار ورود/خروج خودرو در کنترل زنده.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" href="/Admin/Live"><i class="bi bi-map"></i> نقشهٔ کشور</a></div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-list-ul"></i> محدوده‌ها <span class="end muted small">@Fa.N(Model.Items.Count) مورد</span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>عنوان</th><th>نوع</th><th>مرکز</th><th>شعاع</th><th>وضعیت</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var g in Model.Items)
+                {
+                    <tr>
+                        <td><b>@g.Title</b></td>
+                        <td>@Ui.Pill(GeofenceKind.Label(g.Kind), g.Kind == "restricted" ? "no" : g.Kind == "custom" ? "mut" : "inf")</td>
+                        <td class="small num">@BackofficeLookup.Invariant(g.CenterLat), @BackofficeLookup.Invariant(g.CenterLng)</td>
+                        <td class="nowrap">@Fa.N(g.RadiusKm, 1) کیلومتر</td>
+                        <td>@(g.IsActive ? Ui.Pill("فعال", "ok") : Ui.Pill("غیرفعال", "mut"))</td>
+                        <td>
+                            <div class="row-actions">
+                                <a class="btn2 sm soft" asp-action="Geofences" asp-route-edit="@g.GeofenceId"><i class="bi bi-pencil"></i></a>
+                                <form method="post" asp-action="DeleteGeofence" asp-route-id="@g.GeofenceId" data-confirm="محدودهٔ «@g.Title» حذف شود؟">
+                                    <button class="btn2 sm ghost"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Items.Count == 0)
+                {
+                    <tr><td colspan="6" class="empty"><i class="bi bi-bullseye"></i>هنوز محدوده‌ای تعریف نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi @(e is null ? "bi-plus-circle" : "bi-pencil-square")"></i> @(e is null ? "محدودهٔ تازه" : "ویرایش محدوده")</div>
+        <div class="bd">
+            <form method="post" asp-action="SaveGeofence">
+                @if (e is not null)
+                {
+                    <input type="hidden" name="id" value="@e.GeofenceId" />
+                }
+                <div class="stack" style="gap:12px">
+                    <div class="fld"><label>عنوان <span class="req">*</span></label><input name="title" value="@e?.Title" maxlength="100" required placeholder="بندر شهید رجایی" /></div>
+                    <div class="fld">
+                        <label>نوع</label>
+                        <select name="kind">
+                            @foreach (var k in GeofenceKind.All)
+                            {
+                                <option value="@k" selected="@((e?.Kind ?? "custom") == k)">@GeofenceKind.Label(k)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-grid">
+                        <div class="fld"><label>عرض مرکز <span class="req">*</span></label><input name="lat" value="@(e is null ? "" : BackofficeLookup.Invariant(e.CenterLat))" dir="ltr" inputmode="decimal" required placeholder="27.1150" /></div>
+                        <div class="fld"><label>طول مرکز <span class="req">*</span></label><input name="lng" value="@(e is null ? "" : BackofficeLookup.Invariant(e.CenterLng))" dir="ltr" inputmode="decimal" required placeholder="56.0630" /></div>
+                    </div>
+                    <div class="fld"><label>شعاع (کیلومتر) <span class="req">*</span></label><input name="radiusKm" value="@(e is null ? "" : BackofficeLookup.Invariant(e.RadiusKm))" dir="ltr" inputmode="decimal" required placeholder="5" /><span class="hint">بین ۰٫۱ و ۵۰۰ کیلومتر.</span></div>
+                    <label class="check"><input type="checkbox" name="isActive" value="true" checked="@(e?.IsActive ?? true)" /><input type="hidden" name="isActive" value="false" /> فعال</label>
+                </div>
+                <div class="form-actions">
+                    <button class="btn2 pri"><i class="bi bi-check2"></i> ذخیره</button>
+                    @if (e is not null)
+                    {
+                        <a class="btn2 ghost" asp-action="Geofences">انصراف</a>
+                    }
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

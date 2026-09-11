@@ -1,0 +1,72 @@
+@model OperatorsVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-headset"></i> اپراتورهای پشتیبانی</h1>
+        <p>مدیرانی که اختیار «پشتیبانی» دارند. بار هر اپراتور: تیکت‌های بازِ تخصیص‌یافته و پاسخ‌های هفت روز اخیر.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-inbox"></i> صف تیکت‌ها</a>
+        <a class="btn2 ghost" href="/Admin/Settings/Roles"><i class="bi bi-shield-lock"></i> نقش‌ها و دسترسی‌ها</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat p"><div class="l"><i class="bi bi-headset"></i> اپراتور فعال</div><div class="v">@Fa.N(Model.Rows.Count(r => r.IsActive))</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-person-dash"></i> تیکت باز بدون اپراتور</div><div class="v">@Fa.N(Model.UnassignedOpen)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-reply-all"></i> پاسخ‌های ۷ روز اخیر</div><div class="v">@Fa.N(Model.Rows.Sum(r => r.Answered7d))</div></div>
+</div>
+
+<div class="@(Model.CanAdd ? "grid-side" : "")">
+    <div class="card2">
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>اپراتور</th><th>موبایل</th><th>نقش</th><th>تیکت باز</th><th>پاسخ ۷ روز</th><th>آخرین ورود</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                @foreach (var r in Model.Rows)
+                {
+                    <tr>
+                        <td><b>@r.Name</b></td>
+                        <td class="num">@r.Mobile</td>
+                        <td>@(r.IsSuper ? Ui.Pill("مدیر ارشد", "inf") : Ui.Pill("اپراتور", "mut"))</td>
+                        <td class="num">
+                            @if (r.OpenAssigned > 0)
+                            {
+                                <a class="lnk" asp-action="Index">@Fa.N(r.OpenAssigned)</a>
+                            }
+                            else
+                            {
+                                <span class="muted">۰</span>
+                            }
+                        </td>
+                        <td class="num">@Fa.N(r.Answered7d)</td>
+                        <td class="nowrap">@(r.LastLoginAt is DateTime l ? Fa.Ago(l) : "هرگز")</td>
+                        <td>@(r.IsActive ? Ui.Pill("فعال", "ok") : Ui.Pill("غیرفعال", "no"))</td>
+                    </tr>
+                }
+                @if (Model.Rows.Count == 0)
+                {
+                    <tr><td colspan="7" class="empty"><i class="bi bi-headset"></i>هیچ مدیری اختیار «پشتیبانی» ندارد؛ از «نقش‌ها و دسترسی‌ها» تفویض کنید.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (Model.CanAdd)
+    {
+        <div class="card2">
+            <div class="hd"><i class="bi bi-person-plus"></i> تعریف اپراتور</div>
+            <div class="bd">
+                <form method="post" asp-action="AddOperator" autocomplete="off">
+                    <div class="form-grid">
+                        <div class="fld full"><label>نام <span class="req">*</span></label><input name="name" minlength="3" maxlength="100" required /></div>
+                        <div class="fld full"><label>موبایل <span class="req">*</span></label><input name="mobile" dir="ltr" inputmode="numeric" placeholder="09xxxxxxxxx" required /></div>
+                        <div class="fld full"><label>گذرواژه <span class="req">*</span></label><input name="password" type="password" minlength="8" required autocomplete="new-password" /><span class="hint">دست‌کم ۸ نویسه. اپراتور با موبایل و همین گذرواژه وارد پنل مدیر می‌شود.</span></div>
+                    </div>
+                    <div class="alert2 info" style="margin:14px 0 0"><i class="bi bi-shield-check"></i><div class="grow">فقط اختیار «پشتیبانی» (تیکت، شکایت، تخلف) داده می‌شود. اختیارات دیگر را مدیر ارشد از «نقش‌ها و دسترسی‌ها» می‌دهد.</div></div>
+                    <div class="form-actions"><button class="btn2 pri"><i class="bi bi-check2"></i> تعریف اپراتور</button></div>
+                </form>
+            </div>
+        </div>
+    }
+</div>

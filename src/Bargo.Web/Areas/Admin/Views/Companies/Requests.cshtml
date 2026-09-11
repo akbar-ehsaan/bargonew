@@ -1,0 +1,118 @@
+@model PageVm<CompanyRequestVm>
+@{
+    var q = ViewBag.Q as string;
+    var warnDays = (int)ViewBag.WarnDays;
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-envelope-paper"></i> درخواست عضویت شرکت‌ها</h1>
+        <p>شرکت‌های در انتظار تأیید — قدیمی‌ترین اول. چک‌لیست مدارک همین‌جاست؛ تأیید شرکت بدون دیدن مدارک تصمیمِ کورکورانه است. رد بدون علت پذیرفته نمی‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-building-check"></i> همهٔ شرکت‌ها</a>
+        <a class="btn2 ghost" href="/Admin/Documents?status=pending&owner=company"><i class="bi bi-folder2-open"></i> مدارک شرکت‌ها در صف</a>
+    </div>
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Requests" class="filters">
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="نام شرکت، شناسهٔ ملی، مدیرعامل یا موبایل" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Requests">پاک کردن</a>
+        }
+        <span class="muted small" style="margin-inline-start:auto">@Fa.N(Model.Total) درخواست در انتظار</span>
+    </form>
+
+    @if (Model.Total == 0)
+    {
+        <div class="empty-state"><i class="bi bi-envelope-open"></i><b>درخواستی در انتظار نیست</b>@(string.IsNullOrEmpty(q) ? "هر شرکت تازه‌ای که ثبت‌نام کند اینجا می‌آید." : "شرکتی با این مشخصات در صف نیست.")</div>
+    }
+
+    @foreach (var r in Model.Rows)
+    {
+        var c = r.Company;
+        var docsOk = r.Checklist.All(x => x.Tone == "ok");
+        <div class="bd" style="border-bottom:1px solid var(--line-soft)">
+            <div class="grid-side">
+                <div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+                        <a class="lnk" href="/Admin/Users/Company/@c.CompanyId" style="font-size:16px">@c.Name</a>
+                        @Ui.AccountPill(c.Status)
+                        @if (docsOk)
+                        {
+                            @Ui.Pill("مدارک کامل", "ok")
+                        }
+                        else
+                        {
+                            @Ui.Pill("مدارک ناقص", "wait")
+                        }
+                        <span class="muted small">ثبت‌نام @Fa.Ago(c.CreatedAt) · @Fa.Stamp(c.CreatedAt)</span>
+                    </div>
+                    <dl class="kv">
+                        <dt>شناسهٔ ملی</dt><dd class="num">@(string.IsNullOrEmpty(c.NationalId) ? "—" : c.NationalId)</dd>
+                        <dt>شمارهٔ ثبت</dt><dd class="num">@(c.RegistrationNo ?? "—")</dd>
+                        <dt>مدیرعامل</dt><dd>@c.ManagerName @(c.ManagerNationalCode is null ? "" : $"· کد ملی {c.ManagerNationalCode}")</dd>
+                        <dt>تماس</dt><dd class="num">@c.Mobile @(c.Phone is null ? "" : "· " + c.Phone) @(c.Email is null ? "" : "· " + c.Email)</dd>
+                        <dt>شهر</dt><dd>@(c.City?.Name ?? "—")@(string.IsNullOrEmpty(c.Address) ? "" : " · " + c.Address)</dd>
+                        <dt>مجوز فعالیت</dt>
+                        <dd>
+                            @(c.LicenseNo is null ? "ثبت نشده" : c.LicenseNo)
+                            @if (c.LicenseExpiresAt is not null)
+                            {
+                                <text> · اعتبار تا </text>@Ui.Expiry(c.LicenseExpiresAt, warnDays)
+                            }
+                        </dd>
+                        <dt>کاربر مدیر</dt>
+                        <dd>
+                            @if (r.Owner is null)
+                            {
+                                <span class="muted">هنوز کاربری ندارد</span>
+                            }
+                            else
+                            {
+                                <text>@r.Owner.Name</text> <span class="muted num">@r.Owner.Mobile</span>
+                                @if (r.Owner.LastLoginAt is DateTime ll)
+                                {
+                                    <span class="muted small">· آخرین ورود @Fa.Ago(ll)</span>
+                                }
+                            }
+                        </dd>
+                    </dl>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">
+                        @foreach (var chk in r.Checklist)
+                        {
+                            @OpsUi.Check(chk)
+                        }
+                        @if (r.OtherDocs > 0)
+                        {
+                            <span class="chip">+@Fa.N(r.OtherDocs) مدرک دیگر</span>
+                        }
+                        <a class="btn2 sm ghost" href="/Admin/Documents?status=pending&owner=company:@c.CompanyId"><i class="bi bi-folder2-open"></i> بررسی مدارک</a>
+                    </div>
+                </div>
+
+                <div>
+                    <form method="post" asp-action="SetStatus" asp-route-id="@c.CompanyId" data-confirm="تصمیم دربارهٔ شرکت «@c.Name» ثبت شود؟ شرکت با اعلان باخبر می‌شود.">
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <div class="fld">
+                            <label>علت یا توضیح <span class="muted small">(برای رد الزامی؛ برای شرکت ارسال می‌شود)</span></label>
+                            <textarea name="reason" rows="3" maxlength="1000" placeholder="مثلاً: آگهی تأسیس ناخوانا است"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn2 grn" name="status" value="approved"><i class="bi bi-check2-circle"></i> تأیید شرکت</button>
+                            <button class="btn2 red" name="status" value="rejected"><i class="bi bi-x-circle"></i> رد درخواست</button>
+                        </div>
+                        @if (!docsOk)
+                        {
+                            <div class="hint muted small" style="margin-top:8px"><i class="bi bi-info-circle"></i> مدارک این شرکت کامل نیست؛ تأیید ممکن است ولی مدرکِ در انتظار همچنان در صف بررسی می‌ماند.</div>
+                        }
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+    <partial name="_Pager" model="Model.Pager" />
+</div>

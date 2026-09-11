@@ -1,0 +1,90 @@
+@model LedgerReportVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-file-bar-graph"></i> گزارش مالی</h1>
+        <p>شش ماه اخیر: درآمد، سهم رانندگان، هزینه‌ها و خالص. هر ستون از منبع واقعی خودش (گردش کیف پول، سفرها، دفتر هزینه) خوانده می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-area="Company" asp-controller="Reports" asp-action="Revenue"><i class="bi bi-cash-stack"></i> بازهٔ دلخواه</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat s"><div class="l"><i class="bi bi-graph-up-arrow"></i> جمع درآمد</div><div class="v">@Fa.Toman(Model.Revenue)</div></div>
+    <div class="stat r"><div class="l"><i class="bi bi-graph-down-arrow"></i> جمع هزینه‌ها</div><div class="v">@Fa.Toman(Model.Costs)</div></div>
+    <div class="stat @(Model.Net >= 0 ? "p" : "r")"><div class="l"><i class="bi bi-calculator"></i> خالص</div><div class="v">@Fa.Toman(Model.Net)</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-wallet2"></i> موجودی فعلی</div><div class="v">@Fa.Toman((long)ViewBag.Balance)</div></div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-table"></i> دفتر ماهانه</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead>
+                <tr>
+                    <th>ماه</th><th>سفر تحویل‌شده</th><th>درآمد کرایه</th><th>کرایهٔ مستقیم مشتریان</th>
+                    <th>کرایهٔ پرداختی</th><th>سهم رانندگان</th><th>هزینه‌ها</th><th>خالص</th><th style="width:22%">نمودار</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var m in Model.Months)
+            {
+                <tr>
+                    <td data-label="ماه"><b>@m.Month.Label</b><span class="sub">کمیسیون بارگو @Fa.Toman(m.Commission)</span></td>
+                    <td data-label="سفر" class="num">@Fa.N(m.TripsDone)</td>
+                    <td data-label="درآمد" class="nowrap">@Fa.Toman(m.Income)</td>
+                    <td data-label="مستقیم" class="nowrap">@Fa.Toman(m.Offline)</td>
+                    <td data-label="کرایهٔ پرداختی" class="nowrap">@Fa.Toman(m.FarePaid)</td>
+                    <td data-label="سهم رانندگان" class="nowrap">@Fa.Toman(m.DriverShares)</td>
+                    <td data-label="هزینه‌ها" class="nowrap">@Fa.Toman(m.Expenses)</td>
+                    <td data-label="خالص" class="nowrap"><b style="color:var(--@(m.Net >= 0 ? "ok" : "no"))">@Fa.Toman(m.Net)</b></td>
+                    <td data-label="نمودار">
+                        <div style="display:grid;gap:4px">
+                            <partial name="_Bar" model='new BarVm(m.Revenue, Model.MaxBar, "var(--ok)")' />
+                            <partial name="_Bar" model='new BarVm(m.Costs, Model.MaxBar, "var(--no)")' />
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Months.Count == 0)
+            {
+                <tr><td colspan="9" class="empty"><i class="bi bi-file-bar-graph"></i>داده‌ای برای گزارش نیست.</td></tr>
+            }
+            </tbody>
+            @if (Model.Months.Count > 0)
+            {
+                <tfoot>
+                    <tr style="background:#f5f7f9;font-weight:800">
+                        <td data-label="جمع">جمع شش ماه</td>
+                        <td data-label="سفر" class="num">@Fa.N(Model.TripsDone)</td>
+                        <td data-label="درآمد" class="nowrap">@Fa.Toman(Model.Income)</td>
+                        <td data-label="مستقیم" class="nowrap">@Fa.Toman(Model.Offline)</td>
+                        <td data-label="کرایهٔ پرداختی" class="nowrap">@Fa.Toman(Model.FarePaid)</td>
+                        <td data-label="سهم رانندگان" class="nowrap">@Fa.Toman(Model.DriverShares)</td>
+                        <td data-label="هزینه‌ها" class="nowrap">@Fa.Toman(Model.Expenses)</td>
+                        <td data-label="خالص" class="nowrap" style="color:var(--@(Model.Net >= 0 ? "ok" : "no"))">@Fa.Toman(Model.Net)</td>
+                        <td><span class="small muted"><span style="color:var(--ok)">■</span> درآمد <span style="color:var(--no)">■</span> هزینه</span></td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>
+
+@if (Model.Months.Count > 0 && Model.Revenue == 0 && Model.Costs == 0)
+{
+    <div class="empty-state"><i class="bi bi-file-bar-graph"></i><b>هنوز گردش مالی ثبت نشده است</b>با تحویل و تسویهٔ اولین سفر، یا ثبت اولین هزینه، این گزارش پر می‌شود.</div>
+}
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-info-circle"></i> ستون‌ها چطور محاسبه می‌شوند</div>
+    <div class="bd">
+        <dl class="kv">
+            <dt>درآمد کرایه</dt><dd>سهم شرکت از کرایهٔ سفرهای بازار که پس از تسویه به کیف پول واریز شده (کرایه منهای کمیسیون بارگو).</dd>
+            <dt>کرایهٔ مستقیم مشتریان</dt><dd>کرایهٔ بارهای مشتریان خودِ شرکت که با ناوگان خود شرکت تحویل شده — بیرون از بارگو دریافت می‌شود.</dd>
+            <dt>کرایهٔ پرداختی</dt><dd>کرایه‌ای که شرکت برای بارهای خودش به حمل‌کنندهٔ دیگری پرداخته (پس از کسر استردادِ سفرهای لغوشده).</dd>
+            <dt>سهم رانندگان</dt><dd>مبالغی که از کیف پول شرکت به کیف پول رانندگان منتقل شده — بر پایهٔ تاریخ پرداخت، نه تاریخ سفر.</dd>
+            <dt>هزینه‌ها</dt><dd>ردیف‌های دفتر هزینه (سوخت، عوارض، تعمیر، حقوق، سایر) بر پایهٔ تاریخ خرج.</dd>
+        </dl>
+    </div>
+</div>

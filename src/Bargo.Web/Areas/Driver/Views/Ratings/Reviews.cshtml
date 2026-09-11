@@ -1,0 +1,38 @@
+@model ReviewsVm
+<div class="page-head">
+    <div><h1><i class="bi bi-chat-quote"></i> نظرات صاحبان بار</h1><p>همهٔ امتیازها و نظرهایی که پس از تحویل بار برای شما ثبت شده است.</p></div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Index"><i class="bi bi-star-half"></i> خلاصهٔ امتیاز</a></div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Reviews" class="@(Model.Score is null ? "on" : "")">همه <span class="n">@Fa.N(Model.Count)</span></a>
+    @for (var s = 5; s >= 1; s--)
+    {
+        <a asp-action="Reviews" asp-route-score="@s" class="@(Model.Score == s ? "on" : "")"><i class="bi bi-star-fill"></i> @Fa.N(s) <span class="n">@Fa.N(Model.Dist[s])</span></a>
+    }
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>تاریخ</th><th>امتیاز</th><th>از طرف</th><th>سفر</th><th>نظر</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Page.Rows)
+            {
+                <tr>
+                    <td class="nowrap">@Fa.Date(r.CreatedAt)</td>
+                    <td><span class="stars"><i class="bi bi-star-fill"></i> @Fa.N(r.Score)</span></td>
+                    <td><b>@(r.FromName ?? "—")</b><span class="sub">@OwnerKind.Label(r.FromKind)</span></td>
+                    <td><a class="lnk" href="/Driver/Trips/Detail/@r.TripId">@r.TripCode</a><span class="sub">@Ui.Route(r.From, r.To)</span></td>
+                    <td style="white-space:pre-line">@(string.IsNullOrWhiteSpace(r.Comment) ? Html.Raw("<span class=\"muted\">بدون متن</span>") : Html.Raw(Html.Encode(r.Comment)))</td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="5" class="empty"><i class="bi bi-chat-quote"></i>@(Model.Score is int s ? $"نظری با امتیاز {Fa.N(s)} ندارید." : "هنوز نظری برای شما ثبت نشده است.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

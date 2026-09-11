@@ -1,0 +1,84 @@
+@model PageVm<WaybillRow>
+@{
+    var q = ViewBag.Q as string;
+    var status = ViewBag.Status as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    var statuses = (string[])ViewBag.Statuses;
+    var issuers = (Dictionary<string, OwnerRef>)ViewBag.Issuers;
+    int C(string s) => counts.TryGetValue(s, out var n) ? n : 0;
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-files"></i> بارنامه‌ها</h1>
+        <p>بارنامه‌هایی که راننده یا شرکت روی سفرها ثبت کرده‌اند. «ثبت‌شده»ها منتظر تأیید مدیرند و بالای فهرست می‌آیند؛ ابطال علت می‌خواهد و حمل‌کننده اعلان می‌گیرد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Documents"><i class="bi bi-folder2-open"></i> اسناد سفرها</a>
+        <a class="btn2 ghost" href="/Admin/Settings/Waybill"><i class="bi bi-gear"></i> تنظیمات بارنامه</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Index" asp-route-q="@q" class="@(status is null ? "on" : "")">همه <span class="n">@Fa.N(counts.Values.Sum())</span></a>
+    @foreach (var s in statuses)
+    {
+        <a asp-action="Index" asp-route-status="@s" asp-route-q="@q" class="@(status == s ? "on" : "")">@OpsUi.WaybillLabel(s) <span class="n">@Fa.N(C(s))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Index" class="filters">
+        <input type="hidden" name="status" value="@status" />
+        <div class="fld"><label for="q">جستجوی شماره</label><input id="q" name="q" value="@q" placeholder="شمارهٔ بارنامه، کد سفر یا کد بار" dir="ltr" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Index" asp-route-status="@status">پاک کردن</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>شمارهٔ بارنامه</th><th>سفر</th><th>مسیر</th><th>حمل‌کننده</th><th>ثبت‌کننده</th><th>فایل</th><th>وضعیت</th><th>اقدام</th></tr></thead>
+            <tbody>
+            @foreach (var w in Model.Rows)
+            {
+                var issuer = issuers.GetValueOrDefault($"{w.IssuedByKind}:{w.IssuedById}");
+                <tr>
+                    <td><b class="num">@w.Number</b><span class="sub">@Fa.Stamp(w.IssuedAt)</span></td>
+                    <td><a class="lnk num" href="/Admin/Trips/Case/@w.TripId">@w.TripCode</a><span class="sub">@Ui.TripPill(w.TripStatus)</span></td>
+                    <td>@Ui.Route(w.From, w.To)</td>
+                    <td>@w.CarrierName<span class="sub">@CarrierKind.Label(w.CarrierKind)@(w.Plate is null ? "" : " · " + w.Plate)</span></td>
+                    <td>@OpsUi.Owner(issuer ?? new OwnerRef(OwnerKind.Label(w.IssuedByKind) + " #" + w.IssuedById))</td>
+                    <td>@OpsUi.File(w.FilePath)</td>
+                    <td>@Ui.Pill(OpsUi.WaybillLabel(w.Status), OpsUi.WaybillTone(w.Status))</td>
+                    <td style="min-width:260px">
+                        <form method="post" asp-action="SetStatus" asp-route-id="@w.WaybillId" class="row-actions"
+                              data-confirm="وضعیت بارنامهٔ @w.Number تغییر کند؟ حمل‌کنندهٔ سفر با اعلان باخبر می‌شود.">
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            @if (w.Status == "registered")
+                            {
+                                <button class="btn2 sm grn" name="status" value="verified"><i class="bi bi-check2-circle"></i> تأیید</button>
+                            }
+                            @if (w.Status != "void")
+                            {
+                                <div class="fld" style="flex:1;min-width:120px"><input name="note" placeholder="علت ابطال" maxlength="1000" /></div>
+                                <button class="btn2 sm red" name="status" value="void"><i class="bi bi-x-octagon"></i> ابطال</button>
+                            }
+                            else
+                            {
+                                <button class="btn2 sm ghost" name="status" value="registered"><i class="bi bi-arrow-counterclockwise"></i> برگشت به ثبت‌شده</button>
+                            }
+                        </form>
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-files"></i>@(string.IsNullOrEmpty(q) && status is null ? "هنوز بارنامه‌ای ثبت نشده است." : "بارنامه‌ای با این شرایط پیدا نشد.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

@@ -1,0 +1,85 @@
+@model LoadCardVm
+@*
+    کارت بار از دید راننده — داشبورد، بازار بار و «ثبت پیشنهاد قیمت» همین را نشان می‌دهند.
+    ذخیره/برداشتن با returnUrl به همین صفحه برمی‌گردد.
+*@
+@{
+    var here = Context.Request.Path.Value + Context.Request.QueryString.Value;
+    var priceNote = PriceMode.Label(Model.PriceMode) + (!Model.IsFixed && Model.Price is not null ? " · پیشنهاد اولیهٔ صاحب بار" : "");
+}
+<div class="load-card @(Model.Saved ? "saved" : "")">
+    <div class="top">
+        <div>
+            <div class="rt">@Ui.Route(Model.From, Model.To)</div>
+            <div class="muted small"><span class="num">@Model.Code</span>@(Model.PublishedAt is DateTime p ? " · انتشار " + Fa.Ago(p) : "")</div>
+        </div>
+        <div class="row-actions">
+            @if (!Model.InMarket)
+            {
+                @Ui.LoadPill(Model.Status)
+            }
+            else if (Model.HasMyOffer)
+            {
+                <span class="pill inf">پیشنهاد داده‌اید</span>
+            }
+            @if (Model.KmFromMe is double km)
+            {
+                <span class="pill mut"><i class="bi bi-geo"></i> @Fa.N(km) کیلومتر تا مبدا</span>
+            }
+        </div>
+    </div>
+    <div><b>@Model.Title</b></div>
+    <div class="meta">
+        <span class="chip"><i class="bi bi-box"></i> @Model.CargoType</span>
+        <span class="chip"><i class="bi bi-speedometer"></i> @Fa.N(Model.WeightTon, 1) تن</span>
+        @if (!string.IsNullOrEmpty(Model.VehicleType))
+        {
+            <span class="chip"><i class="bi bi-truck"></i> @Model.VehicleType</span>
+        }
+        <span class="chip"><i class="bi bi-calendar-event"></i> بارگیری @Fa.Date(Model.LoadingFrom)@(Model.LoadingTo is DateTime lt ? " تا " + Fa.Date(lt) : "")</span>
+        @if (Model.DistanceKm is double d)
+        {
+            <span class="chip"><i class="bi bi-signpost-2"></i> @Fa.N(d) کیلومتر مسیر</span>
+        }
+        @if (Model.InsuranceRequested)
+        {
+            <span class="chip"><i class="bi bi-shield-check"></i> بیمه</span>
+        }
+        @if (Model.OfferCount > 0)
+        {
+            <span class="chip"><i class="bi bi-tags"></i> @Fa.N(Model.OfferCount) پیشنهاد در انتظار</span>
+        }
+    </div>
+    @if (Model.Reasons.Count > 0)
+    {
+        <div class="meta">
+            @foreach (var r in Model.Reasons)
+            {
+                <span class="pill ok"><i class="bi bi-check2"></i> @r</span>
+            }
+        </div>
+    }
+    <div class="foot">
+        <div>
+            <div class="price">@(Model.Price is long pr ? Fa.Toman(pr) : "توافقی")</div>
+            <div class="muted small">@priceNote</div>
+        </div>
+        <div class="row-actions">
+            @if (Model.Saved)
+            {
+                <form method="post" asp-area="Driver" asp-controller="Loads" asp-action="Unsave" asp-route-id="@Model.LoadId" class="inline">
+                    <input type="hidden" name="returnUrl" value="@here" />
+                    <button type="submit" class="btn2 ghost sm" title="برداشتن از ذخیره‌شده‌ها" aria-label="برداشتن از ذخیره‌شده‌ها"><i class="bi bi-bookmark-fill"></i></button>
+                </form>
+            }
+            else if (Model.InMarket)
+            {
+                <form method="post" asp-area="Driver" asp-controller="Loads" asp-action="Save" asp-route-id="@Model.LoadId" class="inline">
+                    <input type="hidden" name="returnUrl" value="@here" />
+                    <button type="submit" class="btn2 ghost sm" title="ذخیرهٔ بار" aria-label="ذخیرهٔ بار"><i class="bi bi-bookmark"></i></button>
+                </form>
+            }
+            <a class="btn2 soft sm" asp-area="Driver" asp-controller="Loads" asp-action="Detail" asp-route-id="@Model.LoadId"><i class="bi bi-tag"></i> @(Model.HasMyOffer ? "جزئیات و پیشنهاد من" : "جزئیات و پیشنهاد")</a>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,134 @@
+@model PageVm<OfferLoadGroup>
+@{
+    var onlyPending = (bool)ViewBag.OnlyPending;
+    var pendingTotal = (int)ViewBag.PendingTotal;
+    var back = onlyPending ? "pending" : "all";
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-tags"></i> @ViewData["Title"]</h1>
+        <p>پیشنهادهای رانندگان و شرکت‌ها برای بارهای شما، به تفکیک بار. برای دیدن سابقه، خودرو و مدارک هر پیشنهاددهنده کنار هم، «مقایسه» را بزنید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 pri" href="/Shipper/Offers/Compare"><i class="bi bi-bar-chart-steps"></i> مقایسهٔ قیمت‌ها</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a href="/Shipper/Offers" class="@(onlyPending ? "" : "on")"><i class="bi bi-list-ul"></i> همهٔ پیشنهادها</a>
+    <a href="/Shipper/Offers?pending=1" class="@(onlyPending ? "on" : "")"><i class="bi bi-check2-square"></i> در انتظار تصمیم <span class="n">@Fa.N(pendingTotal)</span></a>
+</div>
+
+@if (Model.Total == 0)
+{
+    <div class="card2">
+        <div class="bd">
+            <div class="empty-state">
+                <i class="bi bi-tags"></i>
+                <b>@(onlyPending ? "پیشنهادی در انتظار تصمیم شما نیست" : "هنوز پیشنهادی دریافت نکرده‌اید")</b>
+                @(onlyPending
+                    ? "همهٔ پیشنهادها پاسخ گرفته‌اند. پیشنهادهای تازه با اعلان به شما خبر داده می‌شود."
+                    : "پس از انتشار بار، رانندگان و شرکت‌های واجد شرایط روی آن پیشنهاد قیمت می‌دهند و اینجا نمایش داده می‌شود.")
+                <div class="form-actions" style="justify-content:center">
+                    <a class="btn2 pri" href="/Shipper/Loads/Create"><i class="bi bi-plus-lg"></i> ثبت بار جدید</a>
+                    <a class="btn2 ghost" href="/Shipper/Loads"><i class="bi bi-boxes"></i> بارهای من</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@foreach (var g in Model.Rows)
+{
+    var market = LoadStatus.Market.Contains(g.Status);
+    var pendingCount = g.Offers.Count(x => x.Status == OfferStatus.Pending);
+    <div class="card2">
+        <div class="hd">
+            <i class="bi bi-box-seam"></i>
+            <a class="lnk" href="/Shipper/Loads/Detail/@g.LoadId">@(string.IsNullOrWhiteSpace(g.Title) ? "بار " + g.Code : g.Title)</a>
+            <span class="muted small"><span class="num">@g.Code</span> · @Ui.Route(g.From, g.To) · @ShipperUi.Ton(g.WeightTon) · بارگیری @Fa.Stamp(g.LoadingFrom)</span>
+            <span class="end">
+                @Ui.LoadPill(g.Status)
+                <a class="btn2 sm @(market && pendingCount > 0 ? "pri" : "ghost")" href="/Shipper/Offers/Compare/@g.LoadId"><i class="bi bi-bar-chart-steps"></i> مقایسه</a>
+            </span>
+        </div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>پیشنهاددهنده</th><th>خودرو</th><th>مبلغ</th><th>رسیدن به مبدا</th><th>توضیح</th><th>وضعیت</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var o in g.Offers)
+                {
+                    <tr>
+                        <td>
+                            @if (o.DriverId is int did)
+                            {
+                                <a class="lnk" href="/Shipper/Offers/Driver/@did">@o.CarrierName</a>
+                            }
+                            else
+                            {
+                                <b>@o.CarrierName</b>
+                            }
+                            <span class="sub">@CarrierKind.Label(o.CarrierKind)@(o.DriverCompany is null ? "" : " · عضو " + o.DriverCompany) · @Ui.Stars(o.RatingAvg, o.RatingCount)</span>
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(o.PlateNo))
+                            {
+                                <span class="plate">@o.PlateNo</span>
+                                <span class="sub">@o.VehicleType@(o.CapacityTon is decimal cap ? " · " + ShipperUi.Ton(cap) : "")</span>
+                            }
+                            else
+                            {
+                                <span class="muted">@(o.CarrierKind == CarrierKind.Company ? "هنگام تخصیص" : "—")</span>
+                            }
+                        </td>
+                        <td class="nowrap">
+                            <b class="num">@Fa.Toman(o.Amount)</b>
+                            @if (o.IsLowest)
+                            {
+                                <span class="sub">@Ui.Pill("کمترین قیمت", "ok")</span>
+                            }
+                            @if (g.Price is long gp && gp != o.Amount)
+                            {
+                                <span class="sub">@(o.Amount < gp ? "کمتر" : "بیشتر") از کرایهٔ اعلامی (@Fa.Toman(gp))</span>
+                            }
+                        </td>
+                        <td>@(o.EtaHours is int eta ? Fa.N(eta) + " ساعت" : "—")</td>
+                        <td class="small">@(string.IsNullOrWhiteSpace(o.Note) ? "—" : o.Note)</td>
+                        <td>@Ui.OfferPill(o.Status)<span class="sub">@Fa.Ago(o.CreatedAt)</span></td>
+                        <td>
+                            <div class="row-actions">
+                                @if (o.Status == OfferStatus.Pending && market)
+                                {
+                                    <form method="post" asp-action="Accept" asp-route-id="@o.OfferId" class="inline"
+                                          data-confirm="پیشنهاد @o.CarrierName با مبلغ @Fa.Toman(o.Amount) برای بار @g.Code پذیرفته شود؟ پیشنهادهای دیگر این بار رد می‌شوند و سفارش ساخته می‌شود.">
+                                        <button type="submit" class="btn2 grn sm"><i class="bi bi-check2"></i> پذیرش</button>
+                                    </form>
+                                    <form method="post" asp-action="Reject" asp-route-id="@o.OfferId" class="inline" data-confirm="پیشنهاد @o.CarrierName رد شود؟">
+                                        <input type="hidden" name="back" value="@back" />
+                                        <button type="submit" class="btn2 ghost sm"><i class="bi bi-x"></i> رد</button>
+                                    </form>
+                                }
+                                @if (o.Status is OfferStatus.Pending or OfferStatus.Accepted)
+                                {
+                                    <a class="btn2 ghost sm" href="@Url.Action("Thread", "Messages", new { key = "offer:" + o.OfferId })" title="گفتگو با پیشنهاددهنده"><i class="bi bi-chat-dots"></i></a>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (g.Offers.Count == 0)
+                {
+                    <tr><td colspan="7" class="empty"><i class="bi bi-tags"></i>پیشنهادی برای نمایش نیست.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (Model.Pager.Pages > 1)
+{
+    <div class="card2">
+        <partial name="_Pager" model="Model.Pager" />
+    </div>
+}

@@ -1,0 +1,87 @@
+@model OpsRouteVm
+@{
+    var t = Model.Trip;
+    var markers = Model.Markers.Select(m => new { lat = m.Lat, lng = m.Lng, kind = m.Kind, label = m.Label, href = m.Href }).ToList();
+    var live = t is not null && TripStatus.Live.Contains(t.Status);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-bezier2"></i> @ViewData["Title"]</h1>
+        <p>مسیر طی‌شدهٔ یک سفر از روی نقاط GPS اپ راننده، همراه مبدا، مقصد و آخرین موقعیت.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-map"></i> نقشهٔ آنلاین</a>
+        @if (t is not null)
+        {
+            <a class="btn2 ghost" href="/Company/Trips/Detail/@t.TripId"><i class="bi bi-folder2-open"></i> پروندهٔ سفر</a>
+        }
+    </div>
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Route" class="filters">
+        <div class="fld">
+            <label>سفر</label>
+            <select name="tripId" onchange="this.form.submit()">
+                @if (Model.TripOptions.Count == 0)
+                {
+                    <option value="">سفری با نقطهٔ مسیر ثبت نشده است</option>
+                }
+                @foreach (var o in Model.TripOptions)
+                {
+                    <option value="@o.Id" selected="@(t?.TripId == o.Id)">@o.Label</option>
+                }
+            </select>
+        </div>
+        <div class="row-actions"><button type="submit" class="btn2 pri"><i class="bi bi-search"></i> نمایش</button></div>
+    </form>
+
+    @if (t is null)
+    {
+        <div class="empty-state">
+            <i class="bi bi-bezier2"></i>
+            <b>هنوز مسیری ثبت نشده است</b>
+            با شروع سفر و روشن بودن اشتراک موقعیت در اپ راننده، مسیر این‌جا رسم می‌شود.
+        </div>
+    }
+    else
+    {
+        var l = t.Load!;
+        <div class="bd">
+            <div class="grid-side">
+                <div>
+                    @if (markers.Count > 0 || Model.Line.Count > 0)
+                    {
+                        <div class="map" data-map='@Json.Serialize(new { markers, line = Model.Line, fit = true, poll = live ? Url.Action("Data", "Monitoring", new { area = "Company", tripId = t.TripId }) : null })'></div>
+                    }
+                    else
+                    {
+                        <div class="empty-state"><i class="bi bi-geo"></i>مختصاتی برای این سفر ثبت نشده است.</div>
+                    }
+                </div>
+                <div>
+                    <div class="kvrow"><span>سفر</span><b class="num">@t.Code</b></div>
+                    <div class="kvrow"><span>وضعیت</span>@Ui.TripPill(t.Status)</div>
+                    <div class="kvrow"><span>مسیر</span><b>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</b></div>
+                    <div class="kvrow"><span>راننده</span><b>@(t.Driver?.FullName ?? "—")</b></div>
+                    <div class="kvrow"><span>خودرو</span><b>@if (t.Vehicle is not null) { <span class="plate">@t.Vehicle.PlateNo</span> } else { <text>—</text> }</b></div>
+                    <div class="kvrow"><span>نقاط ثبت‌شده</span><b>@Fa.N(Model.PointCount)</b></div>
+                    <div class="kvrow"><span>اولین نقطه</span><b>@Fa.Stamp(Model.FirstPoint)</b></div>
+                    <div class="kvrow"><span>آخرین نقطه</span><b>@(Model.LastPoint is DateTime lp ? $"{Fa.Stamp(lp)} ({Fa.Ago(lp)})" : "—")</b></div>
+                    <div class="kvrow"><span>مسافت طی‌شده</span><b>@(t.TravelledKm > 0 ? Fa.N(t.TravelledKm) + " کیلومتر" : "—")@(t.PlannedKm is double pk ? $" از {Fa.N(pk)}" : "")</b></div>
+                    <div class="kvrow"><span>بیشترین سرعت</span><b>@(Model.MaxSpeed is double ms ? Fa.N(ms) + " کیلومتر بر ساعت" : "—")</b></div>
+                    @if (t.Status == TripStatus.InTransit && t.EtaAt is DateTime eta)
+                    {
+                        <div class="kvrow"><span>رسیدن تقریبی</span><b>@Fa.Stamp(eta)</b></div>
+                    }
+                    @if (live)
+                    {
+                        <p class="muted small" style="margin-top:10px">نشانگر خودرو و خط مسیر هر ۳۰ ثانیه تازه می‌شوند؛ آمار کنار نقشه با بارگذاری دوبارهٔ صفحه به‌روز می‌شود.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

@@ -1,0 +1,77 @@
+@model PageVm<VehicleRow>
+@{
+    var q = ViewBag.Q as string;
+    var show = ViewBag.Show as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    var markers = (List<MapMarker>)ViewBag.Markers;
+    int C(string k) => counts.TryGetValue(k, out var n) ? n : 0;
+    var now = DateTime.UtcNow;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-truck"></i> خودروهای فعال</h1>
+        <p>خودروهایی که در ۲۴ ساعت اخیر موقعیت فرستاده‌اند: در سفر، آزاد (یک ساعت اخیر) یا بی‌خبر.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-map"></i> نقشهٔ کشور</a>
+        <a class="btn2 ghost" href="/Admin/Fleet"><i class="bi bi-truck-front"></i> همهٔ خودروها</a>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="bd"><div class="map short" data-map="@Json.Serialize(new { markers, fit = markers.Count > 0, poll = "/Admin/Live/Data" })"></div></div>
+</div>
+
+<div class="tabs" style="margin-top:18px">
+    <a asp-action="Vehicles" asp-route-q="@q" class="@(show is null ? "on" : "")">همه <span class="n">@Fa.N(C("all"))</span></a>
+    <a asp-action="Vehicles" asp-route-show="trip" asp-route-q="@q" class="@(show == "trip" ? "on" : "")">در سفر <span class="n">@Fa.N(C("trip"))</span></a>
+    <a asp-action="Vehicles" asp-route-show="idle" asp-route-q="@q" class="@(show == "idle" ? "on" : "")">آزاد <span class="n">@Fa.N(C("idle"))</span></a>
+    <a asp-action="Vehicles" asp-route-show="stale" asp-route-q="@q" class="@(show == "stale" ? "on" : "")">بی‌خبر <span class="n">@Fa.N(C("stale"))</span></a>
+</div>
+
+<div class="card2">
+    <form method="get" class="filters">
+        <input type="hidden" name="show" value="@show" />
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="پلاک، نام یا موبایل راننده، نام شرکت" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Vehicles" asp-route-show="@show">پاک کردن</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>پلاک</th><th>نوع</th><th>مالک</th><th>راننده</th><th>سفر زنده</th><th>آخرین موقعیت</th><th>وضعیت</th><th>مدارک</th></tr></thead>
+            <tbody>
+            @foreach (var v in Model.Rows)
+            {
+                var kind = v.LiveTripId is not null ? ("در سفر", "inf") : v.LastSeenAt >= now.AddHours(-1) ? ("آزاد", "ok") : ("بی‌خبر", "mut");
+                <tr>
+                    <td>@OpsUi.Plate(v.PlateNo)<span class="sub">@(string.Join(" ", new[] { v.Brand, v.Model }.Where(s => !string.IsNullOrEmpty(s))))</span></td>
+                    <td>@(v.TypeName ?? "—")<span class="sub">@OpsLabels.Ton(v.CapacityTon) تن</span></td>
+                    <td>@if (v.OwnerHref is not null) { <a class="lnk" href="@v.OwnerHref">@v.OwnerName</a> } else { <span class="muted">—</span> }</td>
+                    <td>@if (v.DriverId is int did) { <a class="lnk" href="/Admin/Users/Driver/@did">@v.DriverName</a><span class="sub num">@v.DriverMobile</span> } else { <span class="muted">—</span> }</td>
+                    <td>@if (v.LiveTripId is int tid) { <a class="lnk num" href="/Admin/Trips/Case/@tid">@v.LiveTripCode</a> } else { <span class="muted">—</span> }</td>
+                    <td>
+                        @Ui.Pill(kind.Item1, kind.Item2) <span class="muted small">@(v.LastSeenAt is DateTime ls ? Fa.Ago(ls) : "—")</span>
+                        @if (v.LastLat is double la && v.LastLng is double lg) { <span class="sub num">@la.ToString("0.0000"), @lg.ToString("0.0000")</span> }
+                    </td>
+                    <td>@Ui.VehiclePill(v.Status)<span class="sub">تأیید: @AccountStatus.Label(v.VerifyStatus)</span></td>
+                    <td>
+                        @Ui.Expiry(v.InsuranceExpiresAt) <span class="muted small">بیمه</span><br />
+                        @Ui.Expiry(v.InspectionExpiresAt) <span class="muted small">معاینه</span>
+                        @if (v.PendingDocs > 0) { <span class="sub">@Fa.N(v.PendingDocs) مدرک در انتظار</span> }
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-truck"></i>@(string.IsNullOrEmpty(q) ? "در ۲۴ ساعت اخیر هیچ خودرویی موقعیت نفرستاده است." : "خودرویی با این مشخصات در ۲۴ ساعت اخیر دیده نشده است.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

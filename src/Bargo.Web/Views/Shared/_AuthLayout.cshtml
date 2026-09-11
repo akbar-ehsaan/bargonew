@@ -1,0 +1,49 @@
+@{
+    var title = ViewData["Title"] as string ?? "";
+}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>@title · بارگو</title>
+    <meta name="theme-color" content="#1b2a3a" />
+    <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
+    <link href="~/css/fonts.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link href="~/css/app.css" rel="stylesheet" asp-append-version="true" />
+</head>
+<body class="@(ViewData["Skin"] ?? "skin-shipper")">
+<div class="auth">
+    <aside class="side">
+        <div class="brand"><img src="/img/logo.svg" alt="" /><b>بارگو</b></div>
+        <div>
+            <h2>بار ثبت کن، راننده پیدا کن، تا تحویل دنبالش کن.</h2>
+            <p>صاحبان بار، رانندگان و شرکت‌های حمل‌ونقل روی یک گردش کار: از اعلام بار تا تحویل با کد و تسویهٔ کرایه.</p>
+            <ol>
+                <li>ثبت بار و دریافت پیشنهاد قیمت</li>
+                <li>انتخاب راننده یا شرکت و ساخت سفر</li>
+                <li>بارنامه، رهگیری GPS و تحویل با کد گیرنده</li>
+                <li>تسویهٔ خودکار و امتیازدهی</li>
+            </ol>
+        </div>
+        <small>© بارگو</small>
+    </aside>
+    <div class="main-col">
+        <div class="auth-card">
+            @if (TempData["ok"] is string ok)
+            {
+                <div class="alert2 ok"><i class="bi bi-check-circle-fill"></i><div class="grow">@ok</div></div>
+            }
+            @if (TempData["err"] is string err)
+            {
+                <div class="alert2 err"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">@err</div></div>
+            }
+            @RenderBody()
+        </div>
+    </div>
+</div>
+<script src="~/js/jdate.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

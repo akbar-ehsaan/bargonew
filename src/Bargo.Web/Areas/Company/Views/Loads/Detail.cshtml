@@ -1,0 +1,356 @@
+@model OpsLoadDetailVm
+@{
+    var l = Model.Load;
+    var oLat = l.OriginLat ?? l.OriginCity?.Lat;
+    var oLng = l.OriginLng ?? l.OriginCity?.Lng;
+    var dLat = l.DestLat ?? l.DestCity?.Lat;
+    var dLng = l.DestLng ?? l.DestCity?.Lng;
+    var markers = new List<object>();
+    if (oLat is double ola && oLng is double olg) markers.Add(new { lat = ola, lng = olg, kind = "origin", label = "مبدا: " + l.OriginCity?.Name });
+    if (dLat is double dla && dLng is double dlg) markers.Add(new { lat = dla, lng = dlg, kind = "dest", label = "مقصد: " + l.DestCity?.Name });
+    var myTrip = Model.Trips.FirstOrDefault(t => t.Status != TripStatus.Cancelled);
+    var showPrivate = Model.IsOwn || myTrip is not null;
+    var inMarket = LoadStatus.Market.Contains(l.Status);
+    var fixedPrice = l.PriceMode == PriceMode.Fixed && l.Price is not null;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-box-seam"></i> @l.Title @Ui.LoadPill(l.Status)</h1>
+        <p><span class="num">@l.Code</span> · @Ui.Route(l.OriginCity?.Name, l.DestCity?.Name) · ثبت @Fa.Ago(l.CreatedAt)</p>
+    </div>
+    <div class="actions">
+        @if (Model.IsOwn)
+        {
+            <a class="btn2 ghost" asp-action="Index" asp-route-tab="published"><i class="bi bi-arrow-right"></i> بارهای منتشرشده</a>
+        }
+        else
+        {
+            <a class="btn2 ghost" asp-action="Market"><i class="bi bi-arrow-right"></i> بازار بار</a>
+        }
+    </div>
+</div>
+
+@if (l.TargetCompanyId is not null && !Model.IsOwn)
+{
+    <div class="alert2 info"><i class="bi bi-envelope-paper-fill"></i><div class="grow">این بار درخواست مستقیم صاحب بار برای شرکت شماست و در بازار عمومی دیده نمی‌شود.</div></div>
+}
+@if (l.Status == LoadStatus.Draft && Model.IsOwn)
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">این بار هنوز پیش‌نویس است و سفری برایش ساخته نشده. «حمل با ناوگان خودمان» را بزنید یا بار را لغو کنید.</div></div>
+}
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-card-list"></i> مشخصات بار</div>
+            <div class="bd">
+                <dl class="kv">
+                    <dt>نوع کالا</dt><dd>@l.CargoType@(string.IsNullOrEmpty(l.Packaging) ? "" : " · " + l.Packaging)</dd>
+                    <dt>وزن</dt><dd>@OpsLabels.Ton(l.WeightTon) تن@(l.VolumeM3 is decimal v ? " · " + OpsLabels.Ton(v) + " مترمکعب" : "")</dd>
+                    <dt>نوع خودرو</dt><dd>@(l.VehicleType?.Name ?? "فرقی ندارد")</dd>
+                    <dt>مبدا</dt><dd>@l.OriginCity?.Name (@l.OriginCity?.Province?.Name) — @l.OriginAddress</dd>
+                    <dt>مقصد</dt><dd>@l.DestCity?.Name (@l.DestCity?.Province?.Name) — @l.DestAddress</dd>
+                    <dt>زمان بارگیری</dt><dd>@Fa.LongDate(l.LoadingFrom) ساعت @Fa.Time(l.LoadingFrom)</dd>
+                    <dt>فاصلهٔ تقریبی</dt><dd>@(l.DistanceKm is double km ? Fa.N(km) + " کیلومتر" : "—")</dd>
+                    <dt>کرایه</dt><dd>@PriceMode.Label(l.PriceMode) · @(l.Price is long p ? Fa.Toman(p) : "بدون مبلغ اعلامی")</dd>
+                    <dt>ارزش اعلامی</dt><dd>@Fa.Toman(l.DeclaredValue)@(l.InsuranceRequested ? " · نیازمند بیمه" : "")</dd>
+                    <dt>صاحب بار</dt>
+                    <dd>
+                        @if (l.Shipper is not null)
+                        {
+                            @l.Shipper.DisplayName @Ui.Stars(l.Shipper.RatingAvg, l.Shipper.RatingCount)
+                        }
+                        else if (Model.IsOwn)
+                        {
+                            <text>بار مشتری شرکت</text>
+                        }
+                        else
+                        {
+                            @l.Company?.Name @Ui.Stars(l.Company?.RatingAvg ?? 0, l.Company?.RatingCount ?? 0)
+                        }
+                    </dd>
+                    @if (showPrivate)
+                    {
+                        <dt>گیرنده</dt><dd>@(l.ReceiverName ?? "—") <span class="num">@l.ReceiverMobile</span></dd>
+                    }
+                    @if (l.ExpiresAt is not null && inMarket)
+                    {
+                        <dt>مهلت پیشنهاد</dt><dd>@Fa.Stamp(l.ExpiresAt)</dd>
+                    }
+                    @if (!string.IsNullOrEmpty(l.Description))
+                    {
+                        <dt>توضیحات</dt><dd>@l.Description</dd>
+                    }
+                    @if (l.Status == LoadStatus.Cancelled && !string.IsNullOrEmpty(l.CancelReason))
+                    {
+                        <dt>علت لغو</dt><dd>@l.CancelReason</dd>
+                    }
+                </dl>
+                @if (l.Photos.Count > 0)
+                {
+                    <div class="meta" style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+                        @foreach (var ph in l.Photos)
+                        {
+                            <a class="chip" href="@DocumentStorage.Url(ph.FilePath)" target="_blank"><i class="bi bi-image"></i> تصویر بار</a>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (markers.Count > 0)
+        {
+            <div class="map short" data-map='@Json.Serialize(new { markers, fit = true })'></div>
+        }
+
+        @if (Model.IsOwn)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-tags"></i> پیشنهادهای حمل‌کنندگان <span class="end">@Fa.N(Model.Offers.Count(o => o.Status == OfferStatus.Pending)) در انتظار</span></div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>حمل‌کننده</th><th>خودرو</th><th>مبلغ</th><th>رسیدن به مبدا</th><th>توضیح</th><th>وضعیت</th><th></th></tr></thead>
+                        <tbody>
+                        @foreach (var o in Model.Offers)
+                        {
+                            <tr>
+                                <td>
+                                    <b>@o.CarrierName</b>
+                                    <span class="sub">
+                                        @CarrierKind.Label(o.CarrierKind) ·
+                                        @if (o.Driver is not null) { @Ui.Stars(o.Driver.RatingAvg, o.Driver.RatingCount) }
+                                        else if (o.Company is not null) { @Ui.Stars(o.Company.RatingAvg, o.Company.RatingCount) }
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (o.Vehicle is not null)
+                                    {
+                                        <span class="plate">@o.Vehicle.PlateNo</span><span class="sub">@o.Vehicle.VehicleType?.Name</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
+                                <td class="num"><b>@Fa.Toman(o.Amount)</b></td>
+                                <td>@OpsLabels.Hours(o.EtaHours)</td>
+                                <td class="small">@(o.Note ?? "—")</td>
+                                <td>@Ui.OfferPill(o.Status)<span class="sub">@Fa.Ago(o.CreatedAt)</span></td>
+                                <td>
+                                    @if (o.Status == OfferStatus.Pending && inMarket)
+                                    {
+                                        <div class="row-actions">
+                                            <form method="post" asp-action="Accept" class="inline" data-confirm="این پیشنهاد پذیرفته و سفر ساخته شود؟ پیشنهادهای دیگر رد می‌شوند.">
+                                                <input type="hidden" name="offerId" value="@o.OfferId" />
+                                                <button type="submit" class="btn2 grn sm"><i class="bi bi-check2"></i> پذیرش</button>
+                                            </form>
+                                            <form method="post" asp-action="Reject" class="inline" data-confirm="پیشنهاد رد شود؟">
+                                                <input type="hidden" name="offerId" value="@o.OfferId" />
+                                                <button type="submit" class="btn2 ghost sm"><i class="bi bi-x"></i> رد</button>
+                                            </form>
+                                            <a class="btn2 ghost sm" href="@Url.Action("Thread", "Messages", new { key = "offer:" + o.OfferId })"><i class="bi bi-chat-dots"></i></a>
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (Model.Offers.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="7" class="empty">
+                                    <i class="bi bi-tags"></i>
+                                    @(l.Status == LoadStatus.Draft ? "بار در بازار منتشر نشده است." : "هنوز پیشنهادی نرسیده است.")
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        @if (Model.Trips.Count > 0)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-signpost-split"></i> سفرهای این بار</div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>سفر</th><th>حمل‌کننده</th><th>راننده / خودرو</th><th>کرایه</th><th>وضعیت</th><th></th></tr></thead>
+                        <tbody>
+                        @foreach (var t in Model.Trips)
+                        {
+                            <tr>
+                                <td class="num"><b>@t.Code</b><span class="sub">@Fa.Ago(t.CreatedAt)</span></td>
+                                <td>@(t.CarrierKind == CarrierKind.Company ? t.Company?.Name : t.Driver?.FullName)</td>
+                                <td>
+                                    @(t.Driver?.FullName ?? "—")
+                                    @if (t.Vehicle is not null)
+                                    {
+                                        <span class="sub"><span class="plate">@t.Vehicle.PlateNo</span></span>
+                                    }
+                                </td>
+                                <td class="num">@Fa.Toman(t.Fare)</td>
+                                <td>@Ui.TripPill(t.Status)</td>
+                                <td>
+                                    @if (Model.CanDispatch)
+                                    {
+                                        <a class="btn2 soft sm" href="/Company/Trips/Detail/@t.TripId">پروندهٔ سفر</a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="stack">
+        @if (Model.IsOwn)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-buildings"></i> مشتری</div>
+                <div class="bd">
+                    @if (Model.Customer is not null)
+                    {
+                        <div class="kvrow"><span>نام</span><b>@Model.Customer.Name</b></div>
+                        <div class="kvrow"><span>موبایل</span><b class="num">@(Model.Customer.Mobile ?? "—")</b></div>
+                        <div class="kvrow"><span>نوع</span><b>@(Model.Customer.Kind == "person" ? "شخص حقیقی" : "شرکتی")</b></div>
+                    }
+                    else
+                    {
+                        <div class="muted">مشتری برای این بار مشخص نشده است.</div>
+                    }
+                </div>
+            </div>
+
+            @if (inMarket || l.Status == LoadStatus.Draft)
+            {
+                <div class="card2">
+                    <div class="hd"><i class="bi bi-lightning"></i> اقدام</div>
+                    <div class="bd">
+                        <form method="post" asp-action="BookOwn" data-confirm="بار با ناوگان خود شرکت حمل شود؟ پیشنهادهای در انتظار رد می‌شوند.">
+                            <input type="hidden" name="id" value="@l.LoadId" />
+                            <button type="submit" class="btn2 pri block"><i class="bi bi-truck"></i> حمل با ناوگان خودمان</button>
+                        </form>
+                        <p class="muted small">سفر بدون کمیسیون ساخته می‌شود و در صف تخصیص راننده می‌نشیند.</p>
+                        <form method="post" asp-action="Cancel" data-confirm="بار لغو شود؟">
+                            <input type="hidden" name="id" value="@l.LoadId" />
+                            <div class="fld">
+                                <label>علت لغو <span class="req">*</span></label>
+                                <textarea name="reason" rows="2" required maxlength="500"></textarea>
+                            </div>
+                            <div class="form-actions"><button type="submit" class="btn2 red block"><i class="bi bi-x-octagon"></i> لغو بار</button></div>
+                        </form>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-tag"></i> پیشنهاد شرکت</div>
+                <div class="bd">
+                    @if (Model.MyPendingOffer is { } mine)
+                    {
+                        <div class="alert2 info">
+                            <i class="bi bi-hourglass-split"></i>
+                            <div class="grow">پیشنهاد شما: <b class="num">@Fa.Toman(mine.Amount)</b> · @Fa.Ago(mine.CreatedAt)</div>
+                        </div>
+                    }
+                    @if (Model.CanOffer)
+                    {
+                        <form method="post" asp-action="Offer">
+                            <input type="hidden" name="id" value="@l.LoadId" />
+                            <div class="form-grid">
+                                @if (fixedPrice)
+                                {
+                                    <div class="fld full">
+                                        <label>کرایه</label>
+                                        <div class="price"><b class="num">@Fa.Toman(l.Price)</b></div>
+                                        <span class="hint">کرایهٔ این بار ثابت است؛ پیشنهاد شما همان درخواست حمل با این مبلغ است.</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="fld full">
+                                        <label>مبلغ پیشنهاد (تومان) <span class="req">*</span></label>
+                                        <input name="amountToman" class="money" required value="@(Model.MyPendingOffer is { } mo ? (mo.Amount / 10).ToString() : l.Price is long lp ? (lp / 10).ToString() : "")" />
+                                    </div>
+                                }
+                                <div class="fld">
+                                    <label>رسیدن به مبدا (ساعت)</label>
+                                    <input name="etaHours" type="number" min="0" max="720" value="@Model.MyPendingOffer?.EtaHours" dir="ltr" />
+                                </div>
+                                <div class="fld">
+                                    <label>خودرو</label>
+                                    <select name="vehicleId">
+                                        <option value="">هنگام تخصیص</option>
+                                        @foreach (var v in Model.Vehicles)
+                                        {
+                                            <option value="@v.VehicleId" selected="@(Model.MyPendingOffer?.VehicleId == v.VehicleId)">@v.PlateNo · @v.VehicleType?.Name (@OpsLabels.Ton(v.CapacityTon) تن)</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="fld full">
+                                    <label>توضیح برای صاحب بار</label>
+                                    <textarea name="note" rows="2" maxlength="500">@Model.MyPendingOffer?.Note</textarea>
+                                </div>
+                            </div>
+                            <p class="muted small">پس از پذیرش، @Fa.N(Model.CommissionPercent, 1)٪ کمیسیون بارگو از کرایه کسر و باقی پس از تحویل به کیف پول شرکت واریز می‌شود.</p>
+                            <div class="form-actions">
+                                <button type="submit" class="btn2 pri block"><i class="bi bi-send"></i> @(Model.MyPendingOffer is null ? "ثبت پیشنهاد" : "به‌روزرسانی پیشنهاد")</button>
+                            </div>
+                        </form>
+                        @if (Model.MyPendingOffer is { } p2)
+                        {
+                            <form method="post" asp-action="Withdraw" data-confirm="پیشنهاد پس گرفته شود؟" style="margin-top:10px">
+                                <input type="hidden" name="offerId" value="@p2.OfferId" />
+                                <button type="submit" class="btn2 ghost block"><i class="bi bi-arrow-counterclockwise"></i> پس گرفتن پیشنهاد</button>
+                            </form>
+                            <a class="btn2 soft block" style="margin-top:10px" href="@Url.Action("Thread", "Messages", new { key = "offer:" + p2.OfferId })"><i class="bi bi-chat-dots"></i> گفتگو با صاحب بار</a>
+                        }
+                    }
+                    else
+                    {
+                        <div class="muted">این بار دیگر پیشنهاد نمی‌پذیرد.</div>
+                    }
+                </div>
+            </div>
+
+            @if (Model.MyOffers.Count > 0)
+            {
+                <div class="card2">
+                    <div class="hd"><i class="bi bi-clock-history"></i> سابقهٔ پیشنهادهای شرکت</div>
+                    <div class="bd">
+                        @foreach (var o in Model.MyOffers)
+                        {
+                            <div class="kvrow"><span>@Fa.Stamp(o.CreatedAt)</span><b class="num">@Fa.Toman(o.Amount)</b> @Ui.OfferPill(o.Status)</div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+
+        @if (myTrip is not null && Model.CanDispatch)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-signpost-split"></i> سفر</div>
+                <div class="bd">
+                    <div class="kvrow"><span>کد سفر</span><b class="num">@myTrip.Code</b></div>
+                    <div class="kvrow"><span>وضعیت</span>@Ui.TripPill(myTrip.Status)</div>
+                    <div class="form-actions">
+                        @if (myTrip.CompanyId == l.CompanyId || myTrip.CarrierKind == CarrierKind.Company && myTrip.Status is TripStatus.AwaitingAssignment or TripStatus.Assigned)
+                        {
+                            <a class="btn2 pri" href="/Company/Dispatch/Assign/@myTrip.TripId"><i class="bi bi-person-check"></i> تخصیص</a>
+                        }
+                        <a class="btn2 ghost" href="/Company/Trips/Detail/@myTrip.TripId">پروندهٔ سفر</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

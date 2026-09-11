@@ -1,0 +1,28 @@
+## .NET
+bin/
+obj/
+*.user
+.vs/
+[Rr]elease/
+[Dd]ebug/
+*.log
+
+## Rider / VS Code
+.idea/
+.vscode/
+
+## App
+appsettings.Production.json
+appsettings.*.Local.json
+
+## اسرار — هرگز نباید وارد مخزن شود
+appsettings.Secrets.json
+**/appsettings.Secrets.json
+
+## فایل‌های آپلودی کاربران (مدارک، تصاویر بار، رسیدها)
+storage/
+**/storage/
+
+## کلیدهای DataProtection
+keys/
+**/keys/

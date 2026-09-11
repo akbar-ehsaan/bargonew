@@ -1,0 +1,78 @@
+@model PageVm<TripRow>
+@{
+    var ret = Context.Request.Path + Context.Request.QueryString;
+    var flagged = (int)ViewBag.Flagged;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-exclamation-triangle"></i> سفرهای مشکل‌دار</h1>
+        <p>سه نشانه: علامت مدیر یا گردش کار (مثلاً لغو پس از بارگیری)، سفر زنده‌ای که بیش از دو ساعت GPS نفرستاده، و سفری که از زمان تقریبی رسیدن گذشته و تحویل نشده. دو نشانهٔ آخر با برگشتن GPS یا تحویل خودشان پاک می‌شوند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-arrow-right"></i> سفرهای جاری</a>
+        <a class="btn2 ghost" href="/Admin/Live/Alerts"><i class="bi bi-bell"></i> هشدارهای سیستمی</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat @(Model.Total > 0 ? "r" : "s")"><div class="l"><i class="bi bi-exclamation-triangle"></i> در صف</div><div class="v">@Fa.N(Model.Total)</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-flag"></i> علامت‌خورده (در این صفحه)</div><div class="v">@Fa.N(flagged)</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-broadcast"></i> محاسبه‌ای (در این صفحه)</div><div class="v">@Fa.N(Model.Rows.Count - flagged)</div></div>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>مسیر</th><th>حمل‌کننده</th><th>وضعیت</th><th>علت‌ها</th><th>آخرین GPS</th><th>اقدام</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Rows)
+            {
+                <tr data-href="/Admin/Trips/Case/@t.TripId">
+                    <td><a class="lnk num" href="/Admin/Trips/Case/@t.TripId">@t.Code</a><span class="sub num">@t.LoadCode</span></td>
+                    <td>@Ui.Route(t.From, t.To)<span class="sub">@t.LoadTitle</span></td>
+                    <td>
+                        @t.CarrierName
+                        @if (t.DriverMobile is not null) { <span class="sub num">@t.DriverMobile</span> }
+                        @if (t.Plate is not null) { <span class="sub">@OpsUi.Plate(t.Plate)</span> }
+                    </td>
+                    <td>@Ui.TripPill(t.Status)@if (t.IsPaid) { <span class="sub">کرایه پرداخت‌شده</span> }</td>
+                    <td>
+                        @foreach (var r in t.Reasons)
+                        {
+                            <div><i class="bi bi-dot"></i> @r</div>
+                        }
+                    </td>
+                    <td class="nowrap">@(TripStatus.Live.Contains(t.Status) ? OpsUi.Gps(t.LastPointAt) : Ui.Pill(TripStatus.Label(t.Status), "mut"))</td>
+                    <td style="min-width:220px">
+                        <div class="row-actions">
+                            <a class="btn2 sm pri" href="/Admin/Trips/Case/@t.TripId"><i class="bi bi-folder2-open"></i> پرونده</a>
+                            @if (t.IsProblem)
+                            {
+                                <form method="post" asp-action="ClearProblem" class="inline" data-confirm="علامت مشکل‌دار سفر @t.Code برداشته شود؟">
+                                    <input type="hidden" name="id" value="@t.TripId" />
+                                    <input type="hidden" name="returnUrl" value="@ret" />
+                                    <button class="btn2 sm soft"><i class="bi bi-check2"></i> رفع شد</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form method="post" asp-action="MarkProblem" class="row-actions" data-confirm="سفر @t.Code به‌عنوان مشکل‌دار علامت بخورد؟">
+                                    <input type="hidden" name="id" value="@t.TripId" />
+                                    <input type="hidden" name="returnUrl" value="@ret" />
+                                    <div class="fld" style="min-width:140px"><input name="note" placeholder="شرح مشکل" required maxlength="1000" /></div>
+                                    <button class="btn2 sm ghost"><i class="bi bi-flag"></i> علامت</button>
+                                </form>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-check2-all"></i>هیچ سفر مشکل‌داری نیست — همهٔ سفرهای زنده GPS می‌فرستند و در زمان‌اند.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

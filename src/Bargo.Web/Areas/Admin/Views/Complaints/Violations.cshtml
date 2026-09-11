@@ -1,0 +1,99 @@
+@model ViolationsVm
+@{
+    string[] penalties = ["warning", "fine", "suspension"];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-exclamation-octagon"></i> تخلفات</h1>
+        <p>اخطارهای ثبت‌شده از شکایت‌ها و جریمه/تعلیق‌های ثبت‌شده از مدیریت رانندگان — همه در یک فهرست.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 pri" href="/Admin/Drivers/Violations"><i class="bi bi-plus-circle"></i> ثبت تخلف (جریمه / تعلیق)</a>
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-exclamation-diamond"></i> شکایات</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat t"><div class="l"><i class="bi bi-list-ol"></i> کل تخلفات</div><div class="v">@Fa.N(Model.Total)</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-calendar-month"></i> این ماه</div><div class="v">@Fa.N(Model.Month)</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-flag"></i> اخطار</div><div class="v">@Fa.N(Model.ByPenalty.GetValueOrDefault("warning"))</div></div>
+    <div class="stat r"><div class="l"><i class="bi bi-pause-circle"></i> جریمه و تعلیق</div><div class="v">@Fa.N(Model.ByPenalty.GetValueOrDefault("fine") + Model.ByPenalty.GetValueOrDefault("suspension"))</div></div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Violations" class="@(Model.Penalty is null ? "on" : "")">همه <span class="n">@Fa.N(Model.Total)</span></a>
+    @foreach (var p in penalties)
+    {
+        <a asp-action="Violations" asp-route-penalty="@p" class="@(Model.Penalty == p ? "on" : "")">@PenaltyLabel.Of(p) <span class="n">@Fa.N(Model.ByPenalty.GetValueOrDefault(p))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>متخلف</th><th>عنوان</th><th>مجازات</th><th>سفر</th><th>شکایت</th><th>ثبت‌کننده</th><th>زمان</th></tr></thead>
+            <tbody>
+            @foreach (var v in Model.Page.Rows)
+            {
+                <tr>
+                    <td class="num">@Fa.N(v.Id)</td>
+                    <td>
+                        @if (v.DriverId is int did)
+                        {
+                            <a class="lnk" href="/Admin/Users/Driver/@did">@(v.DriverName ?? "راننده #" + Fa.N(did))</a>
+                            <span class="sub">راننده · <span class="num">@v.DriverMobile</span>@(v.CompanyName is null ? "" : " · " + v.CompanyName)</span>
+                        }
+                        else if (v.CompanyName is not null)
+                        {
+                            <b>@v.CompanyName</b><span class="sub">شرکت</span>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td><b>@v.Title</b>@if (!string.IsNullOrEmpty(v.Description)) { <span class="sub">@(v.Description.Length > 100 ? v.Description[..100] + "…" : v.Description)</span> }</td>
+                    <td>
+                        @Ui.Pill(PenaltyLabel.Of(v.Penalty), PenaltyLabel.Tone(v.Penalty))
+                        @if (v.Penalty == "fine" && v.FineAmount is long fine)
+                        {
+                            <span class="sub">@Fa.Toman(fine)</span>
+                        }
+                        @if (v.Penalty == "suspension" && v.SuspendedUntil is DateTime su)
+                        {
+                            <span class="sub">تا @Fa.Date(su)@(su < DateTime.UtcNow ? " (پایان‌یافته)" : "")</span>
+                        }
+                    </td>
+                    <td>
+                        @if (v.TripId is int tid)
+                        {
+                            <a class="lnk num" href="/Admin/Trips/Case/@tid">@(v.TripCode ?? "#" + tid)</a>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td>
+                        @if (v.ComplaintId is int cid)
+                        {
+                            <a class="lnk num" asp-action="Detail" asp-route-id="@cid">@(v.ComplaintCode ?? "#" + cid)</a>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td>@(v.CreatedBy ?? "—")</td>
+                    <td class="nowrap">@Fa.Stamp(v.CreatedAt)</td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-shield-check"></i>@(Model.Penalty is null ? "هنوز تخلفی ثبت نشده است." : $"تخلفی از نوع «{PenaltyLabel.Of(Model.Penalty)}» ثبت نشده است.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

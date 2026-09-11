@@ -1,0 +1,60 @@
+@model EarningsVm
+@{
+    var max = Model.Months.Count == 0 ? 0 : Model.Months.Max(m => m.Amount);
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-graph-up-arrow"></i> درآمدها</h1><p>سهم شما از کرایهٔ سفرهای مستقل و سهمی که شرکت از سفرهای شرکتی پرداخته — به تفکیک ماه شمسی.</p></div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Index"><i class="bi bi-wallet2"></i> کیف پول</a></div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat s"><div class="l"><i class="bi bi-cash-stack"></i> کل درآمد</div><div class="v">@Fa.N(Model.Total / 10) <small>تومان</small></div></div>
+    <div class="stat p"><div class="l"><i class="bi bi-calendar-month"></i> این ماه</div><div class="v">@Fa.N(Model.ThisMonth / 10) <small>تومان</small></div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-truck"></i> سفرهای درآمدزا</div><div class="v">@Fa.N(Model.TripCount) <small>سفر</small></div></div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-list-ul"></i> ریز درآمد هر سفر</div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>تاریخ</th><th>سفر</th><th>نوع</th><th>مبلغ</th><th>توضیح</th></tr></thead>
+                <tbody>
+                @foreach (var t in Model.Page.Rows)
+                {
+                    <tr>
+                        <td class="nowrap">@Fa.Stamp(t.CreatedAt)</td>
+                        <td>@if (t.TripId is int tid) { <a class="lnk" href="/Driver/Trips/Detail/@tid">@t.TripCode</a> } else { <span class="muted">—</span> }</td>
+                        <td>@WalletTxnKind.Label(t.Kind)</td>
+                        <td><b class="num" style="color:var(--ok)">+@Fa.Toman(t.Amount)</b></td>
+                        <td class="muted">@(t.Note ?? "—")</td>
+                    </tr>
+                }
+                @if (Model.Page.Total == 0)
+                {
+                    <tr><td colspan="5" class="empty"><i class="bi bi-graph-up-arrow"></i>هنوز درآمدی ثبت نشده است. سهم کرایه پس از تحویل بار و پرداخت صاحب بار اینجا می‌نشیند.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Page.Pager" />
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-bar-chart"></i> به تفکیک ماه</div>
+        <div class="bd">
+            @if (Model.Months.Count == 0)
+            {
+                <div class="empty-state" style="padding:18px 8px"><i class="bi bi-calendar-x"></i><b>ماهی با درآمد ندارید</b></div>
+            }
+            @foreach (var m in Model.Months)
+            {
+                var pct = max == 0 ? 0 : (int)Math.Round(m.Amount * 100.0 / max);
+                <div class="kvrow" style="flex-direction:column;align-items:stretch;gap:4px">
+                    <div style="display:flex;justify-content:space-between;gap:10px"><span>@m.Label <small class="muted">(@Fa.N(m.Count) سفر)</small></span><b>@Fa.Toman(m.Amount)</b></div>
+                    <div style="height:8px;background:var(--mut-bg);border-radius:4px;overflow:hidden"><div style="width:@pct%;height:100%;background:var(--primary)"></div></div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

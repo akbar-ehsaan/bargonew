@@ -1,0 +1,38 @@
+@{
+    var trips = (IEnumerable<dynamic>)ViewBag.Trips;
+    var tripId = ViewBag.TripId as int?;
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-exclamation-octagon"></i> ثبت شکایت و گزارش مشکل</h1><p>شکایتِ مربوط به سفر، با همهٔ رویدادها، موقعیت‌ها و اسناد آن سفر بررسی می‌شود.</p></div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Index">شکایت‌های من</a></div>
+</div>
+<div class="card2" style="max-width:760px">
+    <div class="bd">
+        <form method="post" asp-action="Create">
+            <div class="form-grid">
+                <div class="fld">
+                    <label>سفر مربوط</label>
+                    <select name="tripId">
+                        <option value="">— بدون سفر —</option>
+                        @foreach (var t in trips)
+                        {
+                            <option value="@t.TripId" selected="@(tripId == (int)t.TripId)">@t.Code · @t.From ← @t.To</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>نوع</label>
+                    <select name="kind">
+                        @foreach (var k in ComplaintKind.All)
+                        {
+                            <option value="@k">@ComplaintKind.Label(k)</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld full"><label>عنوان <span class="req">*</span></label><input name="title" maxlength="200" required /></div>
+                <div class="fld full"><label>شرح ماجرا <span class="req">*</span></label><textarea name="body" rows="6" required placeholder="چه اتفاقی افتاد، کی و کجا؟"></textarea></div>
+            </div>
+            <div class="form-actions"><button class="btn2 pri"><i class="bi bi-send"></i> ثبت شکایت</button></div>
+        </form>
+    </div>
+</div>

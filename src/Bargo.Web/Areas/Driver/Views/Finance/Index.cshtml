@@ -1,0 +1,84 @@
+@model WalletVm
+<div class="page-head">
+    <div><h1><i class="bi bi-wallet2"></i> کیف پول</h1><p>سهم شما از هر سفر پس از تحویل و پرداخت صاحب بار به همین کیف پول می‌نشیند و با «درخواست برداشت» به حساب بانکی‌تان می‌رود.</p></div>
+    <div class="actions">
+        <a class="btn2 pri" asp-action="Withdraw"><i class="bi bi-cash-coin"></i> درخواست برداشت</a>
+        <a class="btn2 ghost" asp-action="Transactions"><i class="bi bi-arrow-left-right"></i> همهٔ تراکنش‌ها</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat s"><div class="l"><i class="bi bi-wallet2"></i> موجودی</div><div class="v">@Fa.N(Model.Balance / 10) <small>تومان</small></div></div>
+    <a class="stat p" asp-action="Withdraw"><div class="l"><i class="bi bi-cash-coin"></i> قابل برداشت</div><div class="v">@Fa.N(Model.Available / 10) <small>تومان</small></div></a>
+    <a class="stat @(Model.Reserved > 0 ? "w" : "i")" asp-action="Settlements"><div class="l"><i class="bi bi-hourglass-split"></i> در صف واریز</div><div class="v">@Fa.N(Model.Reserved / 10) <small>تومان</small></div></a>
+    <a class="stat t" asp-action="Earnings"><div class="l"><i class="bi bi-graph-up-arrow"></i> درآمد این ماه</div><div class="v">@Fa.N(Model.MonthIncome / 10) <small>تومان</small></div></a>
+</div>
+
+@if (!Model.HasValidSheba)
+{
+    <div class="alert2 warn"><i class="bi bi-bank"></i><div class="grow">شمارهٔ شبای حساب بانکی ثبت نشده است؛ بدون آن نمی‌توانید درخواست برداشت بدهید. <a class="lnk" href="/Driver/Profile">ثبت شبا در حساب کاربری</a></div></div>
+}
+@if (Model.UnpaidCompanyShares > 0)
+{
+    <div class="alert2 info"><i class="bi bi-building"></i><div class="grow">سهم شما از @Fa.N(Model.UnpaidCompanyShares) سفر شرکتیِ تمام‌شده هنوز توسط شرکت پرداخت نشده است. پس از پرداخت شرکت، به کیف پول شما اضافه می‌شود. <a class="lnk" href="/Driver/Trips?tab=done">سفرهای تکمیل‌شده</a></div></div>
+}
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-clock-history"></i> آخرین تراکنش‌ها <span class="end"><a class="lnk" asp-action="Transactions">همه</a></span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>تاریخ</th><th>نوع</th><th>مبلغ</th><th>مانده</th><th>سفر / توضیح</th></tr></thead>
+                <tbody>
+                @foreach (var t in Model.Recent)
+                {
+                    <tr>
+                        <td class="nowrap">@Fa.Stamp(t.CreatedAt)</td>
+                        <td>@WalletTxnKind.Label(t.Kind)</td>
+                        <td><b class="num" style="color:@(t.Amount >= 0 ? "var(--ok)" : "var(--no)")">@(t.Amount >= 0 ? "+" : "−")@Fa.Toman(Math.Abs(t.Amount))</b></td>
+                        <td class="num">@Fa.Toman(t.BalanceAfter)</td>
+                        <td>
+                            @if (t.TripId is int tid) { <a class="lnk" href="/Driver/Trips/Detail/@tid">@t.TripCode</a> }
+                            @if (!string.IsNullOrEmpty(t.Note)) { <span class="sub">@t.Note</span> }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Recent.Count == 0)
+                {
+                    <tr><td colspan="5" class="empty"><i class="bi bi-wallet2"></i>هنوز تراکنشی ندارید. با تحویل اولین بار، سهم کرایه اینجا ثبت می‌شود.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-bank"></i> حساب بانکی</div>
+            <div class="bd">
+                <dl class="kv">
+                    <dt>شبا</dt><dd dir="ltr" style="text-align:right">@(Model.HasValidSheba ? Model.Sheba : "ثبت نشده")</dd>
+                    <dt>حداقل برداشت</dt><dd>@Fa.Toman(Model.MinPayout)</dd>
+                    <dt>کل درآمد</dt><dd>@Fa.Toman(Model.TotalIncome)</dd>
+                </dl>
+                <div class="form-actions"><a class="btn2 ghost sm" href="/Driver/Profile"><i class="bi bi-pencil"></i> ویرایش شبا</a></div>
+            </div>
+        </div>
+        <div class="card2">
+            <div class="hd"><i class="bi bi-hourglass-split"></i> درخواست‌های باز <span class="end"><a class="lnk" asp-action="Settlements">تسویه‌حساب</a></span></div>
+            <div class="bd">
+                @if (Model.OpenPayouts.Count == 0)
+                {
+                    <div class="empty-state" style="padding:18px 8px"><i class="bi bi-check2-circle"></i><b>درخواست بازی ندارید</b>مبلغ واریزشده در تسویه‌حساب ثبت می‌شود.</div>
+                }
+                else
+                {
+                    foreach (var p in Model.OpenPayouts)
+                    {
+                        <div class="kvrow"><span>@Fa.Date(p.CreatedAt) · @Ui.PayoutPill(p.Status)</span><b>@Fa.Toman(p.Amount)</b></div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>

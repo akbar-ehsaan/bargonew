@@ -1,0 +1,14 @@
+@{
+    var kind = ViewBag.Kind as string;
+}
+<div class="tabs">
+    <a asp-area="Company" asp-controller="Customers" asp-action="Index" class="@(kind is null ? "on" : "")">
+        <i class="bi bi-person-lines-fill"></i> صاحبان بار بارگو <span class="n">@Fa.N((int)ViewBag.ShipperCount)</span>
+    </a>
+    <a asp-area="Company" asp-controller="Customers" asp-action="Index" asp-route-kind="person" class="@(kind == "person" ? "on" : "")">
+        <i class="bi bi-person"></i> مشتریان حقیقی <span class="n">@Fa.N((int)ViewBag.PersonCount)</span>
+    </a>
+    <a asp-area="Company" asp-controller="Customers" asp-action="Index" asp-route-kind="corporate" class="@(kind == "corporate" ? "on" : "")">
+        <i class="bi bi-building"></i> مشتریان شرکتی <span class="n">@Fa.N((int)ViewBag.CorporateCount)</span>
+    </a>
+</div>

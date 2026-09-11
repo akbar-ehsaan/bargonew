@@ -1,0 +1,75 @@
+@model PageVm<TxnRow>
+@{
+    var kind = ViewBag.Kind as string;
+    var counts = (Dictionary<string, int>)ViewBag.KindCounts;
+    var fromBox = (string)ViewBag.FromBox;
+    var toBox = (string)ViewBag.ToBox;
+    var filtered = kind is not null || fromBox.Length > 0 || toBox.Length > 0;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-arrow-left-right"></i> تراکنش‌ها</h1>
+        <p>گردش کامل کیف پول شرکت. هر ردیف «مانده پس از تراکنش» را دارد تا مغایرت بی‌درنگ پیدا شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-wallet2"></i> کیف پول</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat p"><div class="l"><i class="bi bi-wallet2"></i> موجودی فعلی</div><div class="v">@Fa.Toman((long)ViewBag.Balance)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-arrow-down-left-circle"></i> جمع واریز @(filtered ? "(فیلترشده)" : "")</div><div class="v">@Fa.Toman((long)ViewBag.In)</div></div>
+    <div class="stat r"><div class="l"><i class="bi bi-arrow-up-right-circle"></i> جمع برداشت @(filtered ? "(فیلترشده)" : "")</div><div class="v">@Fa.Toman((long)ViewBag.Out)</div></div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Transactions" asp-route-from="@fromBox" asp-route-to="@toBox" class="@(kind is null ? "on" : "")">همه <span class="n">@Fa.N(counts.Values.Sum())</span></a>
+    @foreach (var k in CompanyLabels.CompanyTxnKinds)
+    {
+        var n = counts.GetValueOrDefault(k);
+        if (n == 0 && kind != k) { continue; }
+        <a asp-action="Transactions" asp-route-kind="@k" asp-route-from="@fromBox" asp-route-to="@toBox" class="@(kind == k ? "on" : "")">@WalletTxnKind.Label(k) <span class="n">@Fa.N(n)</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Transactions" class="filters">
+        <input type="hidden" name="kind" value="@kind" />
+        <div class="fld narrow"><label>از تاریخ</label><input name="from" data-jdate value="@fromBox" dir="ltr" /></div>
+        <div class="fld narrow"><label>تا تاریخ</label><input name="to" data-jdate value="@toBox" dir="ltr" /></div>
+        <button class="btn2 ghost"><i class="bi bi-funnel"></i> اعمال</button>
+        @if (filtered)
+        {
+            <a class="btn2 ghost" asp-action="Transactions"><i class="bi bi-x-lg"></i> حذف فیلتر</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>مبلغ</th><th>مانده</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Rows)
+            {
+                <tr>
+                    <td data-label="#" class="num">@Fa.N(t.Id)</td>
+                    <td data-label="تاریخ" class="nowrap">@Fa.Date(t.CreatedAt)<span class="sub">@Fa.Time(t.CreatedAt)</span></td>
+                    <td data-label="نوع">@Ui.Pill(WalletTxnKind.Label(t.Kind), t.Amount >= 0 ? "ok" : "no")</td>
+                    <td data-label="شرح">
+                        @(t.Note ?? "—")
+                        @if (t.TripCode is not null)
+                        {
+                            <span class="sub"><a class="lnk" href="/Company/Trips/Detail/@t.TripId">سفر @Fa.Digits(t.TripCode)</a></span>
+                        }
+                    </td>
+                    <td data-label="مبلغ" class="nowrap"><b style="color:var(--@(t.Amount >= 0 ? "ok" : "no"))">@(t.Amount >= 0 ? "+" : "−") @Fa.Toman(Math.Abs(t.Amount))</b></td>
+                    <td data-label="مانده" class="nowrap">@Fa.Toman(t.BalanceAfter)</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="6" class="empty"><i class="bi bi-arrow-left-right"></i>@(filtered ? "تراکنشی با این فیلتر پیدا نشد." : "هنوز تراکنشی روی کیف پول شرکت ثبت نشده است.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

@@ -1,0 +1,226 @@
+@model ShipperDetailVm
+@{
+    var s = Model.Shipper;
+    var ret = Context.Request.Path + Context.Request.QueryString;
+    var pendingDocs = Model.Documents.Count(x => x.Status == AccountStatus.Pending);
+    var openLoads = Model.Loads.Count(l => LoadStatus.Market.Contains(l.Status));
+    string Admin(int? id) => id is int a && Model.AdminNames.TryGetValue(a, out var n) ? n : "—";
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi @(s.Kind == "business" ? "bi-building" : "bi-person-workspace")"></i> @s.DisplayName @Ui.AccountPill(s.Status)</h1>
+        <p>
+            <span class="chip">@(s.Kind == "business" ? "کسب‌وکار" : "شخص حقیقی")</span>
+            <span class="num">@s.Mobile</span>
+            · @(s.City is null ? "بدون شهر" : $"{s.City.Name} ({s.City.Province?.Name})")
+            · عضویت @Fa.Date(s.CreatedAt)
+        </p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Shippers"><i class="bi bi-arrow-right"></i> فهرست صاحبان بار</a>
+        <a class="btn2 ghost" href="/Admin/Finance?owner=shipper&ownerId=@s.ShipperId"><i class="bi bi-wallet2"></i> گردش کیف پول</a>
+        <a class="btn2 ghost" href="/Admin/Loads?q=@s.Mobile"><i class="bi bi-boxes"></i> همهٔ بارها</a>
+    </div>
+</div>
+
+<div class="stats">
+    <a class="stat p" href="/Admin/Loads?q=@s.Mobile"><div class="l"><i class="bi bi-boxes"></i> بارهای ثبت‌شده</div><div class="v">@Fa.N(Model.LoadTotal)</div></a>
+    <div class="stat s"><div class="l"><i class="bi bi-signpost-split"></i> سفرهای ساخته‌شده</div><div class="v">@Fa.N(Model.TripTotal)</div></div>
+    <div class="stat @(s.WalletBalance < 0 ? "r" : "t")"><div class="l"><i class="bi bi-wallet2"></i> موجودی کیف پول</div><div class="v">@Fa.Toman(s.WalletBalance)</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-star"></i> امتیاز از رانندگان</div><div class="v">@Ui.Stars(s.RatingAvg, s.RatingCount)</div></div>
+</div>
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-card-list"></i> مشخصات</div>
+            <div class="bd">
+                <dl class="kv">
+                    <dt>نام</dt><dd>@s.FullName</dd>
+                    @if (s.Kind == "business")
+                    {
+                        <dt>نام کسب‌وکار</dt><dd>@(s.BusinessName ?? "—")</dd>
+                        <dt>شناسهٔ ملی</dt><dd class="num">@(s.NationalId ?? "—")</dd>
+                        <dt>کد اقتصادی</dt><dd class="num">@(s.EconomicCode ?? "—")</dd>
+                    }
+                    <dt>کد ملی</dt><dd class="num">@(s.NationalCode ?? "—")</dd>
+                    <dt>ایمیل</dt><dd class="num">@(s.Email ?? "—")</dd>
+                    <dt>نشانی</dt><dd>@(string.IsNullOrEmpty(s.Address) ? "—" : s.Address)</dd>
+                    <dt>شبا</dt><dd class="num">@(s.Sheba ?? "—")</dd>
+                    <dt>پیامک اعلان</dt><dd>@(s.NotifySms ? "فعال" : "غیرفعال")</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-patch-check"></i> احراز هویت
+                <span class="end">
+                    @if (s.VerifyStatus is null) { <span class="muted small">مدرکی نفرستاده</span> }
+                    else { @Ui.AccountPill(s.VerifyStatus) }
+                    @if (s.VerifiedAt is DateTime va) { <span class="muted small">@Fa.Date(va)</span> }
+                </span>
+            </div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>مدرک</th><th>شماره</th><th>انقضا</th><th>وضعیت</th><th>بررسی</th><th>بارگذاری</th><th>فایل</th></tr></thead>
+                    <tbody>
+                    @foreach (var x in Model.Documents)
+                    {
+                        <tr>
+                            <td><b>@DocumentKind.Label(x.Kind)</b></td>
+                            <td class="num">@(x.Number ?? "—")</td>
+                            <td>@Ui.Expiry(x.ExpiresAt, Model.WarnDays)</td>
+                            <td>
+                                @Ui.AccountPill(x.Status)
+                                @if (!string.IsNullOrEmpty(x.ReviewNote)) { <span class="sub">@x.ReviewNote</span> }
+                            </td>
+                            <td class="small">@(x.ReviewedAt is null ? "—" : $"{Admin(x.ReviewedByAdminId)} · {Fa.Date(x.ReviewedAt)}")</td>
+                            <td class="nowrap">@Fa.Stamp(x.UploadedAt)</td>
+                            <td>@OpsUi.File(x.FilePath)</td>
+                        </tr>
+                    }
+                    @if (Model.Documents.Count == 0)
+                    {
+                        <tr><td colspan="7" class="empty"><i class="bi bi-file-earmark-x"></i>مدرکی بارگذاری نشده است. حساب بدون احراز هویت هم فعال است، فقط سقف‌های پایین‌تری دارد.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            @if (s.VerifyStatus == AccountStatus.Pending)
+            {
+                <div class="bd">
+                    <form method="post" asp-action="VerifyShipper" data-confirm="تصمیم احراز هویت «@s.DisplayName» ثبت شود؟">
+                        <input type="hidden" name="id" value="@s.ShipperId" />
+                        <input type="hidden" name="returnUrl" value="@ret" />
+                        <div class="fld">
+                            <label>یادداشت <span class="muted small">(برای رد الزامی؛ برای صاحب بار ارسال می‌شود)</span></label>
+                            <textarea name="note" rows="2" maxlength="1000"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn2 grn" name="decision" value="@AccountStatus.Approved"><i class="bi bi-check2-circle"></i> تأیید احراز هویت</button>
+                            <button class="btn2 red" name="decision" value="@AccountStatus.Rejected"><i class="bi bi-x-circle"></i> رد</button>
+                        </div>
+                    </form>
+                </div>
+            }
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-boxes"></i> بارها <span class="end"><span class="muted small">@Fa.N(Model.Loads.Count) از @Fa.N(Model.LoadTotal) بار اخیر</span></span></div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>بار</th><th>مسیر</th><th>کالا</th><th>بارگیری</th><th>کرایه</th><th>وضعیت</th><th>سفر</th></tr></thead>
+                    <tbody>
+                    @foreach (var l in Model.Loads)
+                    {
+                        <tr data-href="/Admin/Loads/Detail/@l.LoadId">
+                            <td><a class="lnk num" href="/Admin/Loads/Detail/@l.LoadId">@l.Code</a><span class="sub">@Fa.Ago(l.CreatedAt)</span></td>
+                            <td>@Ui.Route(l.From, l.To)</td>
+                            <td>@l.Title<span class="sub">@l.CargoType · @OpsLabels.Ton(l.WeightTon) تن</span></td>
+                            <td class="nowrap">@Fa.Date(l.LoadingFrom)</td>
+                            <td class="nowrap">@Fa.Toman(l.Price)<span class="sub">@PriceMode.Label(l.PriceMode)</span></td>
+                            <td>
+                                @Ui.LoadPill(l.Status)
+                                @if (l.IsReported) { @Ui.Pill("گزارش‌شده", "no") }
+                                @if (l.PendingOffers > 0) { <span class="sub">@Fa.N(l.PendingOffers) پیشنهاد در انتظار</span> }
+                            </td>
+                            <td>
+                                @if (l.TripId is int tid) { <a class="lnk num" href="/Admin/Trips/Case/@tid">@l.TripCode</a><span class="sub">@TripStatus.Label(l.TripStatus ?? "")</span> }
+                                else { <span class="muted">—</span> }
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Loads.Count == 0)
+                    {
+                        <tr><td colspan="7" class="empty"><i class="bi bi-boxes"></i>هنوز باری ثبت نکرده است.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="grid2">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-wallet2"></i> کیف پول <span class="end"><b>@Fa.Toman(s.WalletBalance)</b></span></div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>زمان</th><th>نوع</th><th>مبلغ</th><th>مانده</th></tr></thead>
+                        <tbody>
+                        @foreach (var t in Model.Txns)
+                        {
+                            <tr>
+                                <td class="nowrap">@Fa.Stamp(t.CreatedAt)</td>
+                                <td>@WalletTxnKind.Label(t.Kind)@if (t.TripId is int tid) { <span class="sub"><a class="lnk" href="/Admin/Trips/Case/@tid">سفر</a>@(string.IsNullOrEmpty(t.Note) ? "" : " · " + t.Note)</span> } else if (!string.IsNullOrEmpty(t.Note)) { <span class="sub">@t.Note</span> }</td>
+                                <td>@OpsUi.Signed(t.Amount)</td>
+                                <td class="nowrap">@Fa.Toman(t.BalanceAfter)</td>
+                            </tr>
+                        }
+                        @if (Model.Txns.Count == 0)
+                        {
+                            <tr><td colspan="4" class="empty"><i class="bi bi-wallet2"></i>تراکنشی ثبت نشده است.</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card2">
+                <div class="hd"><i class="bi bi-star"></i> امتیازها از رانندگان</div>
+                <div class="bd">
+                    @foreach (var r in Model.Ratings)
+                    {
+                        <div class="kvrow">
+                            <span><span class="stars"><i class="bi bi-star-fill"></i> @Fa.N(r.Score)</span> @(string.IsNullOrEmpty(r.Comment) ? "" : "— " + r.Comment)<br /><small class="muted">@Fa.Date(r.CreatedAt)</small></span>
+                            @if (r.Trip is not null) { <a class="lnk num" href="/Admin/Trips/Case/@r.TripId">@r.Trip.Code</a> }
+                        </div>
+                    }
+                    @if (Model.Ratings.Count == 0)
+                    {
+                        <div class="empty-state"><i class="bi bi-star"></i>هنوز امتیازی نگرفته است.</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-exclamation-diamond"></i> شکایات</div>
+            <div class="bd">
+                @foreach (var c in Model.Complaints)
+                {
+                    var against = c.AgainstKind == OwnerKind.Shipper && c.AgainstId == s.ShipperId;
+                    <a class="kvrow" href="/Admin/Complaints/Detail/@c.ComplaintId">
+                        <span>@Ui.Pill(against ? "علیه صاحب بار" : "از سوی صاحب بار", against ? "no" : "inf") <b>@c.Title</b><br /><small class="muted">@ComplaintKind.Label(c.Kind) · @Fa.Date(c.CreatedAt)@(c.Trip is null ? "" : " · " + c.Trip.Code)</small></span>
+                        @Ui.ComplaintPill(c.Status)
+                    </a>
+                }
+                @if (Model.Complaints.Count == 0)
+                {
+                    <div class="empty-state"><i class="bi bi-emoji-smile"></i>شکایتی ثبت نشده است.</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="stack">
+        <partial name="_AccountActions" model="new AccountActionVm { Kind = OwnerKind.Shipper, Id = s.ShipperId, Name = s.DisplayName, Status = s.Status, StatusReason = s.StatusReason, ReturnUrl = ret }" />
+
+        @if (openLoads > 0 && s.Status != AccountStatus.Approved)
+        {
+            <div class="alert2 warn"><i class="bi bi-exclamation-triangle"></i><div class="grow">@Fa.N(openLoads) بار این صاحب بار هنوز در بازار است. <a class="lnk" href="/Admin/Loads?q=@s.Mobile">مدیریت بارها</a></div></div>
+        }
+        @if (pendingDocs > 0)
+        {
+            <div class="alert2 info"><i class="bi bi-hourglass-split"></i><div class="grow">@Fa.N(pendingDocs) مدرک در انتظار بررسی است؛ از همین صفحه می‌توانید احراز هویت را تأیید یا رد کنید.</div></div>
+        }
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-link-45deg"></i> پیوندها</div>
+            <div class="bd">
+                <a class="kvrow" href="/Admin/Loads?q=@s.Mobile"><span><i class="bi bi-boxes"></i> بارهای این صاحب بار</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" href="/Admin/Finance/Refunds"><span><i class="bi bi-arrow-counterclockwise"></i> استردادها</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" href="/Admin/Complaints?from=shipper"><span><i class="bi bi-exclamation-diamond"></i> شکایات صاحبان بار</span><i class="bi bi-chevron-left"></i></a>
+            </div>
+        </div>
+    </div>
+</div>

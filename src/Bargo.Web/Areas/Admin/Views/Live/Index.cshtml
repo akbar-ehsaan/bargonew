@@ -1,0 +1,63 @@
+@model LiveBoardVm
+@{
+    int S(string k) => Model.ByStatus.TryGetValue(k, out var n) ? n : 0;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-map"></i> نقشهٔ کشور</h1>
+        <p>هر کامیون یک سفر زنده روی آخرین موقعیتش؛ کهربایی: خودروی آزاد (دیده‌شده در یک ساعت اخیر)؛ خاکستری: دیده‌شده در ۲۴ ساعت اخیر ولی بی‌خبر. هر ۳۰ ثانیه به‌روز می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 @(Model.Alerts > 0 ? "red" : "ghost")" asp-action="Alerts"><i class="bi bi-bell"></i> هشدارها @if (Model.Alerts > 0) { <span>(@Fa.N(Model.Alerts))</span> }</a>
+        <a class="btn2 ghost" href="/Admin/Trips/Track"><i class="bi bi-geo-alt"></i> رهگیری با کد</a>
+    </div>
+</div>
+
+<div class="stats cols5">
+    <a class="stat p" asp-action="Trips"><div class="l"><i class="bi bi-truck"></i> سفرهای زنده</div><div class="v">@Fa.N(Model.LiveTrips)</div></a>
+    <a class="stat i" href="/Admin/Trips"><div class="l"><i class="bi bi-calendar-event"></i> در انتظار حرکت</div><div class="v">@Fa.N(Model.Upcoming)</div></a>
+    <a class="stat @(Model.NoGps > 0 ? "r" : "s")" asp-action="Alerts"><div class="l"><i class="bi bi-broadcast"></i> بدون GPS (بیش از دو ساعت)</div><div class="v">@Fa.N(Model.NoGps)</div></a>
+    <a class="stat @(Model.PastEta > 0 ? "w" : "s")" asp-action="Alerts"><div class="l"><i class="bi bi-stopwatch"></i> گذشته از زمان رسیدن</div><div class="v">@Fa.N(Model.PastEta)</div></a>
+    <a class="stat i" asp-action="Vehicles"><div class="l"><i class="bi bi-truck-front"></i> خودروی آزاد / بی‌خبر</div><div class="v">@Fa.N(Model.IdleVehicles)<small>/ @Fa.N(Model.StaleVehicles)</small></div></a>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-map"></i> نقشه <span class="end muted small">@Fa.N(Model.Markers.Count) نشانگر · @Fa.N(Model.OnlineDrivers) رانندهٔ آنلاین (۱۵ دقیقه)</span></div>
+        <div class="bd">
+            <div class="map tall" data-map="@Json.Serialize(new { markers = Model.Markers, fit = Model.Markers.Count > 0, poll = "/Admin/Live/Data" })"></div>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-signpost-split"></i> سفرهای زنده به تفکیک مرحله</div>
+            <div class="bd">
+                @foreach (var s in TripStatus.Live)
+                {
+                    <a class="kvrow" asp-action="Trips" asp-route-status="@s"><span>@TripStatus.Label(s)</span><b>@Fa.N(S(s))</b></a>
+                }
+                <a class="kvrow" asp-action="Loads"><span><i class="bi bi-boxes"></i> بارهای در حال حمل</span><b>@Fa.N(Model.LoadsInTransit)</b></a>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-clock-history"></i> تازه‌ترین موقعیت‌ها</div>
+            <div class="bd">
+                @foreach (var t in Model.Recent)
+                {
+                    <a class="kvrow" href="/Admin/Trips/Case/@t.TripId">
+                        <span><b class="num">@t.Code</b> @Ui.Route(t.From, t.To)<br /><small class="muted">@t.CarrierName · @TripStatus.Label(t.Status)</small></span>
+                        @OpsUi.Gps(t.LastPointAt)
+                    </a>
+                }
+                @if (Model.Recent.Count == 0)
+                {
+                    <div class="empty-state"><i class="bi bi-truck"></i><b>سفر زنده‌ای نیست</b>هیچ راننده‌ای هم‌اکنون در راه نیست.</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

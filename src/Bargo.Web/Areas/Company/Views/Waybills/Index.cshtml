@@ -1,0 +1,62 @@
+@model OpsWaybillsVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-files"></i> بارنامه‌های شرکت</h1>
+        <p>همهٔ بارنامه‌های ثبت‌شده برای سفرهای شرکت — توسط دفتر یا راننده.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 pri" asp-action="Issue"><i class="bi bi-file-earmark-plus"></i> ثبت بارنامه</a>
+        <a class="btn2 ghost" asp-action="Documents"><i class="bi bi-folder2-open"></i> اسناد بار</a>
+    </div>
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Index" class="filters">
+        <div class="fld">
+            <label>جستجو</label>
+            <input name="q" value="@Model.Q" maxlength="40" placeholder="شمارهٔ بارنامه، کد سفر یا عنوان بار" />
+        </div>
+        <div class="row-actions">
+            <button type="submit" class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+            @if (!string.IsNullOrEmpty(Model.Q))
+            {
+                <a class="btn2 ghost" asp-action="Index">پاک کردن</a>
+            }
+        </div>
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>شماره بارنامه</th><th>سفر</th><th>مسیر</th><th>بار</th><th>راننده / خودرو</th><th>ثبت</th><th>وضعیت</th><th>فایل</th></tr></thead>
+            <tbody>
+            @foreach (var w in Model.Page.Rows)
+            {
+                var t = w.Trip!;
+                var l = t.Load!;
+                <tr data-href="/Company/Trips/Detail/@t.TripId">
+                    <td class="num"><b>@Fa.Digits(w.Number)</b></td>
+                    <td><a class="num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a><span class="sub">@Ui.TripPill(t.Status)</span></td>
+                    <td>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</td>
+                    <td><b>@l.Title</b><span class="sub">@OpsLabels.Ton(l.WeightTon) تن</span></td>
+                    <td>@(t.Driver?.FullName ?? "—")@if (t.Vehicle is not null) { <span class="sub"><span class="plate">@t.Vehicle.PlateNo</span></span> }</td>
+                    <td class="nowrap">@Fa.Stamp(w.IssuedAt)<span class="sub">@OwnerKind.Label(w.IssuedByKind)</span></td>
+                    <td>@Ui.Pill(OpsLabels.WaybillStatus(w.Status), OpsLabels.WaybillTone(w.Status))</td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(w.FilePath)) { <a class="btn2 ghost sm" href="@DocumentStorage.Url(w.FilePath)" target="_blank"><i class="bi bi-download"></i> تصویر</a> }
+                        else { <span class="muted">—</span> }
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr>
+                    <td colspan="8" class="empty">
+                        <i class="bi bi-files"></i>
+                        @(string.IsNullOrEmpty(Model.Q) ? "هنوز بارنامه‌ای ثبت نشده است. با رسیدن راننده به مبدا، شمارهٔ بارنامه از «صدور/ثبت بارنامه» ثبت می‌شود." : "بارنامه‌ای با این مشخصات پیدا نشد.")
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

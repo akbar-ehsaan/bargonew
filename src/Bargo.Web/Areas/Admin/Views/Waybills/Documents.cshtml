@@ -1,0 +1,63 @@
+@model PageVm<TripDocRow>
+@{
+    var q = ViewBag.Q as string;
+    var kind = ViewBag.Kind as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    var kinds = (string[])ViewBag.Kinds;
+    var uploaders = (Dictionary<string, OwnerRef>)ViewBag.Uploaders;
+    int C(string s) => counts.TryGetValue(s, out var n) ? n : 0;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-folder2-open"></i> اسناد سفرها</h1>
+        <p>رسید بارگیری، رسید تحویل، بیمه‌نامهٔ بار و تصاویری که راننده، شرکت یا صاحب بار روی سفر بارگذاری کرده‌اند — مرجع رسیدگی به اختلاف. تازه‌ترین اول.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-files"></i> بارنامه‌ها</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Documents" asp-route-q="@q" class="@(kind is null ? "on" : "")">همه <span class="n">@Fa.N(counts.Values.Sum())</span></a>
+    @foreach (var k in kinds)
+    {
+        <a asp-action="Documents" asp-route-kind="@k" asp-route-q="@q" class="@(kind == k ? "on" : "")">@TripDocumentKind.Label(k) <span class="n">@Fa.N(C(k))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Documents" class="filters">
+        <input type="hidden" name="kind" value="@kind" />
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="عنوان سند، کد سفر یا کد بار" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Documents" asp-route-kind="@kind">پاک کردن</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سند</th><th>نوع</th><th>سفر</th><th>مسیر</th><th>بارگذارنده</th><th>فایل</th><th>زمان</th></tr></thead>
+            <tbody>
+            @foreach (var d in Model.Rows)
+            {
+                var up = uploaders.GetValueOrDefault($"{d.UploadedByKind}:{d.UploadedById}");
+                <tr>
+                    <td><b>@(string.IsNullOrEmpty(d.Title) ? TripDocumentKind.Label(d.Kind) : d.Title)</b><span class="sub">#@Fa.N(d.TripDocumentId)</span></td>
+                    <td>@Ui.Pill(TripDocumentKind.Label(d.Kind), d.Kind == TripDocumentKind.DeliveryReceipt ? "ok" : d.Kind == TripDocumentKind.CargoInsurance ? "inf" : "mut")</td>
+                    <td><a class="lnk num" href="/Admin/Trips/Case/@d.TripId">@d.TripCode</a><span class="sub">@Ui.TripPill(d.TripStatus)</span></td>
+                    <td>@Ui.Route(d.From, d.To)</td>
+                    <td>@OpsUi.Owner(up ?? new OwnerRef(OwnerKind.Label(d.UploadedByKind) + " #" + d.UploadedById))</td>
+                    <td>@OpsUi.File(d.FilePath, large: false)</td>
+                    <td class="nowrap">@Fa.Stamp(d.CreatedAt)<span class="sub">@Fa.Ago(d.CreatedAt)</span></td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-folder2-open"></i>@(string.IsNullOrEmpty(q) && kind is null ? "هنوز سندی روی هیچ سفری بارگذاری نشده است." : "سندی با این شرایط پیدا نشد.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

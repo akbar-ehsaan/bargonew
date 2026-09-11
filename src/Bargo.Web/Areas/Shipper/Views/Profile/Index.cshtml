@@ -1,0 +1,163 @@
+@model ShipperProfileForm
+@{
+    var cities = (List<ShipperCityOption>)ViewBag.Cities;
+    var mobile = ViewBag.Mobile as string ?? "";
+    var verifyStatus = ViewBag.VerifyStatus as string;
+    var createdAt = (DateTime)ViewBag.CreatedAt;
+    var (ratingAvg, ratingCount) = ((double, int))ViewBag.Rating;
+    var isBusiness = Model.Kind == "business";
+    var errors = ViewData.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Where(m => !string.IsNullOrEmpty(m)).ToList();
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-person"></i> مشخصات حساب</h1>
+        <p>این مشخصات در بارنامه، فاکتور و برای حمل‌کنندهٔ بار شما نمایش داده می‌شود. موبایل @Fa.Digits(mobile) نام کاربری شماست و تغییر نمی‌کند.</p>
+    </div>
+    <div class="actions">@Ui.Pill(ShipperUi.VerifyLabel(verifyStatus), ShipperUi.VerifyTone(verifyStatus))</div>
+</div>
+
+<partial name="_Tabs" />
+
+@if (errors.Count > 0)
+{
+    <div class="alert2 err" role="alert"><i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            <ul style="margin:0;padding-inline-start:18px">
+                @foreach (var errorText in errors)
+                {
+                    <li>@errorText</li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="bd">
+            <form method="post" asp-action="Index">
+                <div class="form-grid">
+                    <div class="form-sec"><i class="bi bi-person-vcard"></i> نوع حساب</div>
+                    <div class="fld full">
+                        <div class="role-pick" style="margin-bottom:0">
+                            <label><input type="radio" name="Kind" value="person" checked="@(!isBusiness)" /><i class="bi bi-person"></i> شخص حقیقی</label>
+                            <label><input type="radio" name="Kind" value="business" checked="@isBusiness" /><i class="bi bi-building"></i> کسب‌وکار / شرکت</label>
+                        </div>
+                        <span class="hint">کسب‌وکار می‌تواند فاکتور را به نام شرکت و با کد اقتصادی دریافت کند.</span>
+                    </div>
+
+                    <div class="form-sec"><i class="bi bi-person"></i> هویت</div>
+                    <div class="fld">
+                        <label>نام و نام خانوادگی <span class="req">*</span></label>
+                        <input name="FullName" value="@Model.FullName" maxlength="100" minlength="3" required />
+                    </div>
+                    <div class="fld">
+                        <label>کد ملی</label>
+                        <input name="NationalCode" value="@Model.NationalCode" dir="ltr" inputmode="numeric" maxlength="10" />
+                        <span class="hint">برای احراز هویت لازم است؛ با کارت ملی بارگذاری‌شده تطبیق داده می‌شود.</span>
+                    </div>
+
+                    <div class="form-sec" data-biz hidden="@(!isBusiness)"><i class="bi bi-building"></i> مشخصات کسب‌وکار</div>
+                    <div class="fld" data-biz hidden="@(!isBusiness)">
+                        <label>نام کسب‌وکار <span class="req">*</span></label>
+                        <input name="BusinessName" value="@Model.BusinessName" maxlength="150" required="@isBusiness" />
+                    </div>
+                    <div class="fld" data-biz hidden="@(!isBusiness)">
+                        <label>شناسهٔ ملی شرکت</label>
+                        <input name="NationalId" value="@Model.NationalId" dir="ltr" inputmode="numeric" maxlength="11" />
+                        <span class="hint">۱۱ رقم — برای احراز هویت کسب‌وکار لازم است.</span>
+                    </div>
+                    <div class="fld" data-biz hidden="@(!isBusiness)">
+                        <label>کد اقتصادی</label>
+                        <input name="EconomicCode" value="@Model.EconomicCode" dir="ltr" inputmode="numeric" maxlength="14" />
+                        <span class="hint">۱۰ تا ۱۴ رقم — اختیاری، برای درج در فاکتور.</span>
+                    </div>
+
+                    <div class="form-sec"><i class="bi bi-geo-alt"></i> نشانی و تماس</div>
+                    <div class="fld">
+                        <label>شهر</label>
+                        <select name="CityId">
+                            <option value="">انتخاب کنید</option>
+                            @foreach (var provinceGroup in cities.GroupBy(c => c.Province))
+                            {
+                                <optgroup label="@provinceGroup.Key">
+                                    @foreach (var cityOpt in provinceGroup)
+                                    {
+                                        <option value="@cityOpt.CityId" selected="@(Model.CityId == cityOpt.CityId)">@cityOpt.Name</option>
+                                    }
+                                </optgroup>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld">
+                        <label>ایمیل</label>
+                        <input name="Email" type="email" value="@Model.Email" dir="ltr" maxlength="120" />
+                    </div>
+                    <div class="fld full">
+                        <label>نشانی</label>
+                        <textarea name="Address" rows="3" maxlength="500">@Model.Address</textarea>
+                        <span class="hint">نشانی‌های بارگیری را در <a class="lnk" asp-action="Addresses">آدرس‌های منتخب</a> ذخیره کنید تا در ثبت بار آماده باشند.</span>
+                    </div>
+                </div>
+                @if (verifyStatus == AccountStatus.Approved)
+                {
+                    <p class="small muted" style="margin:14px 0 0"><i class="bi bi-info-circle"></i> حساب شما احراز شده است؛ تغییر نوع حساب، نام، کد ملی، نام کسب‌وکار یا شناسهٔ ملی باعث بررسی دوبارهٔ احراز هویت می‌شود.</p>
+                }
+                <div class="form-actions">
+                    <button class="btn2 pri"><i class="bi bi-check2"></i> ذخیرهٔ مشخصات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-info-circle"></i> وضعیت حساب</div>
+            <div class="bd">
+                <div class="kvrow"><span>موبایل ورود</span><b dir="ltr">@Fa.Digits(mobile)</b></div>
+                <div class="kvrow"><span>احراز هویت</span>@Ui.Pill(ShipperUi.VerifyLabel(verifyStatus), ShipperUi.VerifyTone(verifyStatus))</div>
+                <div class="kvrow"><span>عضویت</span><b>@Fa.LongDate(createdAt)</b></div>
+                <div class="kvrow"><span>امتیاز از حمل‌کنندگان</span>@Ui.Stars(ratingAvg, ratingCount)</div>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-patch-check"></i> احراز هویت <a class="end lnk" asp-action="Verification">مدارک</a></div>
+            <div class="bd small">
+                @if (verifyStatus == AccountStatus.Approved)
+                {
+                    <p style="margin:0"><i class="bi bi-check-circle" style="color:var(--ok)"></i> هویت شما تأیید شده است و حمل‌کنندگان نشان «احراز شده» را کنار نام شما می‌بینند.</p>
+                }
+                else if (verifyStatus == AccountStatus.Pending)
+                {
+                    <p style="margin:0" class="muted">مدارک شما در صف بررسی است. نتیجه به شما اعلان می‌شود.</p>
+                }
+                else if (verifyStatus == AccountStatus.Rejected)
+                {
+                    <p style="margin:0" class="muted">احراز هویت رد شده است. علت را در صفحهٔ مدارک ببینید و نسخهٔ درست را بفرستید.</p>
+                }
+                else
+                {
+                    <p style="margin:0" class="muted">هنوز مدرکی نفرستاده‌اید. کد ملی و شهر را کامل کنید و تصویر کارت ملی@(isBusiness ? " و آگهی تأسیس" : "") را بارگذاری کنید.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var radios = document.querySelectorAll('input[name="Kind"]');
+            var bizName = document.querySelector('input[name="BusinessName"]');
+            function sync() {
+                var picked = document.querySelector('input[name="Kind"]:checked');
+                var on = !!picked && picked.value === 'business';
+                document.querySelectorAll('[data-biz]').forEach(function (el) { el.hidden = !on; });
+                if (bizName) bizName.required = on;
+            }
+            radios.forEach(function (r) { r.addEventListener('change', sync); });
+            sync();
+        })();
+    </script>
+}

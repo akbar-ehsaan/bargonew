@@ -1,0 +1,56 @@
+@model PageVm<ReceiptRowVm>
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-receipt"></i> @ViewData["Title"]</h1>
+        <p>سفرهای تحویل‌شده با زمان تحویل و رسیدهای بارگذاری‌شده. رسید تحویل، مدرک شما در اختلاف‌های احتمالی است؛ برای هر سفر آن را بارگذاری کنید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Documents" asp-route-kind="@TripDocumentKind.DeliveryReceipt"><i class="bi bi-folder2-open"></i> همهٔ رسیدهای تحویل</a>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>مسیر</th><th>گیرنده</th><th>تحویل</th><th>بارنامه</th><th>وضعیت</th><th>رسید تحویل</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr>
+                    <td><a class="lnk num" asp-controller="Trips" asp-action="Detail" asp-route-id="@r.TripId">@r.Code</a><span class="sub">@r.Title</span></td>
+                    <td>@Ui.Route(r.From, r.To)</td>
+                    <td>@(string.IsNullOrEmpty(r.ReceiverName) ? "—" : r.ReceiverName)@if (!string.IsNullOrEmpty(r.ReceiverMobile)) { <span class="sub num">@r.ReceiverMobile</span> }</td>
+                    <td class="nowrap">@Fa.Stamp(r.DeliveredAt)</td>
+                    <td>@if (!string.IsNullOrEmpty(r.WaybillNo)) { <span class="num">@r.WaybillNo</span> } else { <span class="muted">ثبت نشده</span> }</td>
+                    <td>@Ui.TripPill(r.Status)</td>
+                    <td>
+                        <div class="row-actions">
+                            @foreach (var d in r.Receipts)
+                            {
+                                if (!string.IsNullOrEmpty(d.FilePath))
+                                {
+                                    <a class="chip" href="@DocumentStorage.Url(d.FilePath)" target="_blank" title="@Fa.Stamp(d.CreatedAt)"><i class="bi bi-receipt"></i> @d.Title</a>
+                                }
+                            }
+                            @if (r.Receipts.Count == 0)
+                            {
+                                <a class="btn2 ghost sm" asp-controller="Trips" asp-action="Detail" asp-route-id="@r.TripId"><i class="bi bi-upload"></i> بارگذاری رسید</a>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr>
+                    <td colspan="7" class="empty">
+                        <i class="bi bi-receipt"></i>
+                        هنوز سفری را تحویل نداده‌اید. پس از ثبت تحویل با کد گیرنده، سفر اینجا فهرست می‌شود.
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

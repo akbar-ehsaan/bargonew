@@ -1,0 +1,36 @@
+@model PageVm<InvoiceRowVm>
+@{
+    var sum = (long)ViewBag.Sum;
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-receipt-cutoff"></i> فاکتورها</h1><p>فاکتور کمیسیون بارگو برای هر سفر تسویه‌شده و سایر صورت‌حساب‌های صادرشده به نام شما.</p></div>
+    <div class="actions"><span class="chip"><i class="bi bi-calculator"></i> جمع کل: @Fa.Toman(sum)</span></div>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>شماره فاکتور</th><th>تاریخ صدور</th><th>بابت</th><th>سفر</th><th>مبلغ</th><th>مالیات</th><th>جمع</th><th>وضعیت</th></tr></thead>
+            <tbody>
+            @foreach (var i in Model.Rows)
+            {
+                <tr>
+                    <td dir="ltr" style="text-align:right"><b>@i.No</b></td>
+                    <td class="nowrap">@Fa.Date(i.IssuedAt)</td>
+                    <td>@InvoiceRowVm.KindLabel(i.Kind)</td>
+                    <td>@if (i.TripId is int tid) { <a class="lnk" href="/Driver/Trips/Detail/@tid">@i.TripCode</a> } else { <span class="muted">—</span> }</td>
+                    <td class="num">@Fa.Toman(i.Amount)</td>
+                    <td class="num">@(i.Tax == 0 ? "—" : Fa.Toman(i.Tax))</td>
+                    <td><b class="num">@Fa.Toman(i.Total)</b></td>
+                    <td>@(i.Status == "paid" ? Ui.Pill("پرداخت‌شده", "ok") : Ui.Pill("در انتظار", "wait"))</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-receipt"></i>فاکتوری برای شما صادر نشده است. با تسویهٔ اولین سفر، فاکتور کمیسیون اینجا می‌نشیند.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

@@ -1,0 +1,123 @@
+@{
+    var status = (string)ViewBag.Status;
+    var kind = ViewBag.Kind as string;
+    var checks = (List<CompanyDocCheck>)ViewBag.Checks;
+    var docs = (List<CompanyDocRow>)ViewBag.Docs;
+    string KindLabel(string k) => DocumentKind.Label(k) + (k == DocumentKind.NationalCard ? " مدیرعامل" : "");
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-folder2-open"></i> مدارک شرکت</h1>
+        <p>آگهی تأسیس، مجوز فعالیت و کارت ملی مدیرعامل. هر نسخهٔ تازه به صف بررسی مدیر سامانه می‌رود و نسخهٔ قبلی را کنار می‌زند.</p>
+    </div>
+    <div class="actions">@Ui.AccountPill(status)</div>
+</div>
+
+<partial name="_Tabs" />
+<partial name="_Status" />
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-list-check"></i> مدارک الزامی</div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>مدرک</th><th>وضعیت</th><th>شماره</th><th>انقضا</th><th>آخرین بارگذاری</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var k in checks)
+                    {
+                        <tr>
+                            <td><b>@KindLabel(k.Kind)</b></td>
+                            <td>@Ui.Pill(k.StateLabel, k.Tone)</td>
+                            <td class="num">@(k.Doc?.Number is { Length: > 0 } n ? Fa.Digits(n) : "—")</td>
+                            <td>@(DocumentKind.Expiring.Contains(k.Kind) ? Ui.Expiry(k.Doc?.ExpiresAt, 60) : Ui.Pill("ندارد", "mut"))</td>
+                            <td class="nowrap">@(k.Doc is null ? "—" : Fa.Date(k.Doc.UploadedAt))</td>
+                            <td>
+                                <div class="row-actions">
+                                    @if (k.Doc?.FilePath is { Length: > 0 } fp)
+                                    {
+                                        <a class="btn2 ghost sm" href="@DocumentStorage.Url(fp)" target="_blank" rel="noopener"><i class="bi bi-file-earmark"></i> مشاهده</a>
+                                    }
+                                    <a class="btn2 soft sm" asp-action="Documents" asp-route-kind="@k.Kind" asp-fragment="upload"><i class="bi bi-cloud-arrow-up"></i> @(k.State == "missing" ? "بارگذاری" : "نسخهٔ تازه")</a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-clock-history"></i> همهٔ بارگذاری‌ها</div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>مدرک</th><th>بارگذاری</th><th>شماره</th><th>انقضا</th><th>وضعیت</th><th>یادداشت بررسی</th><th>فایل</th></tr></thead>
+                    <tbody>
+                    @foreach (var d in docs)
+                    {
+                        <tr>
+                            <td><b>@KindLabel(d.Kind)</b></td>
+                            <td class="nowrap">@Fa.Stamp(d.UploadedAt)</td>
+                            <td class="num">@(string.IsNullOrEmpty(d.Number) ? "—" : Fa.Digits(d.Number))</td>
+                            <td>@(d.ExpiresAt is null ? Ui.Pill("ندارد", "mut") : Ui.Expiry(d.ExpiresAt, 60))</td>
+                            <td>@Ui.AccountPill(d.Status)</td>
+                            <td>
+                                @(string.IsNullOrEmpty(d.ReviewNote) ? "—" : d.ReviewNote)
+                                @if (d.ReviewedAt is DateTime r) { <span class="sub">بررسی در @Fa.Date(r)</span> }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(d.FilePath))
+                                {
+                                    <a class="btn2 ghost sm" href="@DocumentStorage.Url(d.FilePath)" target="_blank" rel="noopener"><i class="bi bi-file-earmark"></i> مشاهده</a>
+                                }
+                                else { <span class="muted">—</span> }
+                            </td>
+                        </tr>
+                    }
+                    @if (docs.Count == 0)
+                    {
+                        <tr><td colspan="7" class="empty"><i class="bi bi-folder2-open"></i>هنوز مدرکی بارگذاری نشده است. با فرم کنار صفحه شروع کنید؛ تا مدارک کامل نشود، بررسی حساب آغاز نمی‌شود.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card2" id="upload">
+        <div class="hd"><i class="bi bi-cloud-arrow-up"></i> بارگذاری مدرک</div>
+        <div class="bd">
+            <form method="post" asp-action="Documents" enctype="multipart/form-data">
+                <div class="form-grid">
+                    <div class="fld full">
+                        <label>نوع مدرک <span class="req">*</span></label>
+                        <select name="kind" required>
+                            <option value="">انتخاب کنید</option>
+                            @foreach (var k in DocumentKind.ForCompany)
+                            {
+                                <option value="@k" selected="@(k == kind)">@KindLabel(k)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld full">
+                        <label>شمارهٔ مدرک</label>
+                        <input name="number" dir="ltr" maxlength="40" />
+                        <span class="hint">شمارهٔ ثبت برای آگهی تأسیس، شمارهٔ پروانه برای مجوز، کد ملی برای کارت ملی.</span>
+                    </div>
+                    <div class="fld full">
+                        <label>تاریخ انقضا</label>
+                        <input name="expiresAt" data-jdate placeholder="۱۴۰۵/۰۶/۲۱" />
+                        <span class="hint">برای مجوز فعالیت الزامی است؛ آگهی تأسیس و کارت ملی انقضا ندارند.</span>
+                    </div>
+                    <div class="fld full">
+                        <label>فایل <span class="req">*</span></label>
+                        <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required />
+                        <span class="hint">تصویر خوانا (jpg، png، webp) یا PDF — حداکثر ۸ مگابایت.</span>
+                    </div>
+                </div>
+                <div class="form-actions"><button class="btn2 pri"><i class="bi bi-cloud-arrow-up"></i> بارگذاری</button></div>
+            </form>
+        </div>
+    </div>
+</div>

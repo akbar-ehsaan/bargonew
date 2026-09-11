@@ -1,0 +1,77 @@
+@model PageVm<ShipperTripRow>
+@{
+    var groups = ViewBag.Groups as List<ShipperDocGroup> ?? new List<ShipperDocGroup>();
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-download"></i> @ViewData["Title"]</h1>
+        <p>فایل بارنامه‌ها، بیمه‌نامه‌ها و رسیدهای سفرهای شما، به تفکیک سفر. فقط اسنادی که فایل دارند این‌جا فهرست می‌شوند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index" asp-route-kind="waybill"><i class="bi bi-file-earmark-text"></i> بارنامه‌ها</a>
+        <a class="btn2 ghost" href="/Shipper/Orders?tab=done"><i class="bi bi-check-circle"></i> سفارش‌های تکمیل‌شده</a>
+    </div>
+</div>
+
+@if (Model.Total == 0)
+{
+    <div class="card2">
+        <div class="empty-state">
+            <i class="bi bi-folder2-open"></i>
+            <b>هنوز فایلی برای دانلود نیست</b>
+            وقتی حمل‌کننده تصویر بارنامه، رسید بارگیری یا رسید تحویل را روی یکی از سفرهای شما بارگذاری کند، فایل آن این‌جا آماده دانلود است.
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack">
+        @foreach (var g in groups)
+        {
+            <div class="card2">
+                <div class="hd">
+                    <i class="bi bi-signpost-split"></i>
+                    <a class="num" href="/Shipper/Orders/Detail/@g.Trip.TripId">@g.Trip.Code</a>
+                    @Ui.Route(g.Trip.From, g.Trip.To)
+                    @Ui.TripPill(g.Trip.Status)
+                    <span class="end muted small">@Fa.N(g.Docs.Count) فایل</span>
+                </div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>نوع</th><th>عنوان</th><th>ثبت</th><th>فایل</th></tr></thead>
+                        <tbody>
+                        @foreach (var doc in g.Docs)
+                        {
+                            var isWb = doc.Kind == Bargo.Web.Areas.ShipperPanel.Controllers.DocumentsController.Waybill;
+                            <tr>
+                                <td data-label="نوع">@(isWb ? "بارنامه" : TripDocumentKind.Label(doc.Kind))</td>
+                                <td data-label="عنوان">
+                                    @if (isWb)
+                                    {
+                                        <b>شمارهٔ <span class="num">@Fa.Digits(doc.Number)</span></b>
+                                        <span class="sub">@Ui.Pill(ShipperUi.WaybillStatusLabel(doc.Status ?? ""), ShipperUi.WaybillStatusTone(doc.Status ?? ""))</span>
+                                    }
+                                    else
+                                    {
+                                        <b>@(string.IsNullOrEmpty(doc.Title) ? TripDocumentKind.Label(doc.Kind) : doc.Title)</b>
+                                    }
+                                </td>
+                                <td class="nowrap" data-label="ثبت">@Fa.Stamp(doc.At)<span class="sub">@OwnerKind.Label(doc.ByKind)</span></td>
+                                <td data-label="فایل">
+                                    <div class="row-actions">
+                                        <a class="btn2 ghost sm" href="@DocumentStorage.Url(doc.FilePath)" target="_blank" rel="noopener"><i class="bi bi-eye"></i> مشاهده</a>
+                                        <a class="btn2 soft sm" href="@DocumentStorage.Url(doc.FilePath)" download><i class="bi bi-download"></i> دانلود</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+    <div class="card2" style="margin-top:18px">
+        <partial name="_Pager" model="Model.Pager" />
+    </div>
+}

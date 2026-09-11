@@ -1,0 +1,53 @@
+@{
+    Layout = "_PublicLayout";
+    var recent = (IEnumerable<dynamic>)ViewBag.Recent;
+}
+<section class="page-head" style="margin-bottom:24px">
+    <div>
+        <h1 style="font-size:28px">اعلام بار و مدیریت حمل، روی یک گردش کار</h1>
+        <p style="font-size:15px;max-width:60ch">صاحب بار ثبت می‌کند، رانندگان و شرکت‌ها پیشنهاد می‌دهند، سفر با بارنامه و GPS دنبال می‌شود و تحویل با کد گیرنده ثبت و کرایه تسویه می‌شود.</p>
+    </div>
+</section>
+
+<div class="grid3" style="margin-bottom:24px">
+    <div class="card2"><div class="bd">
+        <h3 style="margin:0 0 6px"><i class="bi bi-box-seam" style="color:#1d5aa6"></i> صاحب بار هستم</h3>
+        <p class="muted">بار را ثبت کنید، پیشنهادها را مقایسه کنید و تا تحویل روی نقشه دنبالش کنید.</p>
+        <a class="btn2 pri" href="/account/register?type=shipper">ثبت‌نام صاحب بار</a>
+    </div></div>
+    <div class="card2 skin-driver" style="--primary:#0f6e5c"><div class="bd">
+        <h3 style="margin:0 0 6px"><i class="bi bi-truck" style="color:#0f6e5c"></i> راننده هستم</h3>
+        <p class="muted">بارهای نزدیک را ببینید، قیمت بدهید و درآمد هر سفر را در کیف پول بگیرید.</p>
+        <a class="btn2 pri" style="background:#0f6e5c" href="/account/register?type=driver">ثبت‌نام راننده</a>
+    </div></div>
+    <div class="card2"><div class="bd">
+        <h3 style="margin:0 0 6px"><i class="bi bi-buildings" style="color:#8a4b1c"></i> شرکت حمل‌ونقل</h3>
+        <p class="muted">رانندگان و ناوگان را مدیریت کنید، بار تخصیص دهید و سفرها را زنده کنترل کنید.</p>
+        <a class="btn2 pri" style="background:#8a4b1c" href="/account/register?type=company">درخواست عضویت</a>
+    </div></div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-lightning"></i> تازه‌ترین بارها <span class="end chip">@Fa.N((int)ViewBag.OpenLoads) بار باز</span></div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>کد</th><th>مسیر</th><th>وزن</th><th>خودرو</th><th>بارگیری</th></tr></thead>
+            <tbody>
+            @foreach (var l in recent)
+            {
+                <tr>
+                    <td class="num">@l.Code</td>
+                    <td>@Ui.Route((string)l.From, (string)l.To)</td>
+                    <td>@Fa.N((decimal)l.WeightTon, 1) تن</td>
+                    <td>@l.Vehicle</td>
+                    <td>@Fa.Date((DateTime)l.LoadingFrom)</td>
+                </tr>
+            }
+            @if (!recent.Any())
+            {
+                <tr><td colspan="5" class="empty"><i class="bi bi-inbox"></i>در حال حاضر بار بازی نیست.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

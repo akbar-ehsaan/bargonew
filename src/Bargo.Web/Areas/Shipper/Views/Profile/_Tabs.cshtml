@@ -1,0 +1,11 @@
+@{
+    var tabAction = ViewContext.RouteData.Values["action"] as string ?? "Index";
+    string On(string a) => string.Equals(a, tabAction, StringComparison.OrdinalIgnoreCase) ? "on" : "";
+}
+<div class="tabs">
+    <a asp-area="Shipper" asp-controller="Profile" asp-action="Index" class="@On("Index")"><i class="bi bi-person"></i> مشخصات</a>
+    <a asp-area="Shipper" asp-controller="Profile" asp-action="Verification" class="@On("Verification")"><i class="bi bi-patch-check"></i> احراز هویت</a>
+    <a asp-area="Shipper" asp-controller="Profile" asp-action="Addresses" class="@On("Addresses")"><i class="bi bi-geo"></i> آدرس‌های منتخب</a>
+    <a asp-area="Shipper" asp-controller="Profile" asp-action="Bank" class="@On("Bank")"><i class="bi bi-bank"></i> اطلاعات مالی</a>
+    <a asp-area="Shipper" asp-controller="Profile" asp-action="Settings" class="@On("Settings")"><i class="bi bi-gear"></i> تنظیمات</a>
+</div>

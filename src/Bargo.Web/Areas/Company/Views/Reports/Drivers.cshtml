@@ -1,0 +1,98 @@
+@model List<DriverPerfRow>
+@{
+    var active = Model.Where(x => x.Trips > 0).ToList();
+    var idle = Model.Where(x => x.Trips == 0).ToList();
+    var maxDone = active.Count == 0 ? 0 : active.Max(x => x.Done);
+    var maxRevenue = active.Count == 0 ? 0 : active.Max(x => x.Revenue);
+    var totalDone = active.Sum(x => x.Done);
+    var totalRevenue = active.Sum(x => x.Revenue);
+    var totalShare = active.Sum(x => x.DriverShare);
+    var totalKm = active.Sum(x => x.Km);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-person-badge"></i> عملکرد رانندگان</h1>
+        <p>سفرها، تحویل‌ها، لغوها، کیلومتر طی‌شده، درآمد و امتیازِ هر راننده در بازهٔ انتخابی — بر پایهٔ تاریخ ساخت سفر.</p>
+    </div>
+</div>
+
+<partial name="_ReportHead" />
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-people"></i> رانندگان فعال</div><div class="v">@Fa.N(active.Count)<small>از @Fa.N(Model.Count)</small></div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-flag"></i> سفر تحویل‌شده</div><div class="v">@Fa.N(totalDone)</div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-cash-stack"></i> سهم شرکت از تحویل‌ها</div><div class="v">@Fa.Toman(totalRevenue)</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-signpost"></i> کیلومتر طی‌شده</div><div class="v">@Fa.N(totalKm)<small>km</small></div></div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-bar-chart-steps"></i> رتبه‌بندی بر پایهٔ سفرهای تحویل‌شده</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>راننده</th><th>سفر</th><th style="width:16%">تحویل‌شده</th><th>لغو</th><th>کیلومتر</th><th style="width:16%">سهم شرکت</th><th>سهم راننده</th><th>امتیاز بازه</th><th>امتیاز کل</th></tr></thead>
+            <tbody>
+            @{ var rank = 0; }
+            @foreach (var d in active)
+            {
+                rank++;
+                <tr>
+                    <td data-label="#" class="num">@Fa.N(rank)</td>
+                    <td data-label="راننده">
+                        <b>@d.Name</b>
+                        <span class="sub num">@Fa.Digits(d.Mobile)@(d.InCompany ? "" : " · دیگر عضو شرکت نیست")</span>
+                    </td>
+                    <td data-label="سفر" class="num">@Fa.N(d.Trips)</td>
+                    <td data-label="تحویل‌شده">
+                        <div class="small"><b>@Fa.N(d.Done)</b> <span class="muted">(@Fa.N(d.Trips == 0 ? 0 : d.Done * 100.0 / d.Trips)٪)</span></div>
+                        <partial name="_Bar" model='new BarVm(d.Done, maxDone, "var(--ok)")' />
+                    </td>
+                    <td data-label="لغو" class="num">@(d.Cancelled == 0 ? "—" : Fa.N(d.Cancelled))</td>
+                    <td data-label="کیلومتر" class="num">@Fa.N(d.Km)</td>
+                    <td data-label="سهم شرکت">
+                        <div class="small nowrap">@Fa.Toman(d.Revenue)</div>
+                        <partial name="_Bar" model="new BarVm(d.Revenue, maxRevenue)" />
+                    </td>
+                    <td data-label="سهم راننده" class="nowrap">@Fa.Toman(d.DriverShare)</td>
+                    <td data-label="امتیاز بازه">@(d.PeriodRating is double pr ? Ui.Stars(pr, d.PeriodRatingCount) : Ui.Stars(0, 0))</td>
+                    <td data-label="امتیاز کل">@Ui.Stars(d.RatingAvg, d.RatingCount)</td>
+                </tr>
+            }
+            @if (active.Count == 0)
+            {
+                <tr><td colspan="10" class="empty"><i class="bi bi-person-badge"></i>در این بازه هیچ راننده‌ای سفری نداشته است. بازه را گسترده‌تر کنید یا از «تخصیص بار» سفر بسازید.</td></tr>
+            }
+            </tbody>
+            @if (active.Count > 0)
+            {
+                <tfoot>
+                    <tr style="background:#f5f7f9;font-weight:800">
+                        <td></td>
+                        <td data-label="جمع">جمع</td>
+                        <td data-label="سفر" class="num">@Fa.N(active.Sum(x => x.Trips))</td>
+                        <td data-label="تحویل‌شده" class="num">@Fa.N(totalDone)</td>
+                        <td data-label="لغو" class="num">@Fa.N(active.Sum(x => x.Cancelled))</td>
+                        <td data-label="کیلومتر" class="num">@Fa.N(totalKm)</td>
+                        <td data-label="سهم شرکت" class="nowrap">@Fa.Toman(totalRevenue)</td>
+                        <td data-label="سهم راننده" class="nowrap">@Fa.Toman(totalShare)</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>
+
+@if (idle.Count > 0)
+{
+    <div class="card2">
+        <div class="hd"><i class="bi bi-person-dash"></i> رانندگان بدون سفر در این بازه <span class="end">@Fa.N(idle.Count) نفر</span></div>
+        <div class="bd">
+            <div class="row-actions">
+                @foreach (var d in idle)
+                {
+                    <span class="chip" title="@Fa.Digits(d.Mobile)"><i class="bi bi-person"></i> @d.Name @if (d.RatingCount > 0) { <small class="muted">· ★ @Fa.N(d.RatingAvg, 1)</small> }</span>
+                }
+            </div>
+        </div>
+    </div>
+}

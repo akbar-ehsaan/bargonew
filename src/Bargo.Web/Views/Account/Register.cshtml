@@ -1,0 +1,97 @@
+@model RegisterVm
+@{
+    Layout = "_AuthLayout";
+    ViewData["Skin"] = Model.Type switch { Roles.Driver => "skin-driver", Roles.Company => "skin-company", _ => "skin-shipper" };
+    var cities = (IEnumerable<dynamic>)ViewBag.Cities;
+    var types = (List<VehicleType>)ViewBag.VehicleTypes;
+    string heading = Model.Type switch { Roles.Driver => "ثبت‌نام راننده", Roles.Company => "درخواست عضویت شرکت حمل‌ونقل", _ => "ثبت‌نام صاحب بار" };
+}
+<h1>@heading</h1>
+<p class="sub">
+    @switch (Model.Type)
+    {
+        case Roles.Driver:<text>پس از ثبت‌نام، مدارک را از پنل بارگذاری کنید. با تأیید مدیر، پذیرش بار فعال می‌شود.</text>break;
+        case Roles.Company:<text>پس از ثبت، مدارک شرکت را بارگذاری کنید. پنل شرکت با تأیید مدیر بارگو فعال می‌شود.</text>break;
+        default:<text>بلافاصله پس از ثبت‌نام می‌توانید بار ثبت کنید.</text>break;
+    }
+</p>
+
+<div class="tabs">
+    <a href="/account/register?type=shipper" class="@(Model.Type == Roles.Shipper ? "on" : "")"><i class="bi bi-box-seam"></i> صاحب بار</a>
+    <a href="/account/register?type=driver" class="@(Model.Type == Roles.Driver ? "on" : "")"><i class="bi bi-truck"></i> راننده</a>
+    <a href="/account/register?type=company" class="@(Model.Type == Roles.Company ? "on" : "")"><i class="bi bi-buildings"></i> شرکت</a>
+</div>
+
+<form method="post" action="/account/register">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Type" />
+    <div class="form-grid">
+        @if (Model.Type == Roles.Driver)
+        {
+            <div class="fld"><label>نام <span class="req">*</span></label><input asp-for="FirstName" /><span asp-validation-for="FirstName" class="val-err"></span></div>
+            <div class="fld"><label>نام خانوادگی <span class="req">*</span></label><input asp-for="LastName" /></div>
+            <div class="fld"><label>کد ملی <span class="req">*</span></label><input asp-for="NationalCode" inputmode="numeric" dir="ltr" /><span asp-validation-for="NationalCode" class="val-err"></span></div>
+            <div class="fld"><label>شمارهٔ گواهینامه <span class="req">*</span></label><input asp-for="LicenseNo" dir="ltr" /><span asp-validation-for="LicenseNo" class="val-err"></span></div>
+            <div class="fld"><label>شمارهٔ کارت هوشمند <span class="req">*</span></label><input asp-for="SmartCardNo" dir="ltr" /><span asp-validation-for="SmartCardNo" class="val-err"></span></div>
+            <div class="fld">
+                <label>نوع خودرو <span class="req">*</span></label>
+                <select asp-for="VehicleTypeId">
+                    <option value="">انتخاب کنید</option>
+                    @foreach (var t in types)
+                    {
+                        <option value="@t.VehicleTypeId">@t.Name (@Fa.N(t.CapacityTon, 1) تن)</option>
+                    }
+                </select>
+            </div>
+            <div class="fld full"><label>پلاک <span class="req">*</span></label><input asp-for="PlateNo" placeholder="۱۲ ع ۳۴۵ ایران ۶۷" /><span asp-validation-for="PlateNo" class="val-err"></span></div>
+        }
+        else if (Model.Type == Roles.Company)
+        {
+            <div class="fld full"><label>نام شرکت <span class="req">*</span></label><input asp-for="CompanyName" /><span asp-validation-for="CompanyName" class="val-err"></span></div>
+            <div class="fld"><label>شناسهٔ ملی <span class="req">*</span></label><input asp-for="NationalId" inputmode="numeric" dir="ltr" /><span asp-validation-for="NationalId" class="val-err"></span></div>
+            <div class="fld"><label>شمارهٔ ثبت</label><input asp-for="RegistrationNo" dir="ltr" /></div>
+            <div class="fld"><label>شمارهٔ مجوز فعالیت</label><input asp-for="LicenseNoCompany" /></div>
+            <div class="fld"><label>نام مدیرعامل <span class="req">*</span></label><input asp-for="ManagerName" /><span asp-validation-for="ManagerName" class="val-err"></span></div>
+            <div class="fld full"><label>شمارهٔ شبا</label><input asp-for="Sheba" dir="ltr" placeholder="IR…" /><span asp-validation-for="Sheba" class="val-err"></span></div>
+        }
+        else
+        {
+            <div class="fld full">
+                <label>نوع صاحب بار</label>
+                <div class="role-pick" style="margin:0">
+                    <label><input type="radio" name="ShipperKind" value="person" checked="@(Model.ShipperKind != "business")" /> شخص حقیقی</label>
+                    <label><input type="radio" name="ShipperKind" value="business" checked="@(Model.ShipperKind == "business")" /> شرکت / کسب‌وکار</label>
+                </div>
+            </div>
+            <div class="fld"><label>نام و نام خانوادگی <span class="req">*</span></label><input asp-for="FullName" /><span asp-validation-for="FullName" class="val-err"></span></div>
+            <div class="fld"><label>نام کسب‌وکار</label><input asp-for="BusinessName" /><span asp-validation-for="BusinessName" class="val-err"></span></div>
+        }
+
+        <div class="fld"><label>موبایل <span class="req">*</span></label><input asp-for="Mobile" inputmode="tel" dir="ltr" placeholder="09xxxxxxxxx" /><span asp-validation-for="Mobile" class="val-err"></span></div>
+        <div class="fld">
+            <label>شهر <span class="req">*</span></label>
+            <select asp-for="CityId">
+                <option value="">انتخاب کنید</option>
+                @foreach (var grp in cities.GroupBy(c => (string)c.Province))
+                {
+                    <optgroup label="@grp.Key">
+                        @foreach (var c in grp)
+                        {
+                            <option value="@c.CityId" selected="@(Model.CityId == (int)c.CityId)">@c.Name</option>
+                        }
+                    </optgroup>
+                }
+            </select>
+            <span asp-validation-for="CityId" class="val-err"></span>
+        </div>
+        <div class="fld full"><label>گذرواژه <span class="req">*</span></label><input asp-for="Password" type="password" autocomplete="new-password" dir="ltr" /><span asp-validation-for="Password" class="val-err"></span></div>
+        <div class="fld full">
+            <label class="check"><input type="checkbox" name="AcceptTerms" value="true" checked="@Model.AcceptTerms" /> <span><a class="lnk" href="/Home/Terms" target="_blank">قوانین و مقررات بارگو</a> را خوانده‌ام و می‌پذیرم.</span></label>
+            <span asp-validation-for="AcceptTerms" class="val-err"></span>
+        </div>
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn2 pri lg block"><i class="bi bi-person-plus"></i> @(Model.Type == Roles.Company ? "ثبت درخواست عضویت" : "ساخت حساب")</button>
+    </div>
+</form>
+<div class="linkrow">حساب دارید؟ <a class="lnk" href="/account/login?role=@Model.Type">ورود</a></div>

@@ -1,0 +1,133 @@
+@model OpsFleetListVm
+@{
+    (string Key, string Label, string Icon)[] tabs =
+    [
+        ("", "همه", "bi-truck"),
+        (VehicleStatus.Active, "فعال", "bi-play-circle"),
+        (VehicleStatus.Maintenance, "در تعمیر", "bi-tools"),
+        (VehicleStatus.Inactive, "غیرفعال", "bi-pause-circle"),
+        (VehicleStatus.Suspended, "تعلیق", "bi-slash-circle"),
+        ("unverified", "در انتظار تأیید", "bi-hourglass-split")
+    ];
+    var typeName = Model.TypeId is int tid ? Model.Types.FirstOrDefault(t => t.VehicleTypeId == tid)?.Name : null;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-truck"></i> خودروهای شرکت</h1>
+        <p>ناوگان شرکت با وضعیت عملیاتی، تأیید مدارک و انقضای بیمه و معاینه فنی. فقط خودروی «فعال» و تأییدشده در تخصیص پیشنهاد می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Types"><i class="bi bi-diagram-2"></i> نوع خودرو</a>
+        <a class="btn2 ghost" asp-action="Alerts"><i class="bi bi-alarm"></i> هشدار انقضا</a>
+        <a class="btn2 pri" asp-action="Add"><i class="bi bi-plus-lg"></i> افزودن خودرو</a>
+    </div>
+</div>
+
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        var on = (Model.Status ?? "") == t.Key;
+        <a href="@Url.Action("Index", new { status = t.Key.Length == 0 ? null : t.Key, q = Model.Q, typeId = Model.TypeId })" class="@(on ? "on" : "")">
+            <i class="bi @t.Icon"></i> @t.Label <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(t.Key.Length == 0 ? "all" : t.Key))</span>
+        </a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Index" class="filters">
+        @if (Model.Status is not null)
+        {
+            <input type="hidden" name="status" value="@Model.Status" />
+        }
+        <div class="fld"><label>جستجو</label><input name="q" value="@Model.Q" placeholder="پلاک، برند یا مدل" /></div>
+        <div class="fld narrow">
+            <label>نوع</label>
+            <select name="typeId">
+                <option value="">همه</option>
+                @foreach (var t in Model.Types)
+                {
+                    <option value="@t.VehicleTypeId" selected="@(Model.TypeId == t.VehicleTypeId)">@t.Name</option>
+                }
+            </select>
+        </div>
+        <button class="btn2 ghost"><i class="bi bi-search"></i> جستجو</button>
+        @if (Model.Q is not null || Model.TypeId is not null)
+        {
+            <a class="btn2 ghost" asp-action="Index" asp-route-status="@Model.Status"><i class="bi bi-x-lg"></i> حذف فیلتر</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>پلاک</th><th>نوع / ظرفیت</th><th>مشخصات</th><th>وضعیت</th><th>تأیید</th><th>بیمه</th><th>معاینه فنی</th><th>سفر جاری</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var v in Model.Page.Rows)
+            {
+                var busy = Model.Busy.GetValueOrDefault(v.VehicleId);
+                <tr data-href="/Company/Fleet/Edit/@v.VehicleId">
+                    <td><span class="plate">@v.PlateNo</span></td>
+                    <td><b>@v.VehicleType?.Name</b><span class="sub">@OpsLabels.Ton(v.CapacityTon) تن</span></td>
+                    <td>
+                        @if (string.IsNullOrEmpty(v.Brand) && string.IsNullOrEmpty(v.Model) && v.Year is null)
+                        {
+                            <span class="muted">—</span>
+                        }
+                        else
+                        {
+                            <text>@v.Brand @v.Model</text>
+                            if (v.Year is int y)
+                            {
+                                <span class="sub">سال @Fa.Digits(y.ToString())</span>
+                            }
+                        }
+                    </td>
+                    <td>@Ui.VehiclePill(v.Status)</td>
+                    <td>@Ui.AccountPill(v.VerifyStatus)</td>
+                    <td>@Ui.Expiry(v.InsuranceExpiresAt, Model.WarnDays)</td>
+                    <td>@Ui.Expiry(v.InspectionExpiresAt, Model.WarnDays)</td>
+                    <td>
+                        @if (busy is not null)
+                        {
+                            <a class="lnk num" href="/Company/Trips/Detail/@busy.TripId">@busy.Code</a><span class="sub">@(busy.Driver ?? TripStatus.Label(busy.Status))</span>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td>
+                        <div class="row-actions">
+                            <a class="btn2 soft sm" asp-action="Edit" asp-route-id="@v.VehicleId"><i class="bi bi-pencil"></i> ویرایش</a>
+                            <a class="btn2 ghost sm" asp-action="Documents" asp-route-vehicleId="@v.VehicleId" title="مدارک"><i class="bi bi-folder2-open"></i></a>
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr>
+                    <td colspan="9" class="empty">
+                        <i class="bi bi-truck"></i>
+                        @if (Model.Q is not null)
+                        {
+                            <text>خودرویی با این مشخصات پیدا نشد.</text>
+                        }
+                        else if (typeName is not null)
+                        {
+                            <text>خودرویی از نوع «@typeName» در ناوگان شرکت نیست.</text>
+                        }
+                        else if (Model.Status is not null)
+                        {
+                            <text>خودرویی در این وضعیت ندارید.</text>
+                        }
+                        else
+                        {
+                            <text>هنوز خودرویی در ناوگان شرکت ثبت نشده است. </text><a class="lnk" asp-action="Add">اولین خودرو را اضافه کنید</a>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

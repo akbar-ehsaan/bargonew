@@ -1,0 +1,56 @@
+@{
+    // کنترلر فقط وقتی سفر جاری نیست به این ویو می‌رسد؛ وگرنه به Detail هدایت می‌کند.
+    var last = ViewBag.LastDone as TripRowVm;
+    int pendingOffers = ViewBag.PendingOffers is int po ? po : 0;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-truck"></i> @ViewData["Title"]</h1>
+        <p>وقتی سفری در جریان باشد، این صفحه مستقیم به صفحهٔ همان سفر می‌رود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index" asp-route-tab="upcoming"><i class="bi bi-calendar-event"></i> سفرهای آینده</a>
+    </div>
+</div>
+
+@if (pendingOffers > 0)
+{
+    <div class="alert2 info">
+        <i class="bi bi-hourglass-split"></i>
+        <div class="grow">@Fa.N(pendingOffers) پیشنهاد شما در انتظار پاسخ صاحب بار است. با پذیرش هر کدام، سفر ساخته می‌شود و اینجا نمایش داده می‌شود.</div>
+        <a class="btn2 soft sm" asp-controller="Offers" asp-action="Index" asp-route-status="pending">پیشنهادهای در انتظار</a>
+    </div>
+}
+
+<div class="card2">
+    <div class="bd">
+        <div class="empty-state">
+            <i class="bi bi-truck"></i>
+            <b>سفری در حال انجام ندارید</b>
+            از بارهای بازار پیشنهاد بدهید یا منتظر مأموریت شرکت بمانید.
+            <div class="form-actions" style="justify-content:center">
+                <a class="btn2 pri" asp-controller="Loads" asp-action="Nearby"><i class="bi bi-geo"></i> بارهای نزدیک من</a>
+                <a class="btn2 ghost" asp-controller="Loads" asp-action="Suggested"><i class="bi bi-magic"></i> بارهای پیشنهادی</a>
+                <a class="btn2 ghost" asp-controller="Offers" asp-action="Create"><i class="bi bi-plus-circle"></i> ثبت پیشنهاد قیمت</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (last is not null)
+{
+    <div class="card2">
+        <div class="hd"><i class="bi bi-flag"></i> آخرین سفر تکمیل‌شده <span class="end">@Ui.TripPill(last.Status)</span></div>
+        <div class="bd">
+            <div class="kvrow"><span>سفر</span><b><a class="lnk num" asp-action="Detail" asp-route-id="@last.TripId">@last.Code</a></b></div>
+            <div class="kvrow"><span>مسیر</span>@Ui.Route(last.From, last.To)</div>
+            <div class="kvrow"><span>بار</span><b>@last.Title</b></div>
+            <div class="kvrow"><span>تحویل</span><b>@Fa.Stamp(last.DeliveredAt)</b></div>
+            <div class="kvrow"><span>سهم شما</span><b>@Fa.Toman(last.MyShare)</b></div>
+            <div class="form-actions">
+                <a class="btn2 ghost" asp-action="Detail" asp-route-id="@last.TripId"><i class="bi bi-signpost-split"></i> صفحهٔ سفر</a>
+                <a class="btn2 ghost" asp-action="Index" asp-route-tab="done"><i class="bi bi-list"></i> همهٔ سفرهای تکمیل‌شده</a>
+            </div>
+        </div>
+    </div>
+}

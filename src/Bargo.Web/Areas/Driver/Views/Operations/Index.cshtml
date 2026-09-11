@@ -1,0 +1,140 @@
+@model OperationsVm
+@{
+    var vm = Model.Detail;
+    var t = vm?.Trip;
+    var l = t?.Load;
+    var markers = new List<object>();
+    if (l is not null)
+    {
+        var oLat = l.OriginLat ?? l.OriginCity?.Lat; var oLng = l.OriginLng ?? l.OriginCity?.Lng;
+        var dLat = l.DestLat ?? l.DestCity?.Lat; var dLng = l.DestLng ?? l.DestCity?.Lng;
+        if (oLat is double ola && oLng is double olg) markers.Add(new { lat = ola, lng = olg, kind = "origin", label = "مبدا: " + l.OriginCity?.Name });
+        if (dLat is double dla && dLng is double dlg) markers.Add(new { lat = dla, lng = dlg, kind = "dest", label = "مقصد: " + l.DestCity?.Name });
+        if (t!.LastLat is double tla && t.LastLng is double tlg && TripStatus.Live.Contains(t.Status))
+            markers.Add(new { lat = tla, lng = tlg, kind = "truck", label = "آخرین موقعیت شما · " + Fa.Ago(t.LastPointAt ?? DateTime.UtcNow) });
+    }
+    // گامِ خواسته‌شده از منو (?step=…) با نام وضعیت مقصد یکی است
+    var stepUnavailable = vm is not null && Model.Step is not null && t!.Status != TripStatus.Cancelled && !vm.Next.Contains(Model.Step);
+    ViewData["back"] = "ops";
+    ViewData["step"] = Model.Step;
+    ViewData["big"] = true;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-joystick"></i> @ViewData["Title"]</h1>
+        <p>گام‌های سفر جاری با دکمه‌های درشت. هر گام همراه موقعیت شما ثبت می‌شود و صاحب بار همان لحظه آن را می‌بیند.</p>
+    </div>
+    <div class="actions">
+        @if (t is not null)
+        {
+            <a class="btn2 ghost" asp-controller="Trips" asp-action="Detail" asp-route-id="@t.TripId"><i class="bi bi-signpost-split"></i> صفحهٔ کامل سفر</a>
+        }
+        <a class="btn2 ghost" asp-action="Location"><i class="bi bi-broadcast-pin"></i> اشتراک موقعیت</a>
+    </div>
+</div>
+
+@if (vm is null || t is null || l is null)
+{
+    <div class="card2">
+        <div class="bd">
+            <div class="empty-state">
+                <i class="bi bi-truck"></i>
+                <b>سفری برای اجرا ندارید</b>
+                وقتی پیشنهاد شما پذیرفته شود یا شرکت مأموریتی به شما بدهد، گام‌های آن سفر همین‌جا نمایش داده می‌شود.
+                <div class="form-actions" style="justify-content:center">
+                    <a class="btn2 pri" asp-controller="Loads" asp-action="Nearby"><i class="bi bi-geo"></i> بارهای نزدیک من</a>
+                    <a class="btn2 ghost" asp-controller="Offers" asp-action="Index" asp-route-status="pending"><i class="bi bi-hourglass-split"></i> پیشنهادهای در انتظار</a>
+                    <a class="btn2 ghost" asp-controller="Trips" asp-action="Index" asp-route-tab="upcoming"><i class="bi bi-calendar-event"></i> سفرهای آینده</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    @if (Model.LiveCount > 1)
+    {
+        <div class="alert2 info">
+            <i class="bi bi-info-circle-fill"></i>
+            <div class="grow">شما @Fa.N(Model.LiveCount) سفر در حال انجام دارید؛ این صفحه تازه‌ترین آن‌ها را نشان می‌دهد. بقیه را از فهرست سفرها باز کنید.</div>
+            <a class="btn2 soft sm" asp-controller="Trips" asp-action="Index" asp-route-tab="live">سفرهای در حال انجام</a>
+        </div>
+    }
+    @if (stepUnavailable)
+    {
+        <div class="alert2 warn">
+            <i class="bi bi-exclamation-circle"></i>
+            <div class="grow">
+                «@ViewData["Title"]» در مرحلهٔ فعلی سفر (@TripStatus.Label(t.Status)) قابل ثبت نیست.
+                @(vm.Next.Count > 0 ? "گام بعدی شما: " + string.Join(" یا ", vm.Next.Select(TripFlow.ActionLabel)) + "." : "")
+            </div>
+        </div>
+    }
+
+    <div class="grid-side">
+        <div class="stack">
+            <div class="card2">
+                <div class="hd">
+                    <i class="bi bi-flag"></i> @Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)
+                    <span class="end">@Ui.TripPill(t.Status) <span class="num muted small">@t.Code</span></span>
+                </div>
+                <div class="bd">
+                    <partial name="_TripSteps" model="t" />
+                    <div class="sec-title"><i class="bi bi-arrow-left-circle"></i> گام بعدی</div>
+                    <partial name="_TripActions" model="vm" />
+                </div>
+            </div>
+
+            @if (vm.ShowWaybillForm || t.Waybill is not null)
+            {
+                <div class="card2" id="waybill-card">
+                    <div class="hd"><i class="bi bi-file-earmark-text"></i> بارنامه@(vm.WaybillRequired ? " (پیش از شروع سفر لازم است)" : "")</div>
+                    <div class="bd"><partial name="_Waybill" model="vm" /></div>
+                </div>
+            }
+
+            @if (markers.Count > 0 || vm.Line.Count > 1)
+            {
+                <div class="map short" data-map="@Json.Serialize(new { markers, line = vm.Line, fit = true })"></div>
+            }
+        </div>
+
+        <div class="stack">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-card-list"></i> این سفر</div>
+                <div class="bd">
+                    <div class="kvrow"><span>بار</span><b>@l.Title · @Fa.N(l.WeightTon, 1) تن</b></div>
+                    <div class="kvrow"><span>بارگیری</span><b>@Fa.Stamp(t.ScheduledDepartureAt ?? l.LoadingFrom)</b></div>
+                    <div class="kvrow"><span>مبدا</span><b>@l.OriginCity?.Name@(string.IsNullOrWhiteSpace(l.OriginAddress) ? "" : " — " + l.OriginAddress)</b></div>
+                    <div class="kvrow"><span>مقصد</span><b>@l.DestCity?.Name@(string.IsNullOrWhiteSpace(l.DestAddress) ? "" : " — " + l.DestAddress)</b></div>
+                    @if (t.Vehicle is not null)
+                    {
+                        <div class="kvrow"><span>خودرو</span><span class="plate">@t.Vehicle.PlateNo</span></div>
+                    }
+                    <div class="kvrow"><span>سهم شما</span><b>@Fa.Toman(vm.MyShare)</b></div>
+                </div>
+            </div>
+
+            <div class="card2">
+                <div class="hd"><i class="bi bi-telephone"></i> تماس</div>
+                <div class="bd">
+                    <div class="kvrow"><span>@(vm.OwnerIsCompany ? "شرکت صاحب بار" : "صاحب بار")</span><b>@(string.IsNullOrEmpty(vm.OwnerName) ? "—" : vm.OwnerName)</b></div>
+                    @if (!string.IsNullOrEmpty(vm.OwnerMobile))
+                    {
+                        <a class="btn2 ghost block" style="margin-top:8px" href="tel:@vm.OwnerMobile"><i class="bi bi-telephone-outbound"></i> تماس با صاحب بار <span class="num">@vm.OwnerMobile</span></a>
+                    }
+                    @if (!string.IsNullOrEmpty(l.ReceiverMobile))
+                    {
+                        <a class="btn2 ghost block" style="margin-top:8px" href="tel:@l.ReceiverMobile"><i class="bi bi-telephone-outbound"></i> تماس با گیرنده@(string.IsNullOrEmpty(l.ReceiverName) ? "" : " — " + l.ReceiverName) <span class="num">@l.ReceiverMobile</span></a>
+                    }
+                    else
+                    {
+                        <p class="muted small" style="margin:8px 0 0">شمارهٔ گیرنده ثبت نشده است؛ کد تحویل برای صاحب بار پیامک می‌شود.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts { <partial name="_MapAssets" /> }

@@ -1,0 +1,80 @@
+@model OfferCreateVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-plus-circle"></i> @ViewData["Title"]</h1>
+        <p>بارهای بازار به ترتیب نزدیک‌ترین زمان بارگیری. بار را انتخاب کنید؛ فرم پیشنهاد در صفحهٔ همان بار است.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index" asp-route-status="pending"><i class="bi bi-hourglass-split"></i> پیشنهادهای در انتظار</a>
+        <a class="btn2 ghost" asp-controller="Loads" asp-action="Search"><i class="bi bi-funnel"></i> جستجوی پیشرفته</a>
+    </div>
+</div>
+
+@if (Model.Blocking.Count > 0)
+{
+    <div class="alert2 warn">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            <b>تا رفع این موارد پیشنهاد شما پذیرفته نمی‌شود:</b>
+            <ul style="margin:6px 0 0;padding-inline-start:18px">
+                @foreach (var i in Model.Blocking)
+                {
+                    <li>@i.Text @if (i.Link is not null) { <a class="lnk" href="@i.Link">رفع مشکل</a> }</li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
+<div class="card2">
+    <form method="get" asp-action="Create" class="filters">
+        <div class="fld">
+            <label>استان مبدا</label>
+            <select name="originProvinceId">
+                <option value="">همه</option>
+                @foreach (var p in Model.Provinces)
+                {
+                    <option value="@p.ProvinceId" selected="@(Model.OriginProvinceId == p.ProvinceId)">@p.Name</option>
+                }
+            </select>
+        </div>
+        <div class="fld">
+            <label>نوع خودرو</label>
+            <select name="vehicleTypeId">
+                <option value="">همه</option>
+                @foreach (var t in Model.VehicleTypes)
+                {
+                    <option value="@t.VehicleTypeId" selected="@(Model.VehicleTypeId == t.VehicleTypeId)">@t.Name</option>
+                }
+            </select>
+        </div>
+        <div class="row-actions">
+            <button type="submit" class="btn2 pri"><i class="bi bi-funnel"></i> فیلتر</button>
+            @if (Model.OriginProvinceId is not null || Model.VehicleTypeId is not null)
+            {
+                <a class="btn2 ghost" asp-action="Create">پاک کردن</a>
+            }
+        </div>
+    </form>
+    <div class="bd">
+        @if (Model.Page.Total == 0)
+        {
+            <div class="empty-state">
+                <i class="bi bi-box-seam"></i>
+                <b>@(Model.OriginProvinceId is not null || Model.VehicleTypeId is not null ? "باری با این فیلترها در بازار نیست" : "فعلاً باری در بازار نیست")</b>
+                @(Model.OriginProvinceId is not null || Model.VehicleTypeId is not null ? "فیلترها را بردارید یا استان دیگری را امتحان کنید." : "به‌محض انتشار بار تازه اینجا نمایش داده می‌شود.")
+            </div>
+        }
+        else
+        {
+            <p class="muted small" style="margin-top:0">@Fa.N(Model.Page.Total) بار آمادهٔ دریافت پیشنهاد</p>
+            <div class="loads">
+                @foreach (var c in Model.Page.Rows)
+                {
+                    <partial name="_LoadCard" model="c" />
+                }
+            </div>
+        }
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

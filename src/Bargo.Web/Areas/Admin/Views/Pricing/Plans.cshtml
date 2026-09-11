@@ -1,0 +1,91 @@
+@model PlansVm
+@{
+    var e = Model.Edit;
+    string Aud(string a) => a switch { "driver" => "راننده", "shipper" => "صاحب بار", _ => "شرکت" };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-stars"></i> پلن‌های اشتراک</h1>
+        <p>پلن غیرفعال دیگر فروخته نمی‌شود ولی اشتراک‌های خریداری‌شده تا پایان مدت معتبرند.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Membership"><i class="bi bi-person-vcard"></i> اشتراک‌ها</a></div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-list-ul"></i> پلن‌ها</div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>ترتیب</th><th>عنوان</th><th>مخاطب</th><th>مدت</th><th>قیمت</th><th>سقف‌ها</th><th>مشترک فعال</th><th>وضعیت</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var p in Model.Items)
+                {
+                    <tr>
+                        <td class="num">@Fa.N(p.SortOrder)</td>
+                        <td><b>@p.Title</b>@if (!string.IsNullOrWhiteSpace(p.Features))
+                            {
+                                <span class="sub" style="white-space:pre-line">@p.Features</span>
+                            }</td>
+                        <td>@Aud(p.Audience)</td>
+                        <td class="nowrap">@Fa.N(p.DurationDays) روز</td>
+                        <td class="nowrap"><b>@Fa.Toman(p.Price)</b></td>
+                        <td class="small nowrap">راننده: @(p.MaxDrivers is int md ? Fa.N(md) : "نامحدود")<br />خودرو: @(p.MaxVehicles is int mv ? Fa.N(mv) : "نامحدود")</td>
+                        <td class="num">@Fa.N(Model.Subscribers.GetValueOrDefault(p.SubscriptionPlanId))</td>
+                        <td>@(p.IsActive ? Ui.Pill("فعال", "ok") : Ui.Pill("غیرفعال", "mut"))</td>
+                        <td>
+                            <div class="row-actions">
+                                <a class="btn2 sm soft" asp-action="Plans" asp-route-edit="@p.SubscriptionPlanId"><i class="bi bi-pencil"></i></a>
+                                <form method="post" asp-action="DeletePlan" asp-route-id="@p.SubscriptionPlanId" data-confirm="پلن «@p.Title» حذف شود؟">
+                                    <button class="btn2 sm ghost"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Items.Count == 0)
+                {
+                    <tr><td colspan="9" class="empty"><i class="bi bi-stars"></i>پلنی تعریف نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi @(e is null ? "bi-plus-circle" : "bi-pencil-square")"></i> @(e is null ? "پلن تازه" : "ویرایش پلن")</div>
+        <div class="bd">
+            <form method="post" asp-action="SavePlan">
+                @if (e is not null)
+                {
+                    <input type="hidden" name="id" value="@e.SubscriptionPlanId" />
+                }
+                <div class="form-grid">
+                    <div class="fld full"><label>عنوان <span class="req">*</span></label><input name="title" value="@e?.Title" maxlength="80" required /></div>
+                    <div class="fld">
+                        <label>مخاطب</label>
+                        <select name="audience">
+                            @foreach (var a in new[] { "company", "driver", "shipper" })
+                            {
+                                <option value="@a" selected="@((e?.Audience ?? "company") == a)">@Aud(a)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld"><label>مدت (روز) <span class="req">*</span></label><input name="durationDays" value="@(e?.DurationDays ?? 30)" inputmode="numeric" dir="ltr" required /></div>
+                    <div class="fld"><label>قیمت (تومان) <span class="req">*</span></label><input name="priceToman" class="money" value="@(e is null ? "" : (e.Price / 10).ToString())" required /></div>
+                    <div class="fld"><label>ترتیب نمایش</label><input name="sortOrder" value="@(e?.SortOrder ?? 0)" inputmode="numeric" dir="ltr" /></div>
+                    <div class="fld"><label>سقف راننده</label><input name="maxDrivers" value="@e?.MaxDrivers" inputmode="numeric" dir="ltr" placeholder="نامحدود" /></div>
+                    <div class="fld"><label>سقف خودرو</label><input name="maxVehicles" value="@e?.MaxVehicles" inputmode="numeric" dir="ltr" placeholder="نامحدود" /></div>
+                    <div class="fld full"><label>ویژگی‌ها</label><textarea name="features" rows="4" placeholder="هر ویژگی در یک خط">@e?.Features</textarea></div>
+                    <div class="fld full"><label class="check"><input type="checkbox" name="isActive" value="true" checked="@(e?.IsActive ?? true)" /><input type="hidden" name="isActive" value="false" /> قابل خرید</label></div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn2 pri"><i class="bi bi-check2"></i> ذخیره</button>
+                    @if (e is not null)
+                    {
+                        <a class="btn2 ghost" asp-action="Plans">انصراف</a>
+                    }
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

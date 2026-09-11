@@ -1,0 +1,84 @@
+@model ShipperRateVm
+@{
+    var scoreLabels = new[] { "", "خیلی بد", "ضعیف", "متوسط", "خوب", "عالی" };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-star"></i> امتیازدهی به راننده</h1>
+        <p>پس از تحویل هر بار، به حمل‌کنندهٔ آن امتیاز بدهید. امتیاز شما در میانگین راننده یا شرکت می‌نشیند و به دیگر صاحبان بار در انتخاب کمک می‌کند. هر سفر یک بار امتیاز می‌گیرد.</p>
+    </div>
+    <div class="actions">
+        <span class="chip"><i class="bi bi-hourglass-split"></i> @Fa.N(Model.ToRate.Count) سفر در انتظار امتیاز</span>
+    </div>
+</div>
+
+@if (Model.ToRate.Count == 0)
+{
+    <div class="card2">
+        <div class="empty-state"><i class="bi bi-star"></i><b>سفری در انتظار امتیاز نیست</b>هر بار که باری تحویل شود، برای امتیازدهی به حمل‌کنندهٔ آن اینجا می‌آید.</div>
+    </div>
+}
+else
+{
+    <div class="loads">
+        @foreach (var rateTrip in Model.ToRate)
+        {
+            <div class="load-card">
+                <div class="top">
+                    <div>
+                        <div class="rt">@Ui.Route(rateTrip.From, rateTrip.To)</div>
+                        <div class="small muted"><a class="lnk" href="/Shipper/Orders/Detail/@rateTrip.TripId">@rateTrip.Code</a> · @rateTrip.LoadTitle</div>
+                    </div>
+                    @Ui.TripPill(rateTrip.Status)
+                </div>
+                <div class="meta">
+                    <span class="chip"><i class="bi @(rateTrip.CarrierKind == CarrierKind.Company ? "bi-building" : "bi-person-badge")"></i> @rateTrip.Carrier</span>
+                    <span class="chip"><i class="bi bi-check2-all"></i> تحویل @Fa.Date(rateTrip.DeliveredAt ?? rateTrip.CreatedAt)</span>
+                </div>
+                <form method="post" asp-action="Rate">
+                    <input type="hidden" name="tripId" value="@rateTrip.TripId" />
+                    <div class="fld">
+                        <label>امتیاز شما <span class="req">*</span></label>
+                        <div class="row-actions">
+                            @for (var sc = 5; sc >= 1; sc--)
+                            {
+                                <label class="chip check"><input type="radio" name="score" value="@sc" required /> <i class="bi bi-star-fill" style="color:#b7791f"></i> @Fa.N(sc) @scoreLabels[sc]</label>
+                            }
+                        </div>
+                    </div>
+                    <div class="fld" style="margin-top:10px">
+                        <label>نظر شما</label>
+                        <textarea name="comment" rows="3" maxlength="1000" placeholder="وقت‌شناسی، سلامت بار، برخورد راننده…"></textarea>
+                        <span class="hint">اختیاری — حداکثر ۱۰۰۰ نویسه. نظر برای حمل‌کننده نمایش داده می‌شود.</span>
+                    </div>
+                    <div class="form-actions" style="margin-top:12px"><button class="btn2 pri block"><i class="bi bi-send"></i> ثبت امتیاز</button></div>
+                </form>
+            </div>
+        }
+    </div>
+}
+
+<div class="card2" style="margin-top:18px">
+    <div class="hd"><i class="bi bi-chat-quote"></i> امتیازهای ثبت‌شدهٔ شما <span class="end small muted">۵۰ مورد آخر</span></div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>تاریخ</th><th>سفر</th><th>حمل‌کننده</th><th>امتیاز</th><th>نظر</th></tr></thead>
+            <tbody>
+            @foreach (var given in Model.Given)
+            {
+                <tr>
+                    <td class="nowrap">@Fa.Date(given.CreatedAt)</td>
+                    <td><a class="lnk" href="/Shipper/Orders/Detail/@given.TripId">@given.TripCode</a><span class="sub">@Ui.Route(given.From, given.To)</span></td>
+                    <td><b>@(string.IsNullOrEmpty(given.TargetName) ? "—" : given.TargetName)</b><span class="sub">@OwnerKind.Label(given.ToKind)</span></td>
+                    <td class="nowrap"><span class="stars"><i class="bi bi-star-fill"></i> @Fa.N(given.Score)</span></td>
+                    <td style="white-space:pre-line">@(string.IsNullOrWhiteSpace(given.Comment) ? Html.Raw("<span class=\"muted\">بدون متن</span>") : Html.Raw(Html.Encode(given.Comment)))</td>
+                </tr>
+            }
+            @if (Model.Given.Count == 0)
+            {
+                <tr><td colspan="5" class="empty"><i class="bi bi-chat-quote"></i>هنوز امتیازی ثبت نکرده‌اید.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

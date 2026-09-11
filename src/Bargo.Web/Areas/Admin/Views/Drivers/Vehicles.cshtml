@@ -1,0 +1,96 @@
+@model PageVm<VehicleRow>
+@{
+    var q = ViewBag.Q as string;
+    var verify = ViewBag.Verify as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    var warnDays = (int)ViewBag.WarnDays;
+    int C(string s) => counts.TryGetValue(s, out var n) ? n : 0;
+    string[] tabs = [AccountStatus.Pending, AccountStatus.Approved, AccountStatus.Rejected];
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-truck"></i> خودروهای رانندگان</h1>
+        <p>خودروهای رانندگان مستقل (خودروی شرکت‌ها در «مدیریت ناوگان» است). تا خودرو تأیید نشود راننده بار نمی‌گیرد؛ شمار مدارکِ در انتظارِ هر خودرو کنار وضعیتش دیده می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Admin/Fleet"><i class="bi bi-truck-front"></i> همهٔ ناوگان</a>
+        <a class="btn2 ghost" href="/Admin/Documents?status=pending&owner=vehicle"><i class="bi bi-folder2-open"></i> مدارک خودرو در صف</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Vehicles" asp-route-q="@q" class="@(verify is null ? "on" : "")">همه <span class="n">@Fa.N(counts.Values.Sum())</span></a>
+    @foreach (var s in tabs)
+    {
+        <a asp-action="Vehicles" asp-route-verify="@s" asp-route-q="@q" class="@(verify == s ? "on" : "")">@AccountStatus.Label(s) <span class="n">@Fa.N(C(s))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Vehicles" class="filters">
+        <input type="hidden" name="verify" value="@verify" />
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="پلاک، نام راننده یا موبایل" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Vehicles" asp-route-verify="@verify">پاک کردن</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>پلاک</th><th>خودرو</th><th>راننده</th><th>بیمه</th><th>معاینه فنی</th><th>وضعیت</th><th>تأیید</th><th>اقدام</th></tr></thead>
+            <tbody>
+            @foreach (var v in Model.Rows)
+            {
+                <tr>
+                    <td>@OpsUi.Plate(v.PlateNo)</td>
+                    <td><b>@(v.TypeName ?? "—")</b><span class="sub">@v.Brand @v.Model @(v.Year is int y ? Fa.N(y) : "") · @Fa.N(v.CapacityTon, 1) تن</span></td>
+                    <td>
+                        @if (v.DriverId is int did)
+                        {
+                            <a class="lnk" href="/Admin/Users/Driver/@did">@v.DriverName</a><span class="sub num">@v.DriverMobile</span>
+                        }
+                    </td>
+                    <td>@Ui.Expiry(v.InsuranceExpiresAt, warnDays)</td>
+                    <td>@Ui.Expiry(v.InspectionExpiresAt, warnDays)</td>
+                    <td>
+                        @Ui.VehiclePill(v.Status)
+                        @if (v.LiveTripId is int lt)
+                        {
+                            <span class="sub"><a class="lnk num" href="/Admin/Trips/Case/@lt">در سفر @v.LiveTripCode</a></span>
+                        }
+                    </td>
+                    <td>
+                        @Ui.AccountPill(v.VerifyStatus)
+                        @if (v.PendingDocs > 0)
+                        {
+                            <span class="sub"><a class="lnk" href="/Admin/Documents?status=pending&owner=vehicle:@v.VehicleId">@Fa.N(v.PendingDocs) مدرک در انتظار</a></span>
+                        }
+                    </td>
+                    <td style="min-width:250px">
+                        <form method="post" asp-controller="Fleet" asp-action="Verify" asp-route-id="@v.VehicleId" class="row-actions"
+                              data-confirm="وضعیت تأیید خودروی @v.PlateNo تغییر کند؟ راننده با اعلان باخبر می‌شود.">
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            @if (v.VerifyStatus != AccountStatus.Approved)
+                            {
+                                <button class="btn2 sm grn" name="status" value="approved"><i class="bi bi-check2-circle"></i> تأیید</button>
+                            }
+                            @if (v.VerifyStatus != AccountStatus.Rejected)
+                            {
+                                <div class="fld" style="flex:1;min-width:120px"><input name="note" placeholder="علت رد" maxlength="1000" /></div>
+                                <button class="btn2 sm red" name="status" value="rejected"><i class="bi bi-x-circle"></i> رد</button>
+                            }
+                        </form>
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-truck"></i>خودرویی با این شرایط پیدا نشد.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

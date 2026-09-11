@@ -1,0 +1,77 @@
+@{
+    var holder = (string)ViewBag.Holder;
+    var sheba = ViewBag.Sheba as string;
+    var bankName = ViewBag.BankName as string;
+    var balance = (long)ViewBag.WalletBalance;
+    var canEdit = (bool)ViewBag.CanEdit;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-bank"></i> اطلاعات بانکی</h1>
+        <p>حسابی که تسویه‌های شرکت (درخواست برداشت از کیف پول) به آن واریز می‌شود. باید به نام خودِ شرکت باشد.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" href="/Company/Finance"><i class="bi bi-wallet2"></i> کیف پول شرکت</a></div>
+</div>
+
+<partial name="_Tabs" />
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-credit-card-2-front"></i> حساب مقصد تسویه</div>
+        <div class="bd">
+            @if (!canEdit)
+            {
+                <div class="alert2 info"><i class="bi bi-lock"></i><div class="grow">تغییر اطلاعات بانکی فقط با دسترسی «کاربران» (مدیر شرکت) ممکن است. شما فقط می‌توانید آن را ببینید.</div></div>
+            }
+            <form method="post" asp-action="Bank">
+                <div class="form-grid">
+                    <div class="fld full">
+                        <label>صاحب حساب</label>
+                        <input value="@holder" readonly style="background:#f5f7f9" />
+                        <span class="hint">نام شرکت از «مشخصات شرکت» می‌آید. شبای حساب شخصی مدیرعامل پذیرفته نمی‌شود.</span>
+                    </div>
+                    <div class="fld full">
+                        <label>شمارهٔ شبا <span class="req">*</span></label>
+                        <input name="sheba" value="@sheba" dir="ltr" maxlength="30" placeholder="IR000000000000000000000000" required disabled="@(!canEdit)" style="letter-spacing:.06em" />
+                        <span class="hint">IR و ۲۴ رقم — با یا بدون IR وارد کنید.</span>
+                    </div>
+                    <div class="fld full">
+                        <label>نام بانک</label>
+                        <input name="bankName" value="@bankName" maxlength="60" placeholder="مثلاً ملت" disabled="@(!canEdit)" />
+                    </div>
+                </div>
+                @if (canEdit)
+                {
+                    <div class="form-actions">
+                        <button class="btn2 pri"><i class="bi bi-check2"></i> ذخیره</button>
+                        @if (!string.IsNullOrEmpty(sheba))
+                        {
+                            <button class="btn2 ghost" name="remove" value="true" formnovalidate onclick="return confirm('شمارهٔ شبا حذف شود؟ تا ثبت شبای تازه، برداشت ممکن نیست.')"><i class="bi bi-trash"></i> حذف شبا</button>
+                        }
+                    </div>
+                }
+            </form>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-info-circle"></i> وضعیت فعلی</div>
+            <div class="bd">
+                <div class="kvrow"><span>شبا</span><b dir="ltr">@(string.IsNullOrEmpty(sheba) ? "ثبت نشده" : sheba)</b></div>
+                <div class="kvrow"><span>بانک</span><b>@(string.IsNullOrEmpty(bankName) ? "—" : bankName)</b></div>
+                <div class="kvrow"><span>موجودی کیف پول</span><b>@Fa.Toman(balance)</b></div>
+                @if (string.IsNullOrEmpty(sheba))
+                {
+                    <p class="muted small" style="margin:10px 0 0"><i class="bi bi-exclamation-circle"></i> تا شبا ثبت نشود، درخواست برداشت از کیف پول ممکن نیست.</p>
+                }
+            </div>
+        </div>
+        <div class="card2">
+            <div class="hd"><i class="bi bi-shield-check"></i> نکته</div>
+            <div class="bd small muted">
+                هر تغییر شبا با نام کاربر و زمان در سوابق شرکت ثبت می‌شود. اگر شبا را تغییر می‌دهید، تسویه‌های در جریان به حساب قبلی واریز می‌شوند.
+            </div>
+        </div>
+    </div>
+</div>

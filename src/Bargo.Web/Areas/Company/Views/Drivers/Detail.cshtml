@@ -1,0 +1,315 @@
+@model OpsDriverDetailVm
+@{
+    var d = Model.Driver;
+    var (avLabel, avTone) = OpsLabels.Availability(d, Model.Current);
+    var blocking = Model.Issues.Where(i => i.Blocking).ToList();
+    var warnings = Model.Issues.Where(i => !i.Blocking).ToList();
+    var online = OpsLabels.IsOnline(d.LastSeenAt);
+    var markers = new List<OpsMarker>();
+    if (d.LastLat is double lat && d.LastLng is double lng)
+    {
+        var live = Model.Current is not null && TripStatus.Live.Contains(Model.Current.Status);
+        markers.Add(new OpsMarker(lat, lng, OpsLabels.LiveKind(live, d.LastSeenAt), d.FullName + "\n" + avLabel, null));
+    }
+    // آخرین مدرک از هر نوع، برای جدول خلاصهٔ مدارک
+    var latest = DocumentKind.ForDriver.Select(k => (Kind: k, Doc: Model.Documents.Where(x => x.Kind == k && x.Status != AccountStatus.Rejected).OrderByDescending(x => x.UploadedAt).FirstOrDefault())).ToList();
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-person-badge"></i> @d.FullName @Ui.AccountPill(d.Status) @Ui.Pill(avLabel, avTone)</h1>
+        <p>
+            <span class="num">@Fa.Digits(d.Mobile)</span>
+            · عضو ناوگان از @Fa.Date(d.CreatedAt)
+            @if (online)
+            {
+                <text>· </text>@Ui.Pill("آنلاین", "ok")
+            }
+            else if (d.LastSeenAt is DateTime seen)
+            {
+                <text>· آخرین حضور @Fa.Ago(seen)</text>
+            }
+        </p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-arrow-right"></i> لیست رانندگان</a>
+        <a class="btn2 ghost" asp-action="Trips" asp-route-driverId="@d.DriverId"><i class="bi bi-clock-history"></i> سوابق سفر</a>
+        <a class="btn2 pri" asp-action="Documents" asp-route-driverId="@d.DriverId"><i class="bi bi-folder2-open"></i> مدارک</a>
+    </div>
+</div>
+
+@if (d.Status != AccountStatus.Approved)
+{
+    <div class="alert2 @(d.Status == AccountStatus.Pending ? "warn" : "err")">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            @switch (d.Status)
+            {
+                case AccountStatus.Pending:
+                    <text>حساب این راننده هنوز توسط مدیر بارگو تأیید نشده و در تخصیص انتخاب‌پذیر نیست. با بارگذاری کارت ملی، گواهینامه و کارت هوشمند، بررسی آغاز می‌شود.</text>
+                    break;
+                case AccountStatus.Rejected:
+                    <text>حساب این راننده رد شده است.</text>
+                    break;
+                default:
+                    <text>حساب این راننده تعلیق شده است.</text>
+                    break;
+            }
+            @if (!string.IsNullOrWhiteSpace(d.StatusReason))
+            {
+                <div class="small" style="margin-top:4px">توضیح مدیر: @d.StatusReason</div>
+            }
+        </div>
+    </div>
+}
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-card-list"></i> مشخصات</div>
+            <div class="bd">
+                <dl class="kv">
+                    <dt>نام و نام خانوادگی</dt><dd>@d.FullName</dd>
+                    <dt>موبایل</dt><dd class="num">@Fa.Digits(d.Mobile)</dd>
+                    <dt>کد ملی</dt><dd class="num">@Fa.Digits(d.NationalCode)</dd>
+                    <dt>شهر</dt><dd>@(d.City is null ? "—" : $"{d.City.Name} ({d.City.Province?.Name})")</dd>
+                    <dt>گواهینامه</dt>
+                    <dd>
+                        @(string.IsNullOrEmpty(d.LicenseNo) ? "شماره ثبت نشده" : Fa.Digits(d.LicenseNo))
+                        @Ui.Expiry(d.LicenseExpiresAt, Model.WarnDays)
+                    </dd>
+                    <dt>کارت هوشمند</dt>
+                    <dd>
+                        @(string.IsNullOrEmpty(d.SmartCardNo) ? "شماره ثبت نشده" : Fa.Digits(d.SmartCardNo))
+                        @Ui.Expiry(d.SmartCardExpiresAt, Model.WarnDays)
+                    </dd>
+                    <dt>امتیاز</dt><dd>@Ui.Stars(d.RatingAvg, d.RatingCount)</dd>
+                    <dt>سفرهای انجام‌شده</dt><dd>@Fa.N(d.TripCount)</dd>
+                    <dt>آماده بار</dt>
+                    <dd>
+                        @(d.IsAvailable ? "بله" : "خیر — خارج از خدمت")
+                        @if (d.Status == AccountStatus.Approved)
+                        {
+                            <form method="post" asp-action="ToggleAvailable" class="inline" style="margin-inline-start:8px">
+                                <input type="hidden" name="id" value="@d.DriverId" />
+                                <input type="hidden" name="back" value="detail" />
+                                <button class="btn2 ghost sm">@(d.IsAvailable ? "خارج از خدمت کن" : "آماده بار کن")</button>
+                            </form>
+                        }
+                    </dd>
+                    @if (d.ApprovedAt is DateTime ap)
+                    {
+                        <dt>تأیید حساب</dt><dd>@Fa.Date(ap)</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-folder2-open"></i> مدارک
+                <span class="end"><a class="btn2 sm ghost" asp-action="Documents" asp-route-driverId="@d.DriverId">بارگذاری مدرک</a></span>
+            </div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>مدرک</th><th>شماره</th><th>انقضا</th><th>وضعیت</th><th>بارگذاری</th><th>فایل</th></tr></thead>
+                    <tbody>
+                    @foreach (var (kind, doc) in latest)
+                    {
+                        <tr>
+                            <td><b>@DocumentKind.Label(kind)</b></td>
+                            @if (doc is null)
+                            {
+                                <td colspan="5"><span class="muted">هنوز بارگذاری نشده است.</span></td>
+                            }
+                            else
+                            {
+                                <td class="num">@(doc.Number is null ? "—" : Fa.Digits(doc.Number))</td>
+                                <td>@(DocumentKind.Expiring.Contains(kind) ? Ui.Expiry(doc.ExpiresAt, Model.WarnDays) : Ui.Pill("بدون انقضا", "mut"))</td>
+                                <td>
+                                    @Ui.AccountPill(doc.Status)
+                                    @if (!string.IsNullOrWhiteSpace(doc.ReviewNote))
+                                    {
+                                        <span class="sub">@doc.ReviewNote</span>
+                                    }
+                                </td>
+                                <td class="nowrap">@Fa.Date(doc.UploadedAt)</td>
+                                <td>
+                                    @if (doc.FilePath is not null)
+                                    {
+                                        <a class="btn2 ghost sm" href="@DocumentStorage.Url(doc.FilePath)" target="_blank"><i class="bi bi-eye"></i> مشاهده</a>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.Documents.Count > latest.Count(x => x.Doc is not null))
+            {
+                <div class="bd" style="padding-top:0"><span class="muted small">@Fa.N(Model.Documents.Count) مدرک در مجموع بارگذاری شده؛ فهرست کامل در <a class="lnk" asp-action="Documents" asp-route-driverId="@d.DriverId">مدارک رانندگان</a>.</span></div>
+            }
+        </div>
+
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-signpost-split"></i> سفرها
+                <span class="end">
+                    <span class="muted small">@Fa.N(Model.TripTotal) سفر</span>
+                    @if (Model.TripTotal > Model.Trips.Count)
+                    {
+                        <a class="btn2 sm ghost" asp-action="Trips" asp-route-driverId="@d.DriverId">همهٔ سوابق</a>
+                    }
+                </span>
+            </div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>سفر</th><th>مسیر</th><th>خودرو</th><th>زمان</th><th>سهم راننده</th><th>وضعیت</th></tr></thead>
+                    <tbody>
+                    @foreach (var t in Model.Trips)
+                    {
+                        var l = t.Load!;
+                        var mine = t.CompanyId == d.CompanyId;
+                        <tr data-href="@(mine ? $"/Company/Trips/Detail/{t.TripId}" : null)">
+                            <td>
+                                @if (mine)
+                                {
+                                    <a class="lnk num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a>
+                                }
+                                else
+                                {
+                                    <span class="num">@t.Code</span><span class="sub">سفر مستقل راننده</span>
+                                }
+                            </td>
+                            <td>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</td>
+                            <td>
+                                @if (t.Vehicle is not null)
+                                {
+                                    <span class="plate">@t.Vehicle.PlateNo</span>
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
+                            </td>
+                            <td class="nowrap">@Fa.Date(t.DeliveredAt ?? t.StartedAt ?? t.ScheduledDepartureAt ?? t.CreatedAt)</td>
+                            <td class="num">@(mine ? Fa.Toman(t.DriverShare) : "—")</td>
+                            <td>@Ui.TripPill(t.Status)</td>
+                        </tr>
+                    }
+                    @if (Model.Trips.Count == 0)
+                    {
+                        <tr><td colspan="6" class="empty"><i class="bi bi-signpost-split"></i>این راننده هنوز سفری نداشته است.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-clipboard2-check"></i> آمادگی مأموریت
+                <span class="end">
+                    @if (blocking.Count > 0)
+                    {
+                        @Ui.Pill("غیرقابل تخصیص", "no")
+                    }
+                    else if (warnings.Count > 0)
+                    {
+                        @Ui.Pill("با هشدار", "wait")
+                    }
+                    else
+                    {
+                        @Ui.Pill("آماده", "ok")
+                    }
+                </span>
+            </div>
+            <div class="bd">
+                @if (Model.Issues.Count == 0)
+                {
+                    <div class="empty-state" style="padding:14px"><i class="bi bi-check2-circle"></i><b>همه‌چیز مرتب است</b>حساب تأییدشده و مدارک معتبرند.</div>
+                }
+                else
+                {
+                    @foreach (var i in blocking)
+                    {
+                        <div class="kvrow"><span><i class="bi bi-x-octagon-fill" style="color:var(--no)"></i> @i.Text</span></div>
+                    }
+                    @foreach (var i in warnings)
+                    {
+                        <div class="kvrow"><span><i class="bi bi-exclamation-triangle-fill" style="color:var(--wait)"></i> @i.Text</span></div>
+                    }
+                    <p class="muted small" style="margin:10px 0 0">موانع را با بارگذاری مدرک از <a class="lnk" asp-action="Documents" asp-route-driverId="@d.DriverId">مدارک رانندگان</a> برطرف کنید؛ تأیید نهایی با مدیر بارگوست.</p>
+                }
+            </div>
+        </div>
+
+        @if (Model.CurrentTrip is { } ct2 && Model.Current is { } cur)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-truck"></i> سفر جاری</div>
+                <div class="bd">
+                    <div class="kvrow"><span>کد سفر</span><b class="num">@ct2.Code</b></div>
+                    <div class="kvrow"><span>وضعیت</span>@Ui.TripPill(cur.Status)</div>
+                    <div class="kvrow"><span>مسیر</span>@Ui.Route(ct2.Load?.OriginCity?.Name, ct2.Load?.DestCity?.Name)</div>
+                    @if (ct2.Vehicle is not null)
+                    {
+                        <div class="kvrow"><span>خودرو</span><span class="plate">@ct2.Vehicle.PlateNo</span></div>
+                    }
+                    @if (ct2.LastPointAt is DateTime lp)
+                    {
+                        <div class="kvrow"><span>آخرین موقعیت</span><b>@Fa.Ago(lp)</b></div>
+                    }
+                    @if (ct2.CompanyId == d.CompanyId)
+                    {
+                        <div class="form-actions"><a class="btn2 pri block" href="/Company/Trips/Detail/@ct2.TripId">پروندهٔ سفر</a></div>
+                    }
+                    else
+                    {
+                        <p class="muted small" style="margin:10px 0 0">این سفر را راننده به‌طور مستقل گرفته و پرونده‌اش در پنل شرکت نیست.</p>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-geo-alt"></i> آخرین موقعیت</div>
+            @if (markers.Count > 0)
+            {
+                <div class="map short" data-map="@Json.Serialize(new { markers, fit = true })"></div>
+                <div class="bd" style="padding:10px 18px"><span class="muted small">ثبت‌شده @Fa.Ago(d.LastSeenAt!.Value) · <a class="lnk" asp-action="Online">همهٔ رانندگان آنلاین</a></span></div>
+            }
+            else
+            {
+                <div class="bd"><div class="empty-state" style="padding:14px"><i class="bi bi-geo"></i><b>موقعیتی ثبت نشده</b>راننده هنوز از اپ موقعیتش را نفرستاده است.</div></div>
+            }
+        </div>
+
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-chat-quote"></i> نظرات صاحبان بار
+                <span class="end"><a class="btn2 sm ghost" asp-action="Ratings" asp-route-driverId="@d.DriverId">همه</a></span>
+            </div>
+            <div class="bd">
+                @foreach (var r in Model.Reviews)
+                {
+                    <div class="kvrow" style="flex-direction:column;align-items:flex-start;gap:2px">
+                        <span>@Ui.Stars(r.Score, 1) <span class="muted small">· @Fa.Date(r.CreatedAt) · @OwnerKind.Label(r.FromKind)</span></span>
+                        @if (!string.IsNullOrWhiteSpace(r.Comment))
+                        {
+                            <b style="font-weight:600">@r.Comment</b>
+                        }
+                    </div>
+                }
+                @if (Model.Reviews.Count == 0)
+                {
+                    <div class="muted small">هنوز نظری برای این راننده ثبت نشده است.</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

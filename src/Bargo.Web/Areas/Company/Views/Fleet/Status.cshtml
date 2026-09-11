@@ -1,0 +1,106 @@
+@model OpsFleetListVm
+@{
+    (string Key, string Label, string Icon)[] tabs =
+    [
+        ("", "همه", "bi-truck"),
+        (VehicleStatus.Active, "فعال", "bi-play-circle"),
+        (VehicleStatus.Maintenance, "در تعمیر", "bi-tools"),
+        (VehicleStatus.Inactive, "غیرفعال", "bi-pause-circle"),
+        (VehicleStatus.Suspended, "تعلیق", "bi-slash-circle")
+    ];
+    (string Key, string Label, string Icon)[] settable =
+    [
+        (VehicleStatus.Active, "فعال", "bi-play-circle"),
+        (VehicleStatus.Maintenance, "در تعمیر", "bi-tools"),
+        (VehicleStatus.Inactive, "غیرفعال", "bi-pause-circle")
+    ];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-toggles"></i> وضعیت خودرو</h1>
+        <p>وضعیت عملیاتی هر خودرو را از همین‌جا عوض کنید: «در تعمیر» و «غیرفعال» خودرو را از فهرست تخصیص بیرون می‌برند. «تعلیق» فقط از پنل مدیر بارگو گذاشته و برداشته می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-truck"></i> خودروهای شرکت</a>
+    </div>
+</div>
+
+<div class="stats">
+    <a class="stat s" asp-action="Status" asp-route-status="@VehicleStatus.Active"><div class="l"><i class="bi bi-play-circle"></i> فعال</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault(VehicleStatus.Active))</div></a>
+    <a class="stat w" asp-action="Status" asp-route-status="@VehicleStatus.Maintenance"><div class="l"><i class="bi bi-tools"></i> در تعمیر</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault(VehicleStatus.Maintenance))</div></a>
+    <a class="stat i" asp-action="Status" asp-route-status="@VehicleStatus.Inactive"><div class="l"><i class="bi bi-pause-circle"></i> غیرفعال</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault(VehicleStatus.Inactive))</div></a>
+    <a class="stat @(Model.Counts.GetValueOrDefault(VehicleStatus.Suspended) > 0 ? "r" : "i")" asp-action="Status" asp-route-status="@VehicleStatus.Suspended"><div class="l"><i class="bi bi-slash-circle"></i> تعلیق مدیر</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault(VehicleStatus.Suspended))</div></a>
+</div>
+
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        var on = (Model.Status ?? "") == t.Key;
+        <a href="@Url.Action("Status", new { status = t.Key.Length == 0 ? null : t.Key })" class="@(on ? "on" : "")">
+            <i class="bi @t.Icon"></i> @t.Label <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(t.Key.Length == 0 ? "all" : t.Key))</span>
+        </a>
+    }
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>پلاک</th><th>نوع</th><th>وضعیت</th><th>تأیید</th><th>سفر جاری</th><th>تغییر وضعیت</th></tr></thead>
+            <tbody>
+            @foreach (var v in Model.Page.Rows)
+            {
+                var busy = Model.Busy.GetValueOrDefault(v.VehicleId);
+                var hardBusy = busy is { Hard: true };
+                <tr>
+                    <td><a asp-action="Edit" asp-route-id="@v.VehicleId"><span class="plate">@v.PlateNo</span></a></td>
+                    <td><b>@v.VehicleType?.Name</b><span class="sub">@OpsLabels.Ton(v.CapacityTon) تن</span></td>
+                    <td>@Ui.VehiclePill(v.Status)</td>
+                    <td>@Ui.AccountPill(v.VerifyStatus)</td>
+                    <td>
+                        @if (busy is not null)
+                        {
+                            <a class="lnk num" href="/Company/Trips/Detail/@busy.TripId">@busy.Code</a><span class="sub">@(busy.Driver ?? TripStatus.Label(busy.Status))</span>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td>
+                        @if (v.Status == VehicleStatus.Suspended)
+                        {
+                            <span class="muted small">تعلیق مدیر بارگو — تغییر از سوی شرکت ممکن نیست.</span>
+                        }
+                        else
+                        {
+                            <div class="row-actions">
+                                @foreach (var s in settable)
+                                {
+                                    var blocked = s.Key != VehicleStatus.Active && hardBusy;
+                                    <form method="post" asp-action="SetStatus" class="inline" data-confirm="@(s.Key == VehicleStatus.Active ? null : $"خودرو {v.PlateNo} «{s.Label}» شود؟ تا فعال‌شدن دوباره در تخصیص پیشنهاد نمی‌شود.")">
+                                        <input type="hidden" name="id" value="@v.VehicleId" />
+                                        <input type="hidden" name="status" value="@s.Key" />
+                                        <button class="btn2 @(s.Key == VehicleStatus.Active ? "grn" : "ghost") sm" disabled="@(v.Status == s.Key || blocked)" title="@(blocked ? "خودرو در سفر است" : "")">
+                                            <i class="bi @s.Icon"></i> @s.Label
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr>
+                    <td colspan="6" class="empty">
+                        <i class="bi bi-toggles"></i>
+                        @(Model.Status is null ? "هنوز خودرویی در ناوگان شرکت ثبت نشده است." : $"خودرویی در وضعیت «{VehicleStatus.Label(Model.Status)}» ندارید.")
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

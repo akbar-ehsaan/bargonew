@@ -1,0 +1,72 @@
+@model CompanyIncomeVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-graph-up-arrow"></i> درآمد</h1>
+        <p>درآمد ۱۲ ماه اخیر: سهم کرایهٔ سفرهای بازار (واریزی به کیف پول) و کرایهٔ بارهای مشتریان شرکت که بیرون از بارگو دریافت می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Report"><i class="bi bi-file-bar-graph"></i> گزارش مالی</a>
+        <a class="btn2 ghost" asp-area="Company" asp-controller="Reports" asp-action="Revenue"><i class="bi bi-cash-stack"></i> درآمد دوره‌ای</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-calendar-check"></i> درآمد این ماه</div><div class="v">@Fa.Toman(Model.ThisMonth)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-wallet2"></i> واریزی به کیف پول (۱۲ ماه)</div><div class="v">@Fa.Toman(Model.TotalOnline)</div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-building"></i> کرایهٔ مشتریان شرکت (۱۲ ماه)</div><div class="v">@Fa.Toman(Model.TotalOffline)</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-flag"></i> سفرهای تحویل‌شده</div><div class="v">@Fa.N(Model.TripsDone)<small>سفر</small></div></div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-bar-chart"></i> درآمد ماهانه</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>ماه</th><th>سفر تحویل‌شده</th><th>واریزی به کیف پول</th><th>کرایهٔ مستقیم مشتریان</th><th style="width:34%">جمع درآمد</th></tr></thead>
+            <tbody>
+            @foreach (var m in Model.Months)
+            {
+                <tr>
+                    <td data-label="ماه"><b>@m.Month.Label</b></td>
+                    <td data-label="سفر" class="num">@Fa.N(m.TripsDone)</td>
+                    <td data-label="واریزی" class="nowrap">@Fa.Toman(m.Income)</td>
+                    <td data-label="مستقیم" class="nowrap">@Fa.Toman(m.Offline)</td>
+                    <td data-label="جمع">
+                        <div class="small nowrap"><b>@Fa.Toman(m.Revenue)</b></div>
+                        <partial name="_Bar" model="new BarVm(m.Revenue, Model.MaxRevenue)" />
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0 && Model.TripsDone == 0)
+            {
+                <tr><td colspan="5" class="empty"><i class="bi bi-graph-up-arrow"></i>در ۱۲ ماه اخیر درآمدی ثبت نشده است. پس از تحویل و تسویهٔ اولین سفر، درآمد اینجا دیده می‌شود.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-arrow-down-left-circle"></i> واریزهای سهم کرایه</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>تاریخ</th><th>سفر</th><th>شرح</th><th>مبلغ</th><th>مانده پس از واریز</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Page.Rows)
+            {
+                <tr>
+                    <td data-label="تاریخ" class="nowrap">@Fa.Date(t.CreatedAt)<span class="sub">@Fa.Time(t.CreatedAt)</span></td>
+                    <td data-label="سفر">@if (t.TripCode is not null) { <a class="lnk" href="/Company/Trips/Detail/@t.TripId">@Fa.Digits(t.TripCode)</a> } else { <span class="muted">—</span> }</td>
+                    <td data-label="شرح">@(t.Note ?? "—")</td>
+                    <td data-label="مبلغ" class="nowrap"><b style="color:var(--ok)">+ @Fa.Toman(t.Amount)</b></td>
+                    <td data-label="مانده" class="nowrap">@Fa.Toman(t.BalanceAfter)</td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="5" class="empty"><i class="bi bi-wallet2"></i>هنوز سهم کرایه‌ای به کیف پول شرکت واریز نشده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

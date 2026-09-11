@@ -1,0 +1,135 @@
+@model PageVm<ShipperDocRow>
+@{
+    var kind = ViewBag.Kind as string ?? Bargo.Web.Areas.ShipperPanel.Controllers.DocumentsController.Waybill;
+    var counts = ViewBag.Counts as Dictionary<string, int> ?? new Dictionary<string, int>();
+    var missing = ViewBag.InsuranceMissing as List<ShipperTripRow>;
+    var isWaybill = kind == Bargo.Web.Areas.ShipperPanel.Controllers.DocumentsController.Waybill;
+    var intro = kind switch
+    {
+        TripDocumentKind.CargoInsurance => "بیمه‌نامه‌هایی که برای بار سفرهای شما صادر و روی سفر بارگذاری شده‌اند.",
+        TripDocumentKind.LoadingReceipt => "رسیدهایی که هنگام بارگیری در مبدا توسط راننده یا حمل‌کننده ثبت شده‌اند.",
+        TripDocumentKind.DeliveryReceipt => "رسیدهای تحویل بار در مقصد — مبنای رسیدگی در صورت کسری یا خسارت.",
+        _ => "بارنامه‌هایی که حمل‌کننده برای سفرهای شما ثبت کرده است، با شماره و وضعیت تأیید."
+    };
+    var emptyText = kind switch
+    {
+        TripDocumentKind.CargoInsurance => "هنوز بیمه‌نامه‌ای روی سفرهای شما بارگذاری نشده است.",
+        TripDocumentKind.LoadingReceipt => "هنوز رسید بارگیری برای سفرهای شما ثبت نشده است.",
+        TripDocumentKind.DeliveryReceipt => "هنوز رسید تحویلی برای سفرهای شما ثبت نشده است.",
+        _ => "هنوز بارنامه‌ای برای سفرهای شما ثبت نشده است. حمل‌کننده پس از بارگیری، شمارهٔ بارنامه را ثبت می‌کند."
+    };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-folder2-open"></i> @ViewData["Title"]</h1>
+        <p>@intro</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Download"><i class="bi bi-download"></i> دانلود اسناد</a>
+        <a class="btn2 ghost" href="/Shipper/Orders"><i class="bi bi-receipt"></i> سفارش‌ها</a>
+    </div>
+</div>
+
+<div class="tabs">
+    @foreach (var kd in Bargo.Web.Areas.ShipperPanel.Controllers.DocumentsController.Kinds)
+    {
+        <a asp-action="Index" asp-route-kind="@kd.Key" class="@(kind == kd.Key ? "on" : "")"><i class="bi @kd.Icon"></i> @kd.Label <span class="n">@Fa.N(counts.GetValueOrDefault(kd.Key))</span></a>
+    }
+</div>
+
+@if (missing is { Count: > 0 })
+{
+    <div class="card2">
+        <div class="hd"><i class="bi bi-shield-exclamation"></i> بیمه خواسته‌اید ولی بیمه‌نامه‌ای ثبت نشده <span class="end muted small">@Fa.N(missing.Count) سفر</span></div>
+        <div class="bd">
+            <p class="muted small" style="margin:0">بیمه‌نامهٔ بار را حمل‌کننده یا پشتیبانی بارگو روی سفر بارگذاری می‌کند. اگر بار پیش از صدور بیمه‌نامه حرکت کند، بیمه‌ای پوشش نمی‌دهد؛ از گفتگوی سفر پیگیری کنید.</p>
+        </div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>سفر</th><th>مسیر</th><th>حمل‌کننده</th><th>وضعیت</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var mt in missing)
+                {
+                    <tr>
+                        <td data-label="سفر"><a class="num" href="/Shipper/Orders/Detail/@mt.TripId">@mt.Code</a><span class="sub">@mt.LoadTitle</span></td>
+                        <td data-label="مسیر">@Ui.Route(mt.From, mt.To)</td>
+                        <td data-label="حمل‌کننده">@mt.Carrier</td>
+                        <td data-label="وضعیت">@Ui.TripPill(mt.Status)</td>
+                        <td><a class="btn2 ghost sm" href="@Url.Action("Thread", "Messages", new { key = "trip:" + mt.TripId })"><i class="bi bi-chat-dots"></i> پیگیری</a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead>
+            <tr>
+                @if (isWaybill)
+                {
+                    <th>شمارهٔ بارنامه</th>
+                }
+                else
+                {
+                    <th>عنوان</th>
+                }
+                <th>سفر</th><th>مسیر</th>
+                @if (isWaybill)
+                {
+                    <th>وضعیت</th>
+                }
+                <th>@(isWaybill ? "ثبت" : "بارگذاری")</th><th>فایل</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var d in Model.Rows)
+            {
+                <tr>
+                    @if (isWaybill)
+                    {
+                        <td data-label="شمارهٔ بارنامه"><b class="num">@Fa.Digits(d.Number)</b></td>
+                    }
+                    else
+                    {
+                        <td data-label="عنوان"><b>@(string.IsNullOrEmpty(d.Title) ? TripDocumentKind.Label(d.Kind) : d.Title)</b></td>
+                    }
+                    <td data-label="سفر"><a class="num" href="/Shipper/Orders/Detail/@d.TripId">@d.TripCode</a></td>
+                    <td data-label="مسیر">@Ui.Route(d.From, d.To)</td>
+                    @if (isWaybill)
+                    {
+                        <td data-label="وضعیت">@Ui.Pill(ShipperUi.WaybillStatusLabel(d.Status ?? ""), ShipperUi.WaybillStatusTone(d.Status ?? ""))</td>
+                    }
+                    <td class="nowrap" data-label="@(isWaybill ? "ثبت" : "بارگذاری")">@Fa.Stamp(d.At)<span class="sub">@OwnerKind.Label(d.ByKind)</span></td>
+                    <td data-label="فایل">
+                        @if (!string.IsNullOrEmpty(d.FilePath))
+                        {
+                            <div class="row-actions">
+                                <a class="btn2 ghost sm" href="@DocumentStorage.Url(d.FilePath)" target="_blank" rel="noopener"><i class="bi bi-eye"></i> مشاهده</a>
+                                <a class="btn2 ghost sm" href="@DocumentStorage.Url(d.FilePath)" download><i class="bi bi-download"></i> دانلود</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="muted">@(isWaybill ? "فقط شماره ثبت شده" : "بدون فایل")</span>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr>
+                    <td colspan="@(isWaybill ? 6 : 5)" class="empty">
+                        <i class="bi bi-folder2-open"></i>
+                        @emptyText
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

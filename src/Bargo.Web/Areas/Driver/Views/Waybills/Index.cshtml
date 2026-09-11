@@ -1,0 +1,65 @@
+@model PageVm<WaybillRowVm>
+@{
+    var missing = ViewBag.Missing as List<TripRowVm> ?? new List<TripRowVm>();
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-files"></i> @ViewData["Title"]</h1>
+        <p>بارنامه‌های ثبت‌شده برای سفرهای شما. ثبت و به‌روزرسانی از صفحهٔ هر سفر یا «مشاهده بارنامه» انجام می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 pri" asp-action="Current"><i class="bi bi-file-earmark-check"></i> بارنامهٔ سفر جاری</a>
+        <a class="btn2 ghost" asp-action="Documents"><i class="bi bi-folder2-open"></i> اسناد بار</a>
+    </div>
+</div>
+
+@foreach (var m in missing)
+{
+    <div class="alert2 warn">
+        <i class="bi bi-file-earmark-x"></i>
+        <div class="grow">سفر <span class="num">@m.Code</span> (@Ui.Route(m.From, m.To)) در مرحلهٔ «@TripStatus.Label(m.Status)» است ولی هنوز بارنامه ندارد؛ بدون آن نمی‌توانید سفر را شروع کنید.</div>
+        <a class="btn2 soft sm" asp-controller="Trips" asp-action="Detail" asp-route-id="@m.TripId" asp-fragment="waybill">ثبت بارنامه</a>
+    </div>
+}
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>شمارهٔ بارنامه</th><th>وضعیت بارنامه</th><th>سفر</th><th>مسیر</th><th>وضعیت سفر</th><th>ثبت</th><th>تصویر</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var w in Model.Rows)
+            {
+                <tr data-href="@Url.Action("Detail", "Trips", new { id = w.TripId })">
+                    <td class="num"><b>@w.Number</b></td>
+                    <td>@Ui.Pill(WaybillRowVm.StatusLabel(w.Status), WaybillRowVm.StatusTone(w.Status))</td>
+                    <td><a class="lnk num" asp-controller="Trips" asp-action="Detail" asp-route-id="@w.TripId">@w.TripCode</a><span class="sub">@w.Title</span></td>
+                    <td>@Ui.Route(w.From, w.To)</td>
+                    <td>@Ui.TripPill(w.TripStatus)</td>
+                    <td class="nowrap">@Fa.Stamp(w.IssuedAt)</td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(w.FilePath))
+                        {
+                            <a class="chip" href="@DocumentStorage.Url(w.FilePath)" target="_blank"><i class="bi bi-file-earmark-image"></i> مشاهده</a>
+                        }
+                        else
+                        {
+                            <span class="muted">ندارد</span>
+                        }
+                    </td>
+                    <td><a class="btn2 ghost sm" asp-controller="Trips" asp-action="Detail" asp-route-id="@w.TripId">صفحهٔ سفر</a></td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr>
+                    <td colspan="8" class="empty">
+                        <i class="bi bi-files"></i>
+                        هنوز بارنامه‌ای ثبت نکرده‌اید. شمارهٔ بارنامهٔ هر سفر را پس از حضور در مبدا در صفحهٔ همان سفر ثبت کنید.
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

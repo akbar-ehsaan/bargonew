@@ -1,0 +1,109 @@
+@model OpsRatingsVm
+@{
+    var rated = Model.Drivers.Where(d => d.RatingCount > 0).ToList();
+    var fleetAvg = rated.Count == 0 ? 0 : rated.Sum(d => d.RatingAvg * d.RatingCount) / rated.Sum(d => d.RatingCount);
+    var selected = Model.DriverId is int did ? Model.DriverNames.GetValueOrDefault(did) : null;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-star"></i> امتیاز رانندگان</h1>
+        <p>امتیاز و نظری که صاحبان بار پس از تحویل به رانندگان شرکت داده‌اند. امتیاز روی پروفایل راننده در بازار بار هم دیده می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-people"></i> لیست رانندگان</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat p"><div class="l"><i class="bi bi-star-half"></i> میانگین ناوگان</div><div class="v">@(rated.Count == 0 ? "—" : Fa.N(fleetAvg, 1)) <small>از ۵</small></div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-chat-quote"></i> کل نظرها</div><div class="v">@Fa.N(rated.Sum(d => d.RatingCount))</div></div>
+    <div class="stat @(rated.Count == Model.Drivers.Count ? "s" : "w")"><div class="l"><i class="bi bi-people"></i> رانندگان امتیازدار</div><div class="v">@Fa.N(rated.Count) <small>از @Fa.N(Model.Drivers.Count)</small></div></div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <form method="get" asp-action="Ratings" class="filters">
+            <div class="fld">
+                <label>راننده</label>
+                <select name="driverId">
+                    <option value="">همهٔ رانندگان</option>
+                    @foreach (var d in Model.Drivers)
+                    {
+                        <option value="@d.DriverId" selected="@(Model.DriverId == d.DriverId)">@d.FullName</option>
+                    }
+                </select>
+            </div>
+            <button class="btn2 ghost"><i class="bi bi-funnel"></i> فیلتر</button>
+            @if (Model.DriverId is not null)
+            {
+                <a class="btn2 ghost" asp-action="Ratings"><i class="bi bi-x-lg"></i> همه</a>
+            }
+        </form>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>راننده</th><th>امتیاز</th><th>نظر</th><th>از طرف</th><th>سفر</th><th>تاریخ</th></tr></thead>
+                <tbody>
+                @foreach (var r in Model.Reviews.Rows)
+                {
+                    var l = r.Trip?.Load;
+                    <tr>
+                        <td><a class="lnk" asp-action="Detail" asp-route-id="@r.ToId">@Model.DriverNames.GetValueOrDefault(r.ToId, "—")</a></td>
+                        <td>@Ui.Stars(r.Score, 1)</td>
+                        <td>
+                            @if (string.IsNullOrWhiteSpace(r.Comment))
+                            {
+                                <span class="muted">بدون نظر</span>
+                            }
+                            else
+                            {
+                                @r.Comment
+                            }
+                        </td>
+                        <td>@OwnerKind.Label(r.FromKind)</td>
+                        <td>
+                            @if (r.Trip is not null)
+                            {
+                                <a class="lnk num" href="/Company/Trips/Detail/@r.TripId">@r.Trip.Code</a>
+                                if (l is not null)
+                                {
+                                    <span class="sub">@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</span>
+                                }
+                            }
+                        </td>
+                        <td class="nowrap">@Fa.Date(r.CreatedAt)</td>
+                    </tr>
+                }
+                @if (Model.Reviews.Total == 0)
+                {
+                    <tr>
+                        <td colspan="6" class="empty">
+                            <i class="bi bi-star"></i>
+                            @(selected is null ? "هنوز صاحب باری به رانندگان شرکت امتیاز نداده است. امتیاز پس از تحویل بار ثبت می‌شود." : $"برای {selected} هنوز امتیازی ثبت نشده است.")
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Reviews.Pager" />
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-trophy"></i> رتبه‌بندی رانندگان</div>
+        <div class="bd">
+            @{ var rank = 0; }
+            @foreach (var d in Model.Drivers)
+            {
+                rank++;
+                <a class="kvrow" asp-action="Ratings" asp-route-driverId="@d.DriverId" style="@(Model.DriverId == d.DriverId ? "background:var(--primary-soft);margin:0 -8px;padding-inline:8px;border-radius:8px" : "")">
+                    <span><span class="chip num">@Fa.N(rank)</span> @d.FullName <span class="muted small">· @Fa.N(d.TripCount) سفر</span></span>
+                    @Ui.Stars(d.RatingAvg, d.RatingCount)
+                </a>
+            }
+            @if (Model.Drivers.Count == 0)
+            {
+                <div class="muted small">هنوز راننده‌ای در ناوگان شرکت نیست.</div>
+            }
+        </div>
+    </div>
+</div>

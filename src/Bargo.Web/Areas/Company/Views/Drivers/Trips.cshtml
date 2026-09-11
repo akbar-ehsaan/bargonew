@@ -1,0 +1,87 @@
+@model OpsDriverTripsVm
+@{
+    var cid = (int)ViewBag.CompanyId;
+    var selected = Model.DriverId is int did ? Model.Drivers.FirstOrDefault(o => o.Id == did)?.Label : null;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-clock-history"></i> سوابق سفر رانندگان</h1>
+        <p>همهٔ سفرهای رانندگان شرکت، تازه‌ترین اول. سفری که راننده به‌طور مستقل گرفته با نشان «مستقل» می‌آید و پرونده‌اش در پنل شرکت نیست.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-people"></i> لیست رانندگان</a>
+        <a class="btn2 ghost" href="/Company/Trips?tab=done"><i class="bi bi-flag"></i> سفرهای تکمیل‌شدهٔ شرکت</a>
+    </div>
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Trips" class="filters">
+        <div class="fld">
+            <label>راننده</label>
+            <select name="driverId">
+                <option value="">همهٔ رانندگان</option>
+                @foreach (var o in Model.Drivers)
+                {
+                    <option value="@o.Id" selected="@(Model.DriverId == o.Id)">@o.Label</option>
+                }
+            </select>
+        </div>
+        <button class="btn2 ghost"><i class="bi bi-funnel"></i> فیلتر</button>
+        @if (Model.DriverId is not null)
+        {
+            <a class="btn2 ghost" asp-action="Trips"><i class="bi bi-x-lg"></i> همه</a>
+            <a class="btn2 soft" asp-action="Detail" asp-route-id="@Model.DriverId"><i class="bi bi-person-badge"></i> پروندهٔ راننده</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>راننده</th><th>مسیر</th><th>خودرو</th><th>حرکت</th><th>تحویل</th><th>سهم راننده</th><th>وضعیت</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Page.Rows)
+            {
+                var l = t.Load!;
+                var mine = t.CompanyId == cid;
+                <tr data-href="@(mine ? $"/Company/Trips/Detail/{t.TripId}" : null)">
+                    <td>
+                        @if (mine)
+                        {
+                            <a class="lnk num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a>
+                        }
+                        else
+                        {
+                            <span class="num">@t.Code</span>
+                        }
+                        <span class="sub">@(mine ? l.Title : "مستقل")</span>
+                    </td>
+                    <td><a class="lnk" asp-action="Detail" asp-route-id="@t.DriverId">@t.Driver?.FullName</a></td>
+                    <td>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</td>
+                    <td>
+                        @if (t.Vehicle is not null)
+                        {
+                            <span class="plate">@t.Vehicle.PlateNo</span>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td class="nowrap">@Fa.Date(t.StartedAt ?? t.ScheduledDepartureAt ?? l.LoadingFrom)</td>
+                    <td class="nowrap">@Fa.Date(t.DeliveredAt)</td>
+                    <td class="num">@(mine ? Fa.Toman(t.DriverShare) : "—")</td>
+                    <td>@Ui.TripPill(t.Status)</td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr>
+                    <td colspan="8" class="empty">
+                        <i class="bi bi-clock-history"></i>
+                        @(selected is null ? "رانندگان شرکت هنوز سفری نداشته‌اند." : $"{selected} هنوز سفری نداشته است.")
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

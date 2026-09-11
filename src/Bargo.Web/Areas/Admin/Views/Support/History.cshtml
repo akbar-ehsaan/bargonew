@@ -1,0 +1,66 @@
+@model SupportHistoryVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-clock-history"></i> سوابق پاسخ‌ها</h1>
+        <p>تیکت‌های پاسخ‌داده‌شده و بسته‌شده. «اولین پاسخ» فاصلهٔ ثبت تیکت تا نخستین پیام پشتیبانی است.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-inbox"></i> صف تیکت‌ها</a>
+        <a class="btn2 ghost" asp-action="Operators"><i class="bi bi-headset"></i> اپراتورها</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat p"><div class="l"><i class="bi bi-stopwatch"></i> میانگین اولین پاسخ (۳۰ روز)</div><div class="v">@BackofficeFormat.Duration(Model.AvgFirstReplyMinutes30d)</div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-inbox"></i> تیکت‌های ۳۰ روز اخیر</div><div class="v">@Fa.N(Model.Tickets30d)</div></div>
+    <div class="stat @(Model.Unanswered30d > 0 ? "r" : "s")"><div class="l"><i class="bi bi-chat-left-dots"></i> هنوز بی‌پاسخ</div><div class="v">@Fa.N(Model.Unanswered30d)</div></div>
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="History" class="filters">
+        <div class="fld"><label>جستجو</label><input name="q" value="@Model.Q" placeholder="موضوع یا نام کاربر" /></div>
+        <div class="row-actions">
+            <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+            @if (!string.IsNullOrEmpty(Model.Q))
+            {
+                <a class="btn2 ghost" asp-action="History">پاک کردن</a>
+            }
+        </div>
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>موضوع</th><th>کاربر</th><th>دسته</th><th>اپراتور</th><th>پاسخ‌ها</th><th>اولین پاسخ</th><th>ثبت</th><th>آخرین به‌روزرسانی</th><th>وضعیت</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Page.Rows)
+            {
+                <tr data-href="@Url.Action("Thread", new { id = r.Id })">
+                    <td class="num">@Fa.N(r.Id)</td>
+                    <td><a class="lnk" asp-action="Thread" asp-route-id="@r.Id">@r.Subject</a></td>
+                    <td><b>@r.OwnerName</b><span class="sub">@OwnerKind.Label(r.OwnerKind)</span></td>
+                    <td><span class="chip">@TicketCategory.Label(r.Category)</span></td>
+                    <td>@(r.AssignedName ?? "—")</td>
+                    <td class="num">@Fa.N(r.Replies)</td>
+                    <td class="nowrap">
+                        @if (r.FirstReplyMinutes is double fm)
+                        {
+                            <span style="color:@(fm > 24 * 60 ? "var(--no)" : fm > 4 * 60 ? "#d68a0c" : "var(--ok)");font-weight:700">@BackofficeFormat.Duration(fm)</span>
+                        }
+                        else
+                        {
+                            <span class="pill wait">بدون پاسخ پشتیبانی</span>
+                        }
+                    </td>
+                    <td class="nowrap">@Fa.Stamp(r.CreatedAt)</td>
+                    <td class="nowrap">@Fa.Stamp(r.UpdatedAt)</td>
+                    <td>@Ui.TicketPill(r.Status)</td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="10" class="empty"><i class="bi bi-clock-history"></i>@(string.IsNullOrEmpty(Model.Q) ? "هنوز تیکتی پاسخ داده یا بسته نشده است." : "تیکتی با این عبارت در سوابق نیست.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

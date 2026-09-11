@@ -1,0 +1,41 @@
+@model PageVm<DocumentRowVm>
+@{
+    var kind = ViewBag.Kind as string;
+    var kindCounts = (Dictionary<string, int>)ViewBag.KindCounts;
+    var kinds = (string[])ViewBag.Kinds;
+    var warnDays = (int)ViewBag.WarnDays;
+    var expired = (int)ViewBag.ExpiredCount;
+    ViewData["Mode"] = "alerts";
+    ViewData["ReturnUrl"] = Context.Request.Path + Context.Request.QueryString;
+    ViewData["WarnDays"] = warnDays;
+    var now = DateTime.UtcNow;
+    var week = Model.Rows.Count(r => r.Doc.ExpiresAt < now.AddDays(7));
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-alarm"></i> هشدارهای انقضای مدارک</h1>
+        <p>مدارک تأییدشده‌ای که تا <b>@Fa.N(warnDays) روز</b> دیگر منقضی می‌شوند — نزدیک‌ترین اول. آستانه در «تنظیمات سیستم» (Documents.ExpiryWarnDays) تغییر می‌کند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Expired"><i class="bi bi-calendar-x"></i> مدارک منقضی</a>
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-hourglass-split"></i> صف بررسی</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat w"><div class="l"><i class="bi bi-alarm"></i> در آستانهٔ انقضا</div><div class="v">@Fa.N(kindCounts.Values.Sum())</div></div>
+    <div class="stat r"><div class="l"><i class="bi bi-calendar-week"></i> کمتر از ۷ روز (در این صفحه)</div><div class="v">@Fa.N(week)</div></div>
+    <a class="stat r" asp-action="Expired"><div class="l"><i class="bi bi-calendar-x"></i> منقضی‌شده</div><div class="v">@Fa.N(expired)</div></a>
+</div>
+
+<div class="tabs">
+    <a asp-action="Alerts" class="@(kind is null ? "on" : "")">همه <span class="n">@Fa.N(kindCounts.Values.Sum())</span></a>
+    @foreach (var k in kinds.Where(k => kindCounts.ContainsKey(k)))
+    {
+        <a asp-action="Alerts" asp-route-kind="@k" class="@(kind == k ? "on" : "")">@DocumentKind.Label(k) <span class="n">@Fa.N(kindCounts[k])</span></a>
+    }
+</div>
+
+<div class="card2">
+    <partial name="_DocTable" model="Model" />
+</div>

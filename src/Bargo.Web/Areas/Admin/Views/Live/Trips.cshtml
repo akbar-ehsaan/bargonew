@@ -1,0 +1,60 @@
+@model PageVm<TripRow>
+@{
+    var status = ViewBag.Status as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    int C(string k) => counts.TryGetValue(k, out var n) ? n : 0;
+    var now = DateTime.UtcNow;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-signpost-split"></i> سفرهای فعال</h1>
+        <p>سفرهایی که راننده در راه است — از حرکت به مبدا تا تخلیه. بی‌خبرترین اول.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-map"></i> نقشهٔ کشور</a>
+        <a class="btn2 ghost" href="/Admin/Trips/Problems"><i class="bi bi-exclamation-triangle"></i> سفرهای مشکل‌دار</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Trips" class="@(status is null ? "on" : "")">همه <span class="n">@Fa.N(counts.Values.Sum())</span></a>
+    @foreach (var s in TripStatus.Live)
+    {
+        <a asp-action="Trips" asp-route-status="@s" class="@(status == s ? "on" : "")">@TripStatus.Label(s) <span class="n">@Fa.N(C(s))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>مسیر</th><th>راننده</th><th>خودرو</th><th>وضعیت</th><th>آخرین GPS</th><th>پیشرفت</th><th>رسیدن تقریبی</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Rows)
+            {
+                <tr data-href="/Admin/Trips/Case/@t.TripId">
+                    <td><a class="lnk num" href="/Admin/Trips/Case/@t.TripId">@t.Code</a><span class="sub num">@t.LoadCode</span></td>
+                    <td>@Ui.Route(t.From, t.To)<span class="sub">@t.LoadTitle · @OpsLabels.Ton(t.WeightTon) تن</span></td>
+                    <td>
+                        @if (t.DriverId is int did) { <a class="lnk" href="/Admin/Users/Driver/@did">@t.DriverName</a><span class="sub num">@t.DriverMobile</span> }
+                        else { <span class="muted">—</span> }
+                        @if (t.CompanyId is int cid) { <span class="sub"><a class="lnk" href="/Admin/Users/Company/@cid">@t.CompanyName</a></span> }
+                    </td>
+                    <td>@OpsUi.Plate(t.Plate)</td>
+                    <td>@Ui.TripPill(t.Status)@if (t.IsProblem) { @Ui.Pill("مشکل‌دار", "no") }</td>
+                    <td>@OpsUi.Gps(t.LastPointAt)</td>
+                    <td class="nowrap num">@Fa.N(t.TravelledKm)@(t.PlannedKm is double pk ? $" / {Fa.N(pk)}" : "") کیلومتر</td>
+                    <td class="nowrap">
+                        @if (t.EtaAt is DateTime eta) { @Ui.Pill(Fa.Stamp(eta), eta < now ? "no" : "inf") }
+                        else { <span class="muted">—</span> }
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-truck"></i>هم‌اکنون سفر زنده‌ای @(status is null ? "" : "در این مرحله ")نیست.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

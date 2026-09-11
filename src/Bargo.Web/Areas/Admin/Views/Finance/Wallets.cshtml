@@ -1,0 +1,88 @@
+@model WalletsVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-wallet2"></i> کیف پول کاربران</h1>
+        <p>موجودی‌ها از بیشترین به کمترین. اصلاح دستی فقط با شرح ثبت می‌شود و در ردّ حسابرسی می‌ماند.</p>
+    </div>
+</div>
+
+<div class="stats">
+    <a class="stat p" asp-action="Wallets" asp-route-tab="drivers"><div class="l"><i class="bi bi-person-badge"></i> موجودی رانندگان</div><div class="v">@Fa.Toman(Model.DriversTotal)</div></a>
+    <a class="stat i" asp-action="Wallets" asp-route-tab="shippers"><div class="l"><i class="bi bi-person-workspace"></i> موجودی صاحبان بار</div><div class="v">@Fa.Toman(Model.ShippersTotal)</div></a>
+    <a class="stat w" asp-action="Wallets" asp-route-tab="companies"><div class="l"><i class="bi bi-buildings"></i> موجودی شرکت‌ها</div><div class="v">@Fa.Toman(Model.CompaniesTotal)</div></a>
+    <a class="stat s" asp-action="Commission"><div class="l"><i class="bi bi-safe2"></i> کیف پول بارگو</div><div class="v">@Fa.Toman(Model.PlatformBalance)</div></a>
+</div>
+
+@if (Model.Adjust is { } a)
+{
+    <div class="card2" style="margin-bottom:18px">
+        <div class="hd"><i class="bi bi-pencil-square"></i> اصلاح موجودی — @a.Name <span class="end muted small">موجودی فعلی: <b>@Fa.Toman(a.Balance)</b></span></div>
+        <div class="bd">
+            <form method="post" asp-action="Adjust" data-confirm="اصلاح دستی موجودی ثبت شود؟ این ردیف قابل حذف نیست.">
+                <input type="hidden" name="ownerKind" value="@a.Kind" />
+                <input type="hidden" name="ownerId" value="@a.Id" />
+                <div class="form-grid cols3">
+                    <div class="fld">
+                        <label>جهت</label>
+                        <select name="direction">
+                            <option value="+">افزایش موجودی (+)</option>
+                            <option value="-">کاهش موجودی (−)</option>
+                        </select>
+                    </div>
+                    <div class="fld"><label>مبلغ (تومان) <span class="req">*</span></label><input name="amountToman" class="money" required /></div>
+                    <div class="fld"><label>@OwnerKind.Label(a.Kind)</label><input value="@a.Name · @a.Mobile" disabled /></div>
+                    <div class="fld full">
+                        <label>شرح اصلاح <span class="req">*</span></label>
+                        <input name="note" minlength="5" maxlength="300" required placeholder="مثلاً: جبران کسر اشتباه کمیسیون سفر T-050621-0042" />
+                        <span class="hint">شرح در تراکنش کاربر، اعلان او و ردّ حسابرسی ثبت می‌شود.</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn2 pri"><i class="bi bi-check2"></i> ثبت اصلاح</button>
+                    <a class="btn2 ghost" asp-action="Wallets" asp-route-tab="@Model.Tab">انصراف</a>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<div class="tabs">
+    <a asp-action="Wallets" asp-route-tab="drivers" class="@(Model.Tab == "drivers" ? "on" : "")"><i class="bi bi-person-badge"></i> رانندگان</a>
+    <a asp-action="Wallets" asp-route-tab="shippers" class="@(Model.Tab == "shippers" ? "on" : "")"><i class="bi bi-person-workspace"></i> صاحبان بار</a>
+    <a asp-action="Wallets" asp-route-tab="companies" class="@(Model.Tab == "companies" ? "on" : "")"><i class="bi bi-buildings"></i> شرکت‌ها</a>
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Wallets" class="filters">
+        <input type="hidden" name="tab" value="@Model.Tab" />
+        <div class="fld"><label>جستجو</label><input name="q" value="@Model.Q" placeholder="نام، موبایل یا کد ملی" /></div>
+        <div class="row-actions"><button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button></div>
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>نام</th><th>موبایل</th><th>وضعیت حساب</th><th>موجودی</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Page.Rows)
+            {
+                <tr>
+                    <td><b>@r.Name</b></td>
+                    <td class="num">@r.Mobile</td>
+                    <td>@Ui.AccountPill(r.Status)</td>
+                    <td class="nowrap" style="font-weight:800;color:@(r.Balance < 0 ? "var(--no)" : "inherit")">@Fa.Toman(r.Balance)</td>
+                    <td>
+                        <div class="row-actions">
+                            <a class="btn2 sm ghost" asp-action="Index" asp-route-owner="@r.Kind" asp-route-ownerId="@r.Id"><i class="bi bi-list-ul"></i> گردش حساب</a>
+                            <a class="btn2 sm soft" asp-action="Wallets" asp-route-tab="@Model.Tab" asp-route-q="@Model.Q" asp-route-adjust="@r.Id"><i class="bi bi-pencil-square"></i> اصلاح</a>
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="5" class="empty"><i class="bi bi-wallet2"></i>حسابی پیدا نشد.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

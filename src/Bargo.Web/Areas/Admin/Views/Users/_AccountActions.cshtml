@@ -1,0 +1,37 @@
+@model AccountActionVm
+@* فرم تغییر وضعیت حساب — در پروندهٔ راننده، صاحب بار و شرکت. *@
+<div class="card2">
+    <div class="hd"><i class="bi bi-shield-lock"></i> وضعیت حساب <span class="end">@Ui.AccountPill(Model.Status)</span></div>
+    <div class="bd">
+        @if (!string.IsNullOrEmpty(Model.StatusReason))
+        {
+            <div class="alert2 warn"><i class="bi bi-info-circle"></i><div class="grow">علت ثبت‌شده: @Model.StatusReason</div></div>
+        }
+        <form method="post" asp-area="Admin" asp-controller="Users" asp-action="SetStatus"
+              data-confirm="وضعیت حساب «@Model.Name» تغییر کند؟ صاحب حساب با اعلان باخبر می‌شود.">
+            <input type="hidden" name="kind" value="@Model.Kind" />
+            <input type="hidden" name="id" value="@Model.Id" />
+            <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+            <div class="fld">
+                <label>علت یا توضیح <span class="muted small">(برای رد و تعلیق الزامی؛ برای صاحب حساب ارسال می‌شود)</span></label>
+                <textarea name="reason" rows="2" maxlength="1000"></textarea>
+            </div>
+            <div class="form-actions">
+                @if (Model.Status != AccountStatus.Approved)
+                {
+                    <button class="btn2 grn" name="status" value="approved">
+                        <i class="bi bi-check2-circle"></i> @(Model.Status == AccountStatus.Suspended ? "فعال‌سازی دوباره" : "تأیید حساب")
+                    </button>
+                }
+                @if (Model.Status == AccountStatus.Pending)
+                {
+                    <button class="btn2 red" name="status" value="rejected"><i class="bi bi-x-circle"></i> رد درخواست</button>
+                }
+                @if (Model.Status == AccountStatus.Approved)
+                {
+                    <button class="btn2 red" name="status" value="suspended"><i class="bi bi-pause-circle"></i> تعلیق حساب</button>
+                }
+            </div>
+        </form>
+    </div>
+</div>

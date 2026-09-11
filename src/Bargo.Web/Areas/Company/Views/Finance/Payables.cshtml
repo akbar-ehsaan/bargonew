@@ -1,0 +1,72 @@
+@model CompanyPayablesVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-box-arrow-right"></i> بدهی‌ها</h1>
+        <p>آنچه شرکت باید بپردازد: سهم رانندگان از سفرهای تسویه‌شده، و کرایهٔ بارهای شرکت که حمل‌کنندهٔ دیگری می‌برد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Receivables"><i class="bi bi-box-arrow-in-left"></i> مطالبات</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat r"><div class="l"><i class="bi bi-cash-stack"></i> جمع بدهی</div><div class="v">@Fa.Toman(Model.Total)</div></div>
+    <a class="stat w" asp-action="DriverSettlements"><div class="l"><i class="bi bi-person-check"></i> سهم رانندگان</div><div class="v">@Fa.Toman(Model.DriverSharesTotal)<small>@Fa.N(Model.DriverShares.Count) سفر</small></div></a>
+    <a class="stat p" asp-action="ShipperSettlements"><div class="l"><i class="bi bi-building-check"></i> کرایهٔ بارهای شرکت</div><div class="v">@Fa.Toman(Model.FaresTotal)<small>@Fa.N(Model.Fares.Count) سفر</small></div></a>
+</div>
+
+@if (Model.Total > Model.Balance)
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">موجودی کیف پول (@Fa.Toman(Model.Balance)) کمتر از جمع بدهی‌هاست. برای پرداخت کامل باید @Fa.Toman(Model.Total - Model.Balance) دیگر به کیف پول بیاید.</div></div>
+}
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-person-check"></i> سهم پرداخت‌نشدهٔ رانندگان <span class="end"><a class="btn2 soft sm" asp-action="DriverSettlements"><i class="bi bi-cash-coin"></i> تسویه با رانندگان</a></span></div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>راننده</th><th>مسیر</th><th>تسویه</th><th>سهم شرکت</th><th>سهم راننده</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.DriverShares)
+            {
+                <tr>
+                    <td data-label="سفر"><a class="lnk" href="/Company/Trips/Detail/@t.TripId">@Fa.Digits(t.Code)</a></td>
+                    <td data-label="راننده"><a class="lnk" asp-action="DriverSettlements" asp-route-driverId="@t.DriverId">@(t.DriverName ?? "—")</a></td>
+                    <td data-label="مسیر">@Ui.Route(t.Origin, t.Dest)</td>
+                    <td data-label="تسویه" class="nowrap">@Fa.Date(t.SettledAt)</td>
+                    <td data-label="سهم شرکت" class="nowrap">@Fa.Toman(t.CarrierShare)</td>
+                    <td data-label="سهم راننده" class="nowrap"><b>@Fa.Toman(t.DriverShare)</b></td>
+                </tr>
+            }
+            @if (Model.DriverShares.Count == 0)
+            {
+                <tr><td colspan="6" class="empty"><i class="bi bi-check2-circle"></i>سهم همهٔ رانندگان پرداخت شده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-building-check"></i> کرایهٔ پرداخت‌نشدهٔ بارهای شرکت <span class="end"><a class="btn2 soft sm" asp-action="ShipperSettlements"><i class="bi bi-credit-card"></i> پرداخت کرایه</a></span></div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>حمل‌کننده</th><th>مسیر</th><th>وضعیت</th><th>کرایه</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Fares)
+            {
+                <tr>
+                    <td data-label="سفر"><a class="lnk" href="/Company/Trips/Detail/@t.TripId">@Fa.Digits(t.Code)</a><span class="sub">بار @Fa.Digits(t.LoadCode)</span></td>
+                    <td data-label="حمل‌کننده">@t.Party</td>
+                    <td data-label="مسیر">@Ui.Route(t.Origin, t.Dest)<span class="sub">@t.CargoTitle</span></td>
+                    <td data-label="وضعیت">@Ui.TripPill(t.Status)</td>
+                    <td data-label="کرایه" class="nowrap"><b>@Fa.Toman(t.Fare)</b></td>
+                </tr>
+            }
+            @if (Model.Fares.Count == 0)
+            {
+                <tr><td colspan="5" class="empty"><i class="bi bi-check2-circle"></i>کرایهٔ همهٔ بارهای شرکت که دیگری حمل می‌کند پرداخت شده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

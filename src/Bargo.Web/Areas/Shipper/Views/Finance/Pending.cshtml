@@ -1,0 +1,139 @@
+@model ShipperPayVm
+@{
+    var backHere = Context.Request.Path.Value;
+    string PurposeLabel(string purpose) => purpose switch
+    {
+        "charge" => "شارژ کیف پول",
+        "fare" => "کرایهٔ سفر",
+        "subscription" => "اشتراک",
+        _ => purpose
+    };
+    string MethodLabel(string method) => method switch
+    {
+        "wallet" => "کیف پول",
+        "gateway" => "درگاه بانکی",
+        "manual" => "ثبت دستی",
+        _ => method
+    };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-hourglass-split"></i> پرداخت‌های در انتظار</h1>
+        <p>کرایه‌هایی که هنوز پرداخت نشده‌اند، پرداخت‌هایی که نتیجه‌شان هنوز از بانک نیامده و پرداخت‌های ناموفق اخیر.</p>
+    </div>
+    <div class="actions">
+        <span class="chip"><i class="bi bi-wallet2"></i> موجودی: @Fa.Toman(Model.Balance)</span>
+        <a class="btn2 ghost" asp-action="Pay"><i class="bi bi-credit-card"></i> پرداخت کرایه</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat @(Model.Unpaid.Count > 0 ? "w" : "i")"><div class="l"><i class="bi bi-receipt"></i> کرایهٔ پرداخت‌نشده</div><div class="v">@Fa.N(Model.Unpaid.Count) <small>سفر · @Fa.Toman(Model.Total)</small></div></div>
+    <div class="stat @(Model.PendingPayments.Count > 0 ? "w" : "i")"><div class="l"><i class="bi bi-hourglass"></i> در انتظار نتیجه</div><div class="v">@Fa.N(Model.PendingPayments.Count) <small>پرداخت</small></div></div>
+    <div class="stat @(Model.FailedPayments.Count > 0 ? "r" : "i")"><div class="l"><i class="bi bi-x-octagon"></i> ناموفق اخیر</div><div class="v">@Fa.N(Model.FailedPayments.Count) <small>پرداخت</small></div></div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-receipt"></i> کرایه‌های پرداخت‌نشده <span class="end"><a class="lnk" asp-action="Pay">صفحهٔ پرداخت</a></span></div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>مسیر</th><th>وضعیت سفر</th><th>ثبت</th><th>کرایه</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var unpaidTrip in Model.Unpaid)
+            {
+                <tr>
+                    <td><a class="lnk" href="/Shipper/Orders/Detail/@unpaidTrip.TripId">@unpaidTrip.Code</a><span class="sub">@unpaidTrip.Carrier</span></td>
+                    <td>@Ui.Route(unpaidTrip.From, unpaidTrip.To)</td>
+                    <td>@Ui.TripPill(unpaidTrip.Status)</td>
+                    <td class="nowrap">@Fa.Date(unpaidTrip.CreatedAt)</td>
+                    <td class="nowrap"><b class="num">@Fa.Toman(unpaidTrip.Fare)</b></td>
+                    <td>
+                        @if (Model.Balance >= unpaidTrip.Fare)
+                        {
+                            <form method="post" asp-action="Pay" data-confirm="@($"کرایهٔ سفر {unpaidTrip.Code} به مبلغ {Fa.Toman(unpaidTrip.Fare)} از کیف پول پرداخت شود؟")">
+                                <input type="hidden" name="tripId" value="@unpaidTrip.TripId" />
+                                <input type="hidden" name="returnUrl" value="@backHere" />
+                                <button class="btn2 pri sm"><i class="bi bi-credit-card"></i> پرداخت</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <a class="btn2 soft sm" asp-action="Index" asp-fragment="charge"><i class="bi bi-plus-circle"></i> شارژ کیف پول</a>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Unpaid.Count == 0)
+            {
+                <tr><td colspan="6" class="empty"><i class="bi bi-check2-circle"></i>کرایهٔ پرداخت‌نشده‌ای ندارید.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="grid2" style="margin-top:18px">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-hourglass"></i> در انتظار نتیجهٔ پرداخت</div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>تاریخ</th><th>بابت</th><th>روش</th><th>مبلغ</th></tr></thead>
+                <tbody>
+                @foreach (var pendingPay in Model.PendingPayments)
+                {
+                    <tr>
+                        <td class="nowrap">@Fa.Stamp(pendingPay.CreatedAt)</td>
+                        <td>
+                            @PurposeLabel(pendingPay.Purpose)
+                            @if (pendingPay.TripId is int pendingTripId)
+                            {
+                                <span class="sub"><a class="lnk" href="/Shipper/Orders/Detail/@pendingTripId">جزئیات سفر</a></span>
+                            }
+                        </td>
+                        <td>@MethodLabel(pendingPay.Method)@if (!string.IsNullOrEmpty(pendingPay.Authority)) { <span class="sub num">@pendingPay.Authority</span> }</td>
+                        <td class="nowrap"><b class="num">@Fa.Toman(pendingPay.Amount)</b></td>
+                    </tr>
+                }
+                @if (Model.PendingPayments.Count == 0)
+                {
+                    <tr><td colspan="4" class="empty"><i class="bi bi-check2-all"></i>پرداختی در انتظار نتیجه نیست.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.PendingPayments.Count > 0)
+        {
+            <div class="bd small muted" style="border-top:1px solid var(--line-soft)">نتیجهٔ پرداخت درگاه معمولاً چند دقیقه‌ای می‌رسد. اگر مبلغ از حسابتان کسر شده و تا ۷۲ ساعت نتیجه نیامد، بانک آن را برمی‌گرداند؛ در غیر این صورت <a class="lnk" href="/Shipper/Tickets/Create">تیکت مالی</a> ثبت کنید.</div>
+        }
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-x-octagon"></i> پرداخت‌های ناموفق اخیر</div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>تاریخ</th><th>بابت</th><th>علت</th><th>مبلغ</th></tr></thead>
+                <tbody>
+                @foreach (var failedPay in Model.FailedPayments)
+                {
+                    <tr>
+                        <td class="nowrap">@Fa.Stamp(failedPay.CreatedAt)</td>
+                        <td>
+                            @PurposeLabel(failedPay.Purpose)
+                            @if (failedPay.TripId is int failedTripId)
+                            {
+                                <span class="sub"><a class="lnk" href="/Shipper/Orders/Detail/@failedTripId">جزئیات سفر</a></span>
+                            }
+                        </td>
+                        <td class="muted">@(string.IsNullOrEmpty(failedPay.FailReason) ? "نامشخص" : failedPay.FailReason)</td>
+                        <td class="nowrap"><b class="num">@Fa.Toman(failedPay.Amount)</b></td>
+                    </tr>
+                }
+                @if (Model.FailedPayments.Count == 0)
+                {
+                    <tr><td colspan="4" class="empty"><i class="bi bi-emoji-smile"></i>پرداخت ناموفقی ثبت نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

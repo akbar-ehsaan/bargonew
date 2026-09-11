@@ -1,0 +1,143 @@
+@model TripDetailVm
+@*
+    دکمه‌های گام بعدی سفر — صفحهٔ سفر و «عملیات سفر» هر دو همین را نشان می‌دهند.
+    ViewData["back"]: ops | waybill | null   ViewData["step"]: گامِ صفحهٔ عملیات   ViewData["big"]: دکمه‌های درشت
+    هر فرم گام، پیش از ارسال موقعیت را از مرورگر می‌گیرد (حداکثر ۵ ثانیه) و در lat/lng می‌گذارد.
+*@
+@{
+    var t = Model.Trip;
+    var back = ViewData["back"] as string;
+    var step = ViewData["step"] as string;
+    var big = ViewData["big"] is true;
+    var btn = big ? "btn2 lg block" : "btn2";
+    var needsWaybill = Model.WaybillRequired && t.Waybill is null && Model.Next.Contains(TripStatus.InTransit);
+
+    string Icon(string to) => to switch
+    {
+        TripStatus.Accepted => "bi-check2",
+        TripStatus.AwaitingAssignment => "bi-x-lg",
+        TripStatus.ToOrigin => "bi-sign-turn-right",
+        TripStatus.AtOrigin => "bi-geo-alt",
+        TripStatus.Loaded => "bi-box-arrow-in-down",
+        TripStatus.InTransit => "bi-play-fill",
+        TripStatus.Arrived => "bi-pin-map",
+        TripStatus.Unloaded => "bi-box-arrow-up",
+        TripStatus.Delivered => "bi-shield-check",
+        _ => "bi-arrow-left"
+    };
+    string Hint(string to) => to switch
+    {
+        TripStatus.ToOrigin => "وقتی به سمت محل بارگیری راه افتادید بزنید؛ از این لحظه صاحب بار موقعیت شما را می‌بیند.",
+        TripStatus.AtOrigin => "پس از رسیدن به محل بارگیری ثبت کنید.",
+        TripStatus.Loaded => "پس از پایان بارگیری و پیش از حرکت ثبت کنید.",
+        TripStatus.InTransit => "با زدن این دکمه، حمل آغاز و زمان تقریبی رسیدن محاسبه می‌شود.",
+        TripStatus.Arrived => "پس از رسیدن به محل تخلیه ثبت کنید.",
+        TripStatus.Unloaded => Model.OtpRequired ? "با ثبت تخلیه، کد تحویل برای گیرنده پیامک می‌شود." : "پس از پایان تخلیه ثبت کنید.",
+        _ => ""
+    };
+}
+@if (t.Status == TripStatus.Cancelled)
+{
+    <div class="alert2 err"><i class="bi bi-x-octagon-fill"></i><div class="grow">این سفر لغو شده است@(string.IsNullOrEmpty(t.CancelReason) ? "" : " — " + t.CancelReason).</div></div>
+}
+else if (Model.Next.Count == 0)
+{
+    <div class="alert2 info">
+        <i class="bi bi-info-circle-fill"></i>
+        <div class="grow">
+            @(t.Status switch
+            {
+                TripStatus.AwaitingAssignment => "این سفر در انتظار تخصیص راننده توسط شرکت است؛ فعلاً گامی برای ثبت ندارید.",
+                TripStatus.Delivered => "تحویل بار ثبت شده است. سفر پس از پرداخت صاحب بار به‌صورت خودکار تسویه می‌شود.",
+                TripStatus.Settled => "این سفر تسویه شده است و گامی برای ثبت ندارد.",
+                _ => "در این مرحله گامی برای ثبت ندارید."
+            })
+        </div>
+    </div>
+}
+else
+{
+    @if (needsWaybill)
+    {
+        <div class="alert2 warn">
+            <i class="bi bi-file-earmark-text"></i>
+            <div class="grow">پیش از «شروع سفر» باید شمارهٔ بارنامه را ثبت کنید. <a class="lnk" href="#waybill">ثبت بارنامه</a></div>
+        </div>
+    }
+    <div class="@(big ? "stack" : "row-actions")">
+        @foreach (var to in Model.Next)
+        {
+            if (to == TripStatus.AwaitingAssignment)
+            {
+                <form method="post" asp-area="Driver" asp-controller="Trips" asp-action="Move" asp-route-id="@t.TripId" data-confirm="مأموریت این سفر رد شود؟ سفر به صف تخصیص شرکت برمی‌گردد.">
+                    <input type="hidden" name="to" value="@to" />
+                    <input type="hidden" name="back" value="@back" />
+                    <input type="hidden" name="step" value="@step" />
+                    <div class="fld">
+                        <label>علت رد مأموریت</label>
+                        <input name="note" maxlength="500" />
+                    </div>
+                    <div class="form-actions"><button type="submit" class="@btn ghost"><i class="bi @Icon(to)"></i> @TripFlow.ActionLabel(to)</button></div>
+                </form>
+            }
+            else if (to == TripStatus.Delivered && Model.OtpRequired)
+            {
+                <form method="post" asp-area="Driver" asp-controller="Trips" asp-action="Deliver" asp-route-id="@t.TripId" data-geo>
+                    <input type="hidden" name="back" value="@back" />
+                    <input type="hidden" name="step" value="@step" />
+                    <input type="hidden" name="lat" /><input type="hidden" name="lng" />
+                    <div class="fld">
+                        <label>کد تحویل گیرنده <span class="req">*</span></label>
+                        <input name="code" inputmode="numeric" autocomplete="one-time-code" dir="ltr" maxlength="6" required />
+                        <span class="hint">کد پنج‌رقمی برای گیرنده پیامک شده است؛ پس از تحویل کامل بار آن را از گیرنده بگیرید.@(t.DeliveryOtpAttempts > 0 ? $" تلاش نادرست: {Fa.N(t.DeliveryOtpAttempts)} از ۵." : "")</span>
+                    </div>
+                    <div class="form-actions"><button type="submit" class="@btn grn"><i class="bi @Icon(to)"></i> @TripFlow.ActionLabel(to)</button></div>
+                </form>
+                <form method="post" asp-area="Driver" asp-controller="Trips" asp-action="ResendOtp" asp-route-id="@t.TripId" data-confirm="کد تحویل تازه برای گیرنده پیامک شود؟ کد قبلی باطل می‌شود.">
+                    <input type="hidden" name="back" value="@back" />
+                    <input type="hidden" name="step" value="@step" />
+                    <button type="submit" class="@(big ? "btn2 block" : "btn2") ghost"><i class="bi bi-send"></i> ارسال دوبارهٔ کد به گیرنده@(t.DeliveryOtpSentAt is DateTime s ? $" (آخرین ارسال {Fa.Ago(s)})" : "")</button>
+                </form>
+            }
+            else
+            {
+                <form method="post" asp-area="Driver" asp-controller="Trips" asp-action="Move" asp-route-id="@t.TripId" data-geo
+                      data-confirm="@(to == TripStatus.Accepted ? "مأموریت این سفر را می‌پذیرید؟" : $"«{TripFlow.ActionLabel(to)}» ثبت شود؟")">
+                    <input type="hidden" name="to" value="@to" />
+                    <input type="hidden" name="back" value="@back" />
+                    <input type="hidden" name="step" value="@step" />
+                    <input type="hidden" name="lat" /><input type="hidden" name="lng" />
+                    <button type="submit" class="@btn @(to == TripStatus.Accepted || to == TripStatus.Delivered ? "grn" : "pri")"><i class="bi @Icon(to)"></i> @TripFlow.ActionLabel(to)</button>
+                    @if (big && Hint(to) is { Length: > 0 } h)
+                    {
+                        <p class="muted small" style="margin:6px 0 0">@h</p>
+                    }
+                </form>
+            }
+        }
+    </div>
+}
+<script>
+    // موقعیت پیش از ثبت گام: پس از تأیید (panel.js) ثبت می‌شود، پس شنونده بعد از بارگذاری کامل صفحه نصب می‌شود.
+    if (!window.__bgGeo) {
+        window.__bgGeo = true;
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('form[data-geo]').forEach(function (f) {
+                f.addEventListener('submit', function (e) {
+                    if (e.defaultPrevented || f.dataset.geoDone || !navigator.geolocation) return;
+                    e.preventDefault();
+                    var done = false;
+                    function go() { if (done) return; done = true; f.dataset.geoDone = '1'; f.submit(); }
+                    var timer = setTimeout(go, 5000);
+                    navigator.geolocation.getCurrentPosition(function (p) {
+                        clearTimeout(timer);
+                        var la = f.querySelector('input[name="lat"]'), lo = f.querySelector('input[name="lng"]');
+                        if (la) la.value = p.coords.latitude;
+                        if (lo) lo.value = p.coords.longitude;
+                        go();
+                    }, function () { clearTimeout(timer); go(); }, { enableHighAccuracy: true, timeout: 4500, maximumAge: 60000 });
+                });
+            });
+        });
+    }
+</script>

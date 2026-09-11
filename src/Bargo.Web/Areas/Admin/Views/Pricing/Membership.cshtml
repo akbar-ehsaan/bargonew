@@ -1,0 +1,79 @@
+@model MembershipVm
+@{
+    var now = DateTime.UtcNow;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-person-vcard"></i> هزینه عضویت</h1>
+        <p>هزینهٔ عضویت سالانهٔ شرکت‌های حمل‌ونقل و اشتراک‌های فعال و منقضی.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Plans"><i class="bi bi-stars"></i> پلن‌های اشتراک</a></div>
+</div>
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-cash"></i> هزینهٔ عضویت فعلی</div><div class="v">@(Model.Fee?.Amount is long f ? Fa.Toman(f) : "تعریف نشده")</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-check2-circle"></i> اشتراک فعال</div><div class="v">@Fa.N(Model.ActiveCount)</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-calendar-x"></i> اشتراک منقضی</div><div class="v">@Fa.N(Model.ExpiredCount)</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-calendar3"></i> فروش اشتراک این ماه</div><div class="v">@Fa.Toman(Model.MonthRevenue)</div></div>
+</div>
+
+<div class="grid-side">
+    <div>
+        <div class="tabs">
+            <a asp-action="Membership" asp-route-tab="active" class="@(Model.Tab == "active" ? "on" : "")">فعال <span class="n">@Fa.N(Model.ActiveCount)</span></a>
+            <a asp-action="Membership" asp-route-tab="expired" class="@(Model.Tab == "expired" ? "on" : "")">منقضی <span class="n">@Fa.N(Model.ExpiredCount)</span></a>
+        </div>
+        <div class="card2">
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>مشترک</th><th>پلن</th><th>شروع</th><th>پایان</th><th>باقی‌مانده</th><th>مبلغ پرداختی</th></tr></thead>
+                    <tbody>
+                    @foreach (var s in Model.Page.Rows)
+                    {
+                        var left = (int)Math.Ceiling((s.EndsAt - now).TotalDays);
+                        <tr>
+                            <td><b>@Model.Names.Name(s.OwnerKind, s.OwnerId)</b><span class="sub">@OwnerKind.Label(s.OwnerKind)</span></td>
+                            <td>@(s.Plan?.Title ?? "—")</td>
+                            <td class="nowrap">@Fa.Date(s.StartsAt)</td>
+                            <td class="nowrap">@Fa.Date(s.EndsAt)</td>
+                            <td>
+                                @if (left > 0)
+                                {
+                                    @Ui.Pill(Fa.N(left) + " روز", left <= 7 ? "wait" : "ok")
+                                }
+                                else
+                                {
+                                    @Ui.Pill("منقضی", "no")
+                                }
+                            </td>
+                            <td class="nowrap">@Fa.Toman(s.PaidAmount)</td>
+                        </tr>
+                    }
+                    @if (Model.Page.Total == 0)
+                    {
+                        <tr><td colspan="6" class="empty"><i class="bi bi-person-vcard"></i>اشتراکی در این بخش نیست.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <partial name="_Pager" model="Model.Page.Pager" />
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-building-check"></i> هزینهٔ عضویت شرکت</div>
+        <div class="bd">
+            <form method="post" asp-action="SaveMembership" data-confirm="هزینهٔ عضویت ذخیره شود؟">
+                <div class="stack" style="gap:12px">
+                    <div class="fld">
+                        <label>مبلغ سالانه (تومان) <span class="req">*</span></label>
+                        <input name="amountToman" class="money" value="@(Model.Fee?.Amount is long a ? (a / 10).ToString() : "")" required />
+                        <span class="hint">صفر یعنی عضویت رایگان. عضویت‌های پرداخت‌شده با مبلغ خودشان می‌مانند.</span>
+                    </div>
+                    <label class="check"><input type="checkbox" name="isActive" value="true" checked="@(Model.Fee?.IsActive ?? true)" /><input type="hidden" name="isActive" value="false" /> دریافت هزینهٔ عضویت فعال است</label>
+                </div>
+                <div class="form-actions"><button class="btn2 pri"><i class="bi bi-check2"></i> ذخیره</button></div>
+            </form>
+        </div>
+    </div>
+</div>

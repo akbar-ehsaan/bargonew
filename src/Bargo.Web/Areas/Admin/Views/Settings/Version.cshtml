@@ -1,0 +1,66 @@
+@model VersionVm
+@{
+    var isProd = string.Equals(Model.EnvironmentName, "Production", StringComparison.OrdinalIgnoreCase);
+    var lastApplied = Model.Applied.Count == 0 ? null : Model.Applied[^1];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-git"></i> نسخه و به‌روزرسانی</h1>
+        <p>نسخهٔ سامانه، محیط اجرا و وضعیت مهاجرت‌های پایگاه‌داده؛ و نسخهٔ اپ موبایل که به کاربران اعلام می‌شود.</p>
+    </div>
+</div>
+
+@if (Model.Pending.Count > 0)
+{
+    <div class="alert2 err"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow"><b>@Fa.N(Model.Pending.Count) مهاجرت اعمال‌نشده</b> — کدِ در حال اجرا جدیدتر از پایگاه‌داده است و برخی صفحه‌ها خطا می‌دهند تا <code dir="ltr">dotnet ef database update</code> اجرا شود.</div></div>
+}
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-git"></i> نسخهٔ سامانه</div><div class="v num">@Model.AppVersion</div></div>
+    <div class="stat @(isProd ? "s" : "w")"><div class="l"><i class="bi bi-hdd-network"></i> محیط</div><div class="v num">@Model.EnvironmentName</div></div>
+    <div class="stat @(Model.Pending.Count == 0 ? "s" : "r")"><div class="l"><i class="bi bi-database"></i> مهاجرت‌ها</div><div class="v">@Fa.N(Model.Applied.Count) <small>اعمال‌شده@(Model.Pending.Count > 0 ? " · " + Fa.N(Model.Pending.Count) + " در انتظار" : "")</small></div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-phone"></i> آخرین نسخهٔ اپ</div><div class="v num">@(Model.Form.Fields.FirstOrDefault(f => f.Key == SettingsService.Keys.AppLatestVersion)?.Value ?? "—")</div></div>
+</div>
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-info-circle"></i> محیط اجرا</div>
+            <div class="bd">
+                <dl class="kv">
+                    <dt>نسخهٔ سامانه</dt><dd class="num">@Model.AppVersion@(string.IsNullOrEmpty(Model.InformationalVersion) || Model.InformationalVersion == Model.AppVersion ? "" : " (" + Model.InformationalVersion + ")")</dd>
+                    <dt>محیط</dt><dd class="num">@Model.EnvironmentName</dd>
+                    <dt>.NET</dt><dd class="num">@Model.Runtime</dd>
+                    <dt>سیستم‌عامل</dt><dd class="num">@Model.Os</dd>
+                    <dt>پایگاه‌داده</dt><dd class="num">@(Model.DatabaseName ?? "—")</dd>
+                    <dt>آخرین مهاجرت</dt><dd class="num">@(lastApplied ?? "—")</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-database"></i> مهاجرت‌های پایگاه‌داده <span class="end muted small">@Fa.N(Model.Applied.Count) اعمال‌شده</span></div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>#</th><th>نام مهاجرت</th><th>وضعیت</th></tr></thead>
+                    <tbody>
+                    @foreach (var (m, i) in Model.Pending.Select((m, i) => (m, i)))
+                    {
+                        <tr><td class="num muted">—</td><td class="num small">@m</td><td>@Ui.Pill("در انتظار اعمال", "no")</td></tr>
+                    }
+                    @foreach (var (m, i) in Model.Applied.Select((m, i) => (m, i)).Reverse())
+                    {
+                        <tr><td class="num muted">@Fa.N(i + 1)</td><td class="num small">@m</td><td>@Ui.Pill("اعمال‌شده", "ok")</td></tr>
+                    }
+                    @if (Model.Applied.Count == 0 && Model.Pending.Count == 0)
+                    {
+                        <tr><td colspan="3" class="empty"><i class="bi bi-database"></i>فهرست مهاجرت‌ها در دسترس نیست.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <partial name="_GroupForm" model="Model.Form" />
+</div>

@@ -1,0 +1,184 @@
+@model ComplaintDetailVm
+@{
+    var c = Model.C;
+    var open = c.Status is ComplaintStatus.New or ComplaintStatus.Reviewing;
+    var tripCodes = ViewBag.TripCodes as Dictionary<int, string> ?? new Dictionary<int, string>();
+    var canViolate = c.AgainstKind is OwnerKind.Driver or OwnerKind.Company && c.AgainstId is > 0;
+    var canCompensate = c.FromKind is OwnerKind.Driver or OwnerKind.Shipper or OwnerKind.Company;
+    string UserLink(string kind, int id) => kind switch
+    {
+        OwnerKind.Driver => $"/Admin/Users/Driver/{id}",
+        OwnerKind.Shipper => $"/Admin/Users/Shipper/{id}",
+        OwnerKind.Company => $"/Admin/Users/Company/{id}",
+        _ => "#"
+    };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-exclamation-diamond"></i> @c.Title</h1>
+        <p>کد پیگیری <span class="num">@c.Code</span> · <span class="chip">@ComplaintKind.Label(c.Kind)</span> · ثبت @Fa.Stamp(c.CreatedAt) (@Fa.Ago(c.CreatedAt)) · @Ui.ComplaintPill(c.Status)</p>
+    </div>
+    <div class="actions">
+        @if (c.Status == ComplaintStatus.New)
+        {
+            <form method="post" asp-action="Start" asp-route-id="@c.ComplaintId">
+                <button class="btn2 pri"><i class="bi bi-play-circle"></i> شروع رسیدگی</button>
+            </form>
+        }
+        @if (Model.Trip is { } tp)
+        {
+            <a class="btn2 grn" href="/Admin/Trips/Case/@tp.TripId"><i class="bi bi-folder2-open"></i> پروندهٔ سفر @tp.Code</a>
+        }
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-arrow-right"></i> بازگشت به صف</a>
+    </div>
+</div>
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-card-text"></i> شرح شکایت <span class="end muted small">از زبان شاکی</span></div>
+            <div class="bd"><p style="white-space:pre-line;margin:0">@c.Body</p></div>
+        </div>
+
+        @if (Model.Trip is { } t)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-truck"></i> سفر گره‌خورده <span class="end"><a class="lnk num" href="/Admin/Trips/Case/@t.TripId">@t.Code <i class="bi bi-box-arrow-up-left"></i></a></span></div>
+                <div class="bd">
+                    <div class="alert2 info" style="margin-bottom:14px">
+                        <i class="bi bi-info-circle"></i>
+                        <div class="grow">رویدادهای سفر، موقعیت‌های GPS، بارنامه و رسیدها در <a class="lnk" href="/Admin/Trips/Case/@t.TripId"><b>پروندهٔ سفر @t.Code</b></a> است — پیش از تعیین نتیجه آن را ببینید.</div>
+                    </div>
+                    <dl class="kv">
+                        <dt>مسیر</dt><dd>@Ui.Route(t.From, t.To)</dd>
+                        <dt>بار</dt><dd>@t.CargoTitle · @Fa.N(t.WeightTon, 1) تن</dd>
+                        <dt>وضعیت سفر</dt><dd>@Ui.TripPill(t.Status) @if (t.IsProblem) { <span class="pill no">مشکل‌دار</span> }</dd>
+                        <dt>کرایه</dt><dd>@Fa.Toman(t.Fare) <span class="muted small">(کمیسیون @Fa.Toman(t.Commission)) · @(t.IsPaid ? "پرداخت‌شده" : "پرداخت‌نشده")</span></dd>
+                        <dt>صاحب بار</dt><dd>@(t.ShipperName ?? "—")</dd>
+                        <dt>حمل‌کننده</dt><dd>@(t.CarrierKind == CarrierKind.Company ? (t.CompanyName ?? "شرکت") + (t.DriverName is null ? "" : " · رانندهٔ " + t.DriverName) : t.DriverName ?? "—")</dd>
+                        <dt>زمان‌ها</dt>
+                        <dd class="small">
+                            ساخت @Fa.Stamp(t.CreatedAt)
+                            @if (t.LoadedAt is not null) { <text> · بارگیری @Fa.Stamp(t.LoadedAt)</text> }
+                            @if (t.DeliveredAt is not null) { <text> · تحویل @Fa.Stamp(t.DeliveredAt)</text> }
+                            @if (t.SettledAt is not null) { <text> · تسویه @Fa.Stamp(t.SettledAt)</text> }
+                            @if (t.CancelledAt is not null) { <text> · لغو @Fa.Stamp(t.CancelledAt)</text> }
+                        </dd>
+                        @if (t.IsProblem && !string.IsNullOrEmpty(t.ProblemNote))
+                        {
+                            <dt>یادداشت مشکل</dt><dd>@t.ProblemNote</dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert2 warn"><i class="bi bi-exclamation-triangle"></i><div class="grow">این شکایت به هیچ سفری گره نخورده است؛ برای بررسی، از شاکی در تیکت یا تماس، کد سفر را بخواهید.</div></div>
+        }
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-clock-history"></i> سوابق طرفین <span class="end muted small">شکایت‌هایی که یکی از دو طرف در آن‌ها بوده</span></div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>کد</th><th>موضوع</th><th>شاکی</th><th>طرف</th><th>سفر</th><th>ثبت</th><th>وضعیت</th></tr></thead>
+                    <tbody>
+                    @foreach (var r in Model.Related)
+                    {
+                        <tr data-href="@Url.Action("Detail", new { id = r.ComplaintId })">
+                            <td class="num"><a class="lnk" asp-action="Detail" asp-route-id="@r.ComplaintId">@r.Code</a></td>
+                            <td><b>@r.Title</b><span class="sub">@ComplaintKind.Label(r.Kind)</span></td>
+                            <td>@Model.Names.Name(r.FromKind, r.FromId)<span class="sub">@OwnerKind.Label(r.FromKind)</span></td>
+                            <td>@(r.AgainstKind is null ? "—" : Model.Names.Name(r.AgainstKind, r.AgainstId))</td>
+                            <td class="num">@(r.TripId is int rt ? tripCodes.GetValueOrDefault(rt) ?? "#" + rt : "—")</td>
+                            <td class="nowrap">@Fa.Date(r.CreatedAt)</td>
+                            <td>@Ui.ComplaintPill(r.Status)</td>
+                        </tr>
+                    }
+                    @if (Model.Related.Count == 0)
+                    {
+                        <tr><td colspan="7" class="empty"><i class="bi bi-person-check"></i>هیچ‌کدام از طرفین پیش‌تر شکایتی نداشته‌اند.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-people"></i> طرفین</div>
+            <div class="bd">
+                <div class="kvrow"><span>شاکی</span><b><a class="lnk" href="@UserLink(c.FromKind, c.FromId)">@Model.Names.Name(c.FromKind, c.FromId)</a></b></div>
+                <div class="kvrow"><span>نقش · موبایل</span><b>@OwnerKind.Label(c.FromKind) · <span class="num">@(Model.Names.Mobile(c.FromKind, c.FromId) is { Length: > 0 } fm ? fm : "—")</span></b></div>
+                @if (c.AgainstKind is not null && c.AgainstId is int ag)
+                {
+                    <div class="kvrow"><span>طرف شکایت</span><b><a class="lnk" href="@UserLink(c.AgainstKind, ag)">@Model.Names.Name(c.AgainstKind, ag)</a></b></div>
+                    <div class="kvrow"><span>نقش · موبایل</span><b>@OwnerKind.Label(c.AgainstKind) · <span class="num">@(Model.Names.Mobile(c.AgainstKind, ag) is { Length: > 0 } am ? am : "—")</span></b></div>
+                    <div class="kvrow"><span>تخلفات ثبت‌شدهٔ طرف</span><b style="color:@(Model.AgainstViolations > 0 ? "var(--no)" : "inherit")">@Fa.N(Model.AgainstViolations)</b></div>
+                }
+                else
+                {
+                    <div class="kvrow"><span>طرف شکایت</span><b class="muted">تعیین نشده</b></div>
+                }
+            </div>
+        </div>
+
+        @if (open)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-hammer"></i> تعیین نتیجه</div>
+                <div class="bd">
+                    <form method="post" asp-action="Resolve" asp-route-id="@c.ComplaintId" data-confirm="نتیجهٔ رسیدگی ثبت و به هر دو طرف اعلان شود؟ این تصمیم قابل بازگشت نیست.">
+                        <div class="form-grid">
+                            <div class="fld full">
+                                <label>نتیجه <span class="req">*</span></label>
+                                <label class="check"><input type="radio" name="decision" value="@ComplaintStatus.Resolved" required /> شکایت وارد است</label>
+                                <label class="check"><input type="radio" name="decision" value="@ComplaintStatus.Rejected" required /> شکایت رد می‌شود</label>
+                            </div>
+                            <div class="fld full">
+                                <label>شرح نتیجه <span class="req">*</span></label>
+                                <textarea name="resolution" rows="4" minlength="5" maxlength="2000" required placeholder="برای هر دو طرف ارسال می‌شود؛ روشن و بی‌طرف بنویسید."></textarea>
+                            </div>
+                            @if (canCompensate)
+                            {
+                                <div class="fld full">
+                                    <label>جبران خسارت به شاکی (تومان)</label>
+                                    <input name="compensationToman" class="money" placeholder="خالی = بدون جبران" />
+                                    <span class="hint">فقط با «وارد است»؛ از کیف پول بارگو به کیف پول «@Model.Names.Name(c.FromKind, c.FromId)» با نوع استرداد ثبت می‌شود.</span>
+                                </div>
+                            }
+                            @if (canViolate)
+                            {
+                                <div class="fld full">
+                                    <label class="check"><input type="checkbox" name="registerViolation" value="true" /><input type="hidden" name="registerViolation" value="false" /> ثبت اخطار برای @OwnerKind.Label(c.AgainstKind!) «@Model.Names.Name(c.AgainstKind, c.AgainstId)»</label>
+                                    <input name="violationTitle" maxlength="60" placeholder="عنوان تخلف (پیش‌فرض: موضوع شکایت)" />
+                                    <span class="hint">اخطار در سوابق طرف می‌نشیند. جریمه یا تعلیق را از <a class="lnk" href="/Admin/Drivers/Violations">تخلفات رانندگان</a> ثبت کنید.</span>
+                                </div>
+                            }
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn2 pri"><i class="bi bi-check2-square"></i> ثبت نتیجه و اعلان به طرفین</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-check2-square"></i> نتیجهٔ رسیدگی</div>
+                <div class="bd">
+                    <div style="margin-bottom:10px">@Ui.ComplaintPill(c.Status)</div>
+                    <p style="white-space:pre-line;margin:0 0 12px">@c.Resolution</p>
+                    @if (c.CompensationAmount is long comp && comp > 0)
+                    {
+                        <div class="kvrow"><span>جبران خسارت</span><b>@Fa.Toman(comp)</b></div>
+                    }
+                    <div class="kvrow"><span>رسیدگی‌کننده</span><b>@(Model.ResolvedBy ?? "—")</b></div>
+                    <div class="kvrow"><span>زمان</span><b>@Fa.Stamp(c.ResolvedAt)</b></div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,85 @@
+@model LedgerReportVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-cash-stack"></i> درآمد دوره‌ای</h1>
+        <p>درآمد، هزینه و خالص شرکت به تفکیک ماه شمسی در بازهٔ انتخابی (پیش‌فرض شش ماه). ماه‌هایی که با بازه هم‌پوشانی دارند کامل نمایش داده می‌شوند.</p>
+    </div>
+</div>
+
+<partial name="_ReportHead" />
+
+<div class="stats">
+    <div class="stat s"><div class="l"><i class="bi bi-graph-up-arrow"></i> جمع درآمد</div><div class="v">@Fa.Toman(Model.Revenue)</div></div>
+    <div class="stat r"><div class="l"><i class="bi bi-graph-down-arrow"></i> جمع هزینه‌ها</div><div class="v">@Fa.Toman(Model.Costs)</div></div>
+    <div class="stat @(Model.Net >= 0 ? "p" : "r")"><div class="l"><i class="bi bi-calculator"></i> خالص</div><div class="v">@Fa.Toman(Model.Net)</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-flag"></i> سفر تحویل‌شده</div><div class="v">@Fa.N(Model.TripsDone)<small>میانگین @Fa.Toman(Model.TripsDone == 0 ? 0 : Model.Revenue / Model.TripsDone)</small></div></div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-bar-chart"></i> نمودار ماهانه <span class="end small muted"><span style="color:var(--ok)">■</span> درآمد <span style="color:var(--no)">■</span> هزینه <span style="color:var(--primary)">■</span> خالص</span></div>
+    <div class="bd">
+        @foreach (var m in Model.Months)
+        {
+            <div class="kvrow" style="display:block">
+                <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                    <b>@m.Month.Label</b>
+                    <span class="small">درآمد <b>@Fa.Toman(m.Revenue)</b> · هزینه <b>@Fa.Toman(m.Costs)</b> · خالص <b style="color:var(--@(m.Net >= 0 ? "ok" : "no"))">@Fa.Toman(m.Net)</b></span>
+                </div>
+                <div style="display:grid;gap:4px;margin-top:4px">
+                    <partial name="_Bar" model='new BarVm(m.Revenue, Model.MaxBar, "var(--ok)")' />
+                    <partial name="_Bar" model='new BarVm(m.Costs, Model.MaxBar, "var(--no)")' />
+                    <partial name="_Bar" model="new BarVm(Math.Max(0, m.Net), Model.MaxBar)" />
+                </div>
+            </div>
+        }
+        @if (Model.Months.Count == 0)
+        {
+            <div class="empty-state"><i class="bi bi-cash-stack"></i>بازه‌ای انتخاب نشده است.</div>
+        }
+        else if (Model.Revenue == 0 && Model.Costs == 0)
+        {
+            <div class="empty-state"><i class="bi bi-cash-stack"></i><b>در این بازه گردش مالی ثبت نشده است</b>با تحویل و تسویهٔ اولین سفر یا ثبت اولین هزینه، این نمودار پر می‌شود.</div>
+        }
+    </div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-table"></i> جزئیات ماهانه</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>ماه</th><th>سفر</th><th>درآمد کرایه</th><th>کرایهٔ مستقیم مشتریان</th><th>کمیسیون بارگو</th><th>کرایهٔ پرداختی</th><th>سهم رانندگان</th><th>هزینه‌ها</th><th>خالص</th></tr></thead>
+            <tbody>
+            @foreach (var m in Model.Months)
+            {
+                <tr>
+                    <td data-label="ماه"><b>@m.Month.Label</b></td>
+                    <td data-label="سفر" class="num">@Fa.N(m.TripsDone)</td>
+                    <td data-label="درآمد" class="nowrap">@Fa.Toman(m.Income)</td>
+                    <td data-label="مستقیم" class="nowrap">@Fa.Toman(m.Offline)</td>
+                    <td data-label="کمیسیون" class="nowrap muted">@Fa.Toman(m.Commission)</td>
+                    <td data-label="کرایهٔ پرداختی" class="nowrap">@Fa.Toman(m.FarePaid)</td>
+                    <td data-label="سهم رانندگان" class="nowrap">@Fa.Toman(m.DriverShares)</td>
+                    <td data-label="هزینه‌ها" class="nowrap">@Fa.Toman(m.Expenses)</td>
+                    <td data-label="خالص" class="nowrap"><b style="color:var(--@(m.Net >= 0 ? "ok" : "no"))">@Fa.Toman(m.Net)</b></td>
+                </tr>
+            }
+            </tbody>
+            @if (Model.Months.Count > 0)
+            {
+                <tfoot>
+                    <tr style="background:#f5f7f9;font-weight:800">
+                        <td data-label="جمع">جمع</td>
+                        <td data-label="سفر" class="num">@Fa.N(Model.TripsDone)</td>
+                        <td data-label="درآمد" class="nowrap">@Fa.Toman(Model.Income)</td>
+                        <td data-label="مستقیم" class="nowrap">@Fa.Toman(Model.Offline)</td>
+                        <td data-label="کمیسیون" class="nowrap muted">@Fa.Toman(Model.Commission)</td>
+                        <td data-label="کرایهٔ پرداختی" class="nowrap">@Fa.Toman(Model.FarePaid)</td>
+                        <td data-label="سهم رانندگان" class="nowrap">@Fa.Toman(Model.DriverShares)</td>
+                        <td data-label="هزینه‌ها" class="nowrap">@Fa.Toman(Model.Expenses)</td>
+                        <td data-label="خالص" class="nowrap" style="color:var(--@(Model.Net >= 0 ? "ok" : "no"))">@Fa.Toman(Model.Net)</td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>

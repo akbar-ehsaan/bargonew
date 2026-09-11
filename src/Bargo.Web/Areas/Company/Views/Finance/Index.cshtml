@@ -1,0 +1,128 @@
+@model CompanyWalletVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-wallet2"></i> کیف پول شرکت</h1>
+        <p>سهم کرایهٔ سفرهای بازار پس از تحویل به این کیف پول می‌آید؛ سهم رانندگان و کرایهٔ بارهای شرکت از همین‌جا پرداخت می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Transactions"><i class="bi bi-arrow-left-right"></i> تراکنش‌ها</a>
+        <a class="btn2 ghost" asp-action="Report"><i class="bi bi-file-bar-graph"></i> گزارش مالی</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-wallet2"></i> موجودی کیف پول</div><div class="v">@Fa.Toman(Model.Balance)</div></div>
+    <div class="stat s">
+        <div class="l"><i class="bi bi-cash-coin"></i> قابل برداشت</div>
+        <div class="v">@Fa.Toman(Model.Available)@if (Model.Reserved > 0) { <small>@Fa.Toman(Model.Reserved) رزرو</small> }</div>
+    </div>
+    <a class="stat t" asp-action="Income"><div class="l"><i class="bi bi-graph-up-arrow"></i> درآمد این ماه</div><div class="v">@Fa.Toman(Model.IncomeThisMonth)</div></a>
+    <a class="stat w" asp-action="DriverSettlements"><div class="l"><i class="bi bi-person-check"></i> سهم معوق رانندگان</div><div class="v">@Fa.Toman(Model.DriverDues)</div></a>
+</div>
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-clock-history"></i> آخرین تراکنش‌ها <span class="end"><a class="lnk" asp-action="Transactions">همه</a></span></div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>تاریخ</th><th>نوع</th><th>شرح</th><th>مبلغ</th><th>مانده</th></tr></thead>
+                    <tbody>
+                    @foreach (var t in Model.Recent)
+                    {
+                        <tr>
+                            <td data-label="تاریخ" class="nowrap">@Fa.Date(t.CreatedAt)<span class="sub">@Fa.Time(t.CreatedAt)</span></td>
+                            <td data-label="نوع">@Ui.Pill(WalletTxnKind.Label(t.Kind), t.Amount >= 0 ? "ok" : "no")</td>
+                            <td data-label="شرح">
+                                @(t.Note ?? "—")
+                                @if (t.TripCode is not null)
+                                {
+                                    <span class="sub"><a class="lnk" href="/Company/Trips/Detail/@t.TripId">سفر @Fa.Digits(t.TripCode)</a></span>
+                                }
+                            </td>
+                            <td data-label="مبلغ" class="nowrap"><b style="color:var(--@(t.Amount >= 0 ? "ok" : "no"))">@(t.Amount >= 0 ? "+" : "−") @Fa.Toman(Math.Abs(t.Amount))</b></td>
+                            <td data-label="مانده" class="nowrap">@Fa.Toman(t.BalanceAfter)</td>
+                        </tr>
+                    }
+                    @if (Model.Recent.Count == 0)
+                    {
+                        <tr><td colspan="5" class="empty"><i class="bi bi-wallet2"></i>هنوز تراکنشی روی کیف پول شرکت ثبت نشده است. با تسویهٔ اولین سفر، سهم کرایه اینجا می‌نشیند.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-calendar3"></i> این ماه در یک نگاه</div>
+            <div class="bd">
+                <div class="kvrow"><span>درآمد کرایه (واریز به کیف پول)</span><b>@Fa.Toman(Model.IncomeThisMonth)</b></div>
+                <div class="kvrow"><span>سهم پرداختی به رانندگان</span><b>@Fa.Toman(Model.DriverSharesThisMonth)</b></div>
+                <div class="kvrow"><span>هزینه‌های ثبت‌شده</span><b>@Fa.Toman(Model.ExpensesThisMonth)</b></div>
+                <div class="kvrow"><span>خالص تقریبی</span><b style="color:var(--@(Model.IncomeThisMonth - Model.DriverSharesThisMonth - Model.ExpensesThisMonth >= 0 ? "ok" : "no"))">@Fa.Toman(Model.IncomeThisMonth - Model.DriverSharesThisMonth - Model.ExpensesThisMonth)</b></div>
+                <p class="small muted" style="margin:10px 0 0">کرایهٔ بارهای مشتریان شرکت که بیرون از بارگو دریافت می‌شود در «گزارش مالی» جداگانه آمده است.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-bank"></i> درخواست برداشت</div>
+            <div class="bd">
+                @if (string.IsNullOrEmpty(Model.Sheba))
+                {
+                    <div class="alert2 warn"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">برای شرکت شمارهٔ شبا ثبت نشده است. <a class="lnk" href="/Company/Account/Bank">ثبت اطلاعات بانکی</a></div></div>
+                }
+                else
+                {
+                    <dl class="kv" style="margin-bottom:14px">
+                        <dt>واریز به</dt><dd class="num">@(Model.Sheba.StartsWith("IR") ? Fa.Digits(Model.Sheba) : "IR" + Fa.Digits(Model.Sheba))</dd>
+                        @if (!string.IsNullOrEmpty(Model.BankName))
+                        {
+                            <dt>بانک</dt><dd>@Model.BankName</dd>
+                        }
+                    </dl>
+                }
+                <form method="post" asp-action="Withdraw">
+                    <div class="fld">
+                        <label>مبلغ (تومان) <span class="req">*</span></label>
+                        <input name="amountToman" class="money" required placeholder="@Fa.Digits((Model.Available / 10).ToString())" />
+                        <span class="hint">حداقل @Fa.Toman(Model.MinPayout) — حداکثر @Fa.Toman(Model.Available)</span>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn2 pri block" disabled="@(!Model.CanWithdraw)"><i class="bi bi-cash-coin"></i> ثبت درخواست برداشت</button>
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.Sheba) && Model.Available < Model.MinPayout)
+                    {
+                        <p class="small muted" style="margin:8px 0 0">موجودی قابل برداشت کمتر از حداقل مبلغ برداشت است.</p>
+                    }
+                </form>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-hourglass-split"></i> درخواست‌های اخیر</div>
+            <div class="bd" style="padding-top:6px">
+                @if (Model.Payouts.Count == 0)
+                {
+                    <div class="empty-state" style="padding:22px 10px"><i class="bi bi-inbox"></i>هنوز درخواست برداشتی ثبت نشده است.</div>
+                }
+                @foreach (var p in Model.Payouts)
+                {
+                    <div class="kvrow">
+                        <span>@Fa.Date(p.CreatedAt) @Ui.PayoutPill(p.Status)</span>
+                        <b>@Fa.Toman(p.Amount)</b>
+                    </div>
+                    @if (p.Status == PayoutStatus.Paid && !string.IsNullOrEmpty(p.BankTrackingNo))
+                    {
+                        <div class="small muted" style="margin-top:-6px">پیگیری بانک: <span class="num">@Fa.Digits(p.BankTrackingNo)</span> · @Fa.Date(p.PaidAt)</div>
+                    }
+                    else if (p.Status == PayoutStatus.Rejected && !string.IsNullOrEmpty(p.ReviewNote))
+                    {
+                        <div class="small muted" style="margin-top:-6px">@p.ReviewNote</div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>

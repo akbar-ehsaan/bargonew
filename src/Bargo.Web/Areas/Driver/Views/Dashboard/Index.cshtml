@@ -1,0 +1,216 @@
+@model DriverDashboardVm
+@{
+    var d = Model.Driver;
+    var blocking = Model.Issues.Where(i => i.Blocking).ToList();
+    var warnings = Model.Issues.Where(i => !i.Blocking).ToList();
+    var t = Model.CurrentTrip;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-speedometer2"></i> سلام، @d.FirstName</h1>
+        <p>
+            @(d.Company is null ? "رانندهٔ مستقل" : "رانندهٔ شرکت " + d.Company.Name)@(d.City is null ? "" : " · " + d.City.Name)
+            · @Ui.AccountPill(d.Status)
+            · @(d.IsAvailable ? Ui.Pill("آماده بار", "ok") : Ui.Pill("غیرفعال برای بار تازه", "mut"))
+        </p>
+    </div>
+    <div class="actions">
+        <form method="post" asp-action="Availability" class="inline">
+            <input type="hidden" name="available" value="@(d.IsAvailable ? "false" : "true")" />
+            <button type="submit" class="btn2 @(d.IsAvailable ? "ghost" : "grn")">
+                <i class="bi @(d.IsAvailable ? "bi-pause-circle" : "bi-play-circle")"></i> @(d.IsAvailable ? "فعلاً بار نمی‌گیرم" : "آماده بار هستم")
+            </button>
+        </form>
+        <a class="btn2 pri" asp-controller="Loads" asp-action="Nearby"><i class="bi bi-geo"></i> بارهای نزدیک من</a>
+    </div>
+</div>
+
+@if (!Model.Approved)
+{
+    <div class="alert2 warn">
+        <i class="bi bi-person-exclamation"></i>
+        <div class="grow">
+            @if (Model.Gate == "pending")
+            {
+                <b>آن صفحه فقط پس از تأیید حساب باز می‌شود.</b><br />
+            }
+            حساب شما در وضعیت «@AccountStatus.Label(d.Status)» است@(string.IsNullOrEmpty(d.StatusReason) ? "" : " — " + d.StatusReason).
+            @(d.Status == AccountStatus.Pending ? "مدارک زیر را کامل کنید تا مدیر حساب را تأیید کند؛ نتیجه با پیامک و اعلان به شما می‌رسد." : "برای پیگیری با پشتیبانی تماس بگیرید.")
+        </div>
+        <a class="btn2 soft sm" href="/Driver/Profile">حساب کاربری</a>
+    </div>
+}
+@if (blocking.Count > 0)
+{
+    <div class="alert2 err">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            <b>تا رفع این موارد نمی‌توانید بار بگیرید:</b>
+            <ul style="margin:6px 0 0;padding-inline-start:18px">
+                @foreach (var i in blocking)
+                {
+                    <li>@i.Text @if (i.Link is not null) { <a class="lnk" href="@i.Link">رفع مشکل</a> }</li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+@if (warnings.Count > 0)
+{
+    <div class="alert2 warn">
+        <i class="bi bi-alarm"></i>
+        <div class="grow">
+            <ul style="margin:0;padding-inline-start:18px">
+                @foreach (var i in warnings)
+                {
+                    <li>@i.Text @if (i.Link is not null) { <a class="lnk" href="@i.Link">تمدید</a> }</li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
+<div class="stats cols5">
+    @foreach (var s in Model.Stats)
+    {
+        <a class="stat @s.Kind" href="@s.Href">
+            <div class="l"><i class="bi @s.Icon"></i> @s.Label</div>
+            <div class="v">
+                @s.Value
+                @if (s.Unit is not null)
+                {
+                    <small>@s.Unit</small>
+                }
+            </div>
+        </a>
+    }
+</div>
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-truck"></i> سفر جاری
+                @if (t is not null)
+                {
+                    <span class="end">@Ui.TripPill(t.Status) <a class="btn2 sm ghost" asp-controller="Trips" asp-action="Detail" asp-route-id="@t.TripId">صفحهٔ سفر</a></span>
+                }
+            </div>
+            <div class="bd">
+                @if (t is null)
+                {
+                    <div class="empty-state">
+                        <i class="bi bi-signpost-split"></i>
+                        <b>سفری در جریان ندارید</b>
+                        از بارهای نزدیک خود پیشنهاد بدهید؛ پس از پذیرش صاحب بار، سفر همین‌جا نمایش داده می‌شود.
+                        <div class="form-actions" style="justify-content:center">
+                            <a class="btn2 pri" asp-controller="Loads" asp-action="Nearby"><i class="bi bi-geo"></i> بارهای نزدیک من</a>
+                            <a class="btn2 ghost" asp-controller="Loads" asp-action="Suggested"><i class="bi bi-magic"></i> بارهای پیشنهادی</a>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    var l = t.Load!;
+                    <div class="load-card" style="box-shadow:none;padding:0;border:0">
+                        <div class="top">
+                            <div>
+                                <div class="rt">@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</div>
+                                <div class="muted small"><span class="num">@t.Code</span> · @l.Title · @Fa.N(l.WeightTon, 1) تن</div>
+                            </div>
+                            @if (t.Vehicle is not null)
+                            {
+                                <span class="plate">@t.Vehicle.PlateNo</span>
+                            }
+                        </div>
+                    </div>
+                    <partial name="_TripSteps" model="t" />
+                    <div class="kvrow"><span>زمان بارگیری</span><b>@Fa.Stamp(t.ScheduledDepartureAt ?? l.LoadingFrom)</b></div>
+                    <div class="kvrow"><span>سهم شما از کرایه</span><b>@Fa.Toman(t.CarrierKind == CarrierKind.Company ? t.DriverShare : t.CarrierShare)</b></div>
+                    @if (t.EtaAt is not null && t.Status == TripStatus.InTransit)
+                    {
+                        <div class="kvrow"><span>زمان تقریبی رسیدن</span><b>@Fa.Stamp(t.EtaAt)</b></div>
+                    }
+                    <div class="form-actions">
+                        @foreach (var next in Model.CurrentNext)
+                        {
+                            if (next == TripStatus.AwaitingAssignment) { continue; }
+                            <a class="btn2 @(next == TripStatus.Accepted ? "grn" : "pri")" asp-controller="Operations" asp-action="Index" asp-route-step="@(next == TripStatus.Accepted ? null : next)">
+                                <i class="bi bi-arrow-left-circle"></i> @TripFlow.ActionLabel(next)
+                            </a>
+                        }
+                        @if (Model.CurrentNext.Count == 0)
+                        {
+                            <span class="muted">@(t.Status == TripStatus.AwaitingAssignment ? "در انتظار تخصیص شرکت" : t.Status == TripStatus.Delivered ? "در انتظار تسویه" : TripStatus.Label(t.Status))</span>
+                        }
+                        <a class="btn2 ghost" asp-controller="Operations" asp-action="Index"><i class="bi bi-joystick"></i> عملیات سفر</a>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-geo"></i> نزدیک‌ترین بارها
+                <span class="end">
+                    <span class="muted small">@(Model.HasPosition ? "به ترتیب فاصله از شما" : "به ترتیب زمان بارگیری")</span>
+                    <a class="btn2 sm ghost" asp-controller="Loads" asp-action="Index">همه بارها</a>
+                </span>
+            </div>
+            <div class="bd">
+                @if (Model.Nearby.Count == 0)
+                {
+                    <div class="empty-state">
+                        <i class="bi bi-box-seam"></i>
+                        <b>فعلاً باری در بازار نیست</b>
+                        به‌محض انتشار بار تازه، اینجا و در «بارهای نزدیک من» نمایش داده می‌شود.
+                    </div>
+                }
+                else
+                {
+                    @if (!Model.HasPosition)
+                    {
+                        <p class="muted small" style="margin-top:0">موقعیت شما ثبت نشده است؛ برای دیدن فاصله تا مبدا، <a class="lnk" asp-controller="Operations" asp-action="Location">اشتراک موقعیت</a> را روشن یا شهر خود را در حساب کاربری ثبت کنید.</p>
+                    }
+                    <div class="loads">
+                        @foreach (var c in Model.Nearby)
+                        {
+                            <partial name="_LoadCard" model="c" />
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-list-check"></i> کارهای در انتظار</div>
+            <div class="bd">
+                @foreach (var todo in Model.Todos)
+                {
+                    <a class="kvrow" href="@todo.Href">
+                        <span><i class="bi @todo.Icon"></i> @todo.Text</span>
+                        @Ui.Pill("رسیدگی", todo.Tone)
+                    </a>
+                }
+                @if (Model.Todos.Count == 0)
+                {
+                    <div class="empty-state"><i class="bi bi-check2-all"></i><b>کاری در انتظار نیست</b>پیام، مأموریت یا امتیاز معوقی ندارید.</div>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-lightning"></i> دسترسی سریع</div>
+            <div class="bd">
+                <a class="kvrow" asp-controller="Offers" asp-action="Index" asp-route-status="pending"><span><i class="bi bi-hourglass-split"></i> پیشنهادهای در انتظار</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" asp-controller="Operations" asp-action="Index"><span><i class="bi bi-joystick"></i> عملیات سفر</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" asp-controller="Operations" asp-action="Location"><span><i class="bi bi-broadcast-pin"></i> اشتراک موقعیت</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" asp-controller="Waybills" asp-action="Current"><span><i class="bi bi-file-earmark-check"></i> بارنامهٔ سفر جاری</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" href="/Driver/Finance"><span><i class="bi bi-wallet2"></i> کیف پول و برداشت</span><i class="bi bi-chevron-left"></i></a>
+                <a class="kvrow" href="/Driver/Vehicle/Alerts"><span><i class="bi bi-alarm"></i> هشدار انقضای مدارک</span><i class="bi bi-chevron-left"></i></a>
+            </div>
+        </div>
+    </div>
+</div>

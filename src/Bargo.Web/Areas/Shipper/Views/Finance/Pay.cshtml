@@ -1,0 +1,78 @@
+@model ShipperPayVm
+@{
+    var shortfall = Model.Total - Model.Balance;
+    var here = Context.Request.Path.Value;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-credit-card"></i> پرداخت کرایه</h1>
+        <p>کرایهٔ هر سفر از موجودی کیف پول برداشته می‌شود و تا تحویل بار نزد بارگو امانت می‌ماند؛ پس از تحویل به حمل‌کننده واریز می‌شود و اگر سفر لغو شود به کیف پول شما برمی‌گردد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index" asp-fragment="charge"><i class="bi bi-plus-circle"></i> شارژ کیف پول</a>
+        <a class="btn2 ghost" asp-action="Pending"><i class="bi bi-hourglass-split"></i> پرداخت‌های در انتظار</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat p"><div class="l"><i class="bi bi-wallet2"></i> موجودی کیف پول</div><div class="v">@Fa.N(Model.Balance / 10) <small>تومان</small></div></div>
+    <div class="stat @(Model.Unpaid.Count > 0 ? "w" : "i")"><div class="l"><i class="bi bi-receipt"></i> جمع کرایه‌های پرداخت‌نشده</div><div class="v">@Fa.N(Model.Total / 10) <small>تومان · @Fa.N(Model.Unpaid.Count) سفر</small></div></div>
+    <div class="stat @(shortfall > 0 ? "r" : "s")"><div class="l"><i class="bi bi-calculator"></i> @(shortfall > 0 ? "کسری موجودی" : "مانده پس از پرداخت همه")</div><div class="v">@Fa.N(Math.Abs(shortfall) / 10) <small>تومان</small></div></div>
+</div>
+
+@if (shortfall > 0)
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">موجودی کیف پول برای پرداخت همهٔ کرایه‌ها کافی نیست؛ @Fa.Toman(shortfall) کسری دارید. <a class="lnk" asp-action="Index" asp-fragment="charge">شارژ کیف پول</a></div></div>
+}
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-list-check"></i> سفرهای پرداخت‌نشده</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>مسیر</th><th>حمل‌کننده</th><th>وضعیت</th><th>زمان حرکت</th><th>کرایه</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var trip in Model.Unpaid)
+            {
+                var enough = Model.Balance >= trip.Fare;
+                <tr>
+                    <td><a class="lnk" href="/Shipper/Orders/Detail/@trip.TripId">@trip.Code</a><span class="sub">@trip.LoadTitle</span></td>
+                    <td>@Ui.Route(trip.From, trip.To)</td>
+                    <td>
+                        @trip.Carrier
+                        @if (!string.IsNullOrEmpty(trip.PlateNo))
+                        {
+                            <span class="sub">@trip.PlateNo</span>
+                        }
+                    </td>
+                    <td>@Ui.TripPill(trip.Status)</td>
+                    <td class="nowrap">@(trip.ScheduledDepartureAt is null ? "تعیین نشده" : Fa.Stamp(trip.ScheduledDepartureAt))</td>
+                    <td class="nowrap"><b class="num">@Fa.Toman(trip.Fare)</b></td>
+                    <td>
+                        @if (enough)
+                        {
+                            <form method="post" asp-action="Pay" data-confirm="@($"کرایهٔ سفر {trip.Code} به مبلغ {Fa.Toman(trip.Fare)} از کیف پول پرداخت شود؟")">
+                                <input type="hidden" name="tripId" value="@trip.TripId" />
+                                <input type="hidden" name="returnUrl" value="@here" />
+                                <button class="btn2 pri sm"><i class="bi bi-credit-card"></i> پرداخت @Fa.Toman(trip.Fare)</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <a class="btn2 soft sm" asp-action="Index" asp-fragment="charge"><i class="bi bi-plus-circle"></i> شارژ @Fa.Toman(trip.Fare - Model.Balance) کسری</a>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Unpaid.Count == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-check2-circle"></i>کرایهٔ همهٔ سفرهای شما پرداخت شده است. پس از پذیرش پیشنهاد روی بار تازه، کرایهٔ آن اینجا برای پرداخت می‌آید.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.PendingPayments.Count > 0 || Model.FailedPayments.Count > 0)
+{
+    <div class="alert2 info" style="margin-top:18px"><i class="bi bi-info-circle"></i><div class="grow">@Fa.N(Model.PendingPayments.Count) پرداخت در انتظار و @Fa.N(Model.FailedPayments.Count) پرداخت ناموفق اخیر دارید. <a class="lnk" asp-action="Pending">مشاهدهٔ جزئیات</a></div></div>
+}

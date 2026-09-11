@@ -1,0 +1,78 @@
+@model BroadcastVm
+@{
+    (string Key, string Icon)[] audiences = [("all", "bi-people"), ("drivers", "bi-person-badge"), ("shippers", "bi-person-workspace"), ("companies", "bi-buildings")];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-megaphone"></i> @ViewData["Title"]</h1>
+        <p>اعلان درون‌برنامه‌ای به همهٔ حساب‌های تأییدشدهٔ مخاطب انتخابی. برای پیامک از <a class="lnk" asp-action="Sms">پیامک گروهی</a> استفاده کنید.</p>
+    </div>
+    <div class="actions">
+        @foreach (var a in audiences)
+        {
+            <a class="btn2 @(Model.Audience == a.Key ? "pri" : "ghost")" asp-action="Index" asp-route-audience="@(a.Key == "all" ? null : a.Key)"><i class="bi @a.Icon"></i> @BackofficeFormat.AudienceLabel(a.Key)</a>
+        }
+        <a class="btn2 ghost" asp-action="Sms"><i class="bi bi-phone"></i> پیامک</a>
+    </div>
+</div>
+
+<div class="stats">
+    <a class="stat p" asp-action="Index"><div class="l"><i class="bi bi-people"></i> همهٔ کاربران</div><div class="v">@Fa.N(Model.Reach.GetValueOrDefault("all"))</div></a>
+    <a class="stat i" asp-action="Index" asp-route-audience="drivers"><div class="l"><i class="bi bi-person-badge"></i> رانندگان</div><div class="v">@Fa.N(Model.Reach.GetValueOrDefault("drivers"))</div></a>
+    <a class="stat w" asp-action="Index" asp-route-audience="shippers"><div class="l"><i class="bi bi-person-workspace"></i> صاحبان بار</div><div class="v">@Fa.N(Model.Reach.GetValueOrDefault("shippers"))</div></a>
+    <a class="stat s" asp-action="Index" asp-route-audience="companies"><div class="l"><i class="bi bi-buildings"></i> شرکت‌ها</div><div class="v">@Fa.N(Model.Reach.GetValueOrDefault("companies"))</div></a>
+</div>
+
+<div class="card2" style="margin-bottom:18px">
+    <div class="hd"><i class="bi bi-send"></i> اعلان تازه <span class="end muted small">گیرندگان: <b>@Fa.N(Model.Reach.GetValueOrDefault(Model.Audience))</b> حساب تأییدشده</span></div>
+    <div class="bd">
+        <form method="post" asp-action="Send" data-confirm="اعلان برای @Fa.N(Model.Reach.GetValueOrDefault(Model.Audience)) کاربر (@BackofficeFormat.AudienceLabel(Model.Audience)) ارسال شود؟ پس از ارسال قابل بازپس‌گیری نیست.">
+            <div class="form-grid cols3">
+                <div class="fld">
+                    <label>مخاطب</label>
+                    <select name="audience">
+                        @foreach (var a in audiences)
+                        {
+                            <option value="@a.Key" selected="@(Model.Audience == a.Key)">@BackofficeFormat.AudienceLabel(a.Key) (@Fa.N(Model.Reach.GetValueOrDefault(a.Key)))</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld"><label>عنوان <span class="req">*</span></label><input name="title" minlength="3" maxlength="150" required placeholder="مثلاً: به‌روزرسانی تعرفه از ابتدای مهر" /></div>
+                <div class="fld"><label>پیوند (اختیاری)</label><input name="link" dir="ltr" placeholder="/Driver/Loads" /><span class="hint">نشانی داخلی بارگو؛ با کلیک روی اعلان باز می‌شود.</span></div>
+                <div class="fld full"><label>متن <span class="req">*</span></label><textarea name="body" rows="4" minlength="5" maxlength="2000" required></textarea></div>
+            </div>
+            <div class="form-actions">
+                <button class="btn2 pri"><i class="bi bi-megaphone"></i> ارسال اعلان</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-clock-history"></i> سوابق ارسال</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>زمان</th><th>کانال</th><th>مخاطب</th><th>عنوان</th><th>متن</th><th>گیرندگان</th><th>فرستنده</th></tr></thead>
+            <tbody>
+            @foreach (var b in Model.History.Rows)
+            {
+                <tr>
+                    <td class="num">@Fa.N(b.Id)</td>
+                    <td class="nowrap">@Fa.Stamp(b.CreatedAt)</td>
+                    <td>@(b.Channel == "sms" ? Ui.Pill("پیامک", "inf") : Ui.Pill("اعلان", "ok"))</td>
+                    <td><span class="chip">@BackofficeFormat.AudienceLabel(b.Audience)</span></td>
+                    <td><b>@b.Title</b></td>
+                    <td class="small">@(b.Body.Length > 120 ? b.Body[..120] + "…" : b.Body)</td>
+                    <td class="num">@Fa.N(b.SentCount)</td>
+                    <td>@(b.CreatedBy ?? "—")</td>
+                </tr>
+            }
+            @if (Model.History.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-megaphone"></i>هنوز اعلان یا پیامک گروهی ارسال نشده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.History.Pager" />
+</div>

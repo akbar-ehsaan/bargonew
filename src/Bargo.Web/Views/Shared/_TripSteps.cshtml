@@ -1,0 +1,42 @@
+@model Trip
+@*
+    نوار مراحل سفر (جاده). هر پنل همین را نشان می‌دهد تا راننده، صاحب بار، شرکت و مدیر
+    یک تصویر از «سفر کجاست» داشته باشند.
+*@
+@{
+    var steps = TripStatus.Steps;
+    var idx = Array.IndexOf(steps, Model.Status);
+    // وضعیت‌های پیش از «آماده حرکت» هنوز روی جاده نیستند
+    if (Model.Status is TripStatus.AwaitingAssignment or TripStatus.Assigned) idx = -1;
+    string Icon(string s) => s switch
+    {
+        TripStatus.Accepted => "bi-check2",
+        TripStatus.ToOrigin => "bi-sign-turn-right",
+        TripStatus.AtOrigin => "bi-geo-alt",
+        TripStatus.Loaded => "bi-box-arrow-in-down",
+        TripStatus.InTransit => "bi-truck",
+        TripStatus.Arrived => "bi-pin-map",
+        TripStatus.Unloaded => "bi-box-arrow-up",
+        TripStatus.Delivered => "bi-shield-check",
+        TripStatus.Settled => "bi-cash-coin",
+        _ => "bi-dot"
+    };
+}
+@if (Model.Status == TripStatus.Cancelled)
+{
+    <div class="alert2 err"><i class="bi bi-x-octagon-fill"></i><div class="grow">این سفر لغو شده است@(string.IsNullOrEmpty(Model.CancelReason) ? "" : $" — {Model.CancelReason}")</div></div>
+}
+else if (idx < 0)
+{
+    <div class="alert2 warn"><i class="bi bi-hourglass-split"></i><div class="grow">@TripStatus.Label(Model.Status)</div></div>
+}
+<div class="road @(Model.Status == TripStatus.Cancelled ? "cancelled" : "")" role="list" aria-label="مراحل سفر">
+    @for (var i = 0; i < steps.Length; i++)
+    {
+        var cls = idx < 0 ? "" : i < idx ? "done" : i == idx ? "now" : "";
+        <div class="st @cls" role="listitem" @(i == idx ? "aria-current=step" : "")>
+            <span class="dot"><i class="bi @Icon(steps[i])"></i></span>
+            <span>@TripStatus.Label(steps[i])</span>
+        </div>
+    }
+</div>

@@ -1,0 +1,73 @@
+@model PageVm<BlockedRow>
+@{
+    var q = ViewBag.Q as string;
+    var kind = ViewBag.Kind as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    int C(string k) => counts.TryGetValue(k, out var n) ? n : 0;
+    var ret = Context.Request.Path + Context.Request.QueryString;
+    string KindIcon(string k) => k switch { OwnerKind.Driver => "bi-person-badge", OwnerKind.Shipper => "bi-person-workspace", _ => "bi-buildings" };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-person-slash"></i> کاربران مسدودشده</h1>
+        <p>حساب‌های تعلیق‌شده و ردشدهٔ هر سه نوع در یک فهرست. «فعال‌سازی دوباره» حساب را بی‌درنگ باز می‌کند و صاحب حساب با اعلان باخبر می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Admin/Drivers/Suspended"><i class="bi bi-pause-circle"></i> رانندگان تعلیق‌شده</a>
+        <a class="btn2 ghost" href="/Admin/Complaints/Violations"><i class="bi bi-exclamation-octagon"></i> تخلفات</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Blocked" asp-route-q="@q" class="@(kind is null ? "on" : "")">همه <span class="n">@Fa.N(counts.Values.Sum())</span></a>
+    <a asp-action="Blocked" asp-route-kind="driver" asp-route-q="@q" class="@(kind == OwnerKind.Driver ? "on" : "")">رانندگان <span class="n">@Fa.N(C(OwnerKind.Driver))</span></a>
+    <a asp-action="Blocked" asp-route-kind="shipper" asp-route-q="@q" class="@(kind == OwnerKind.Shipper ? "on" : "")">صاحبان بار <span class="n">@Fa.N(C(OwnerKind.Shipper))</span></a>
+    <a asp-action="Blocked" asp-route-kind="company" asp-route-q="@q" class="@(kind == OwnerKind.Company ? "on" : "")">شرکت‌ها <span class="n">@Fa.N(C(OwnerKind.Company))</span></a>
+</div>
+
+<div class="card2">
+    <form method="get" class="filters">
+        <input type="hidden" name="kind" value="@kind" />
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="نام، موبایل، کد یا شناسهٔ ملی" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Blocked" asp-route-kind="@kind">پاک کردن</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>کاربر</th><th>نوع</th><th>وضعیت</th><th>علت ثبت‌شده</th><th>عضویت</th><th>اقدام</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr data-href="@r.Href">
+                    <td><a class="lnk" href="@r.Href">@r.Name</a><span class="sub num">@r.Mobile</span></td>
+                    <td><span class="chip"><i class="bi @KindIcon(r.Kind)"></i> @OwnerKind.Label(r.Kind)</span></td>
+                    <td>@Ui.AccountPill(r.Status)</td>
+                    <td class="small">@(string.IsNullOrEmpty(r.Reason) ? "—" : r.Reason)</td>
+                    <td class="nowrap">@Fa.Date(r.CreatedAt)</td>
+                    <td>
+                        <div class="row-actions">
+                            <a class="btn2 sm ghost" href="@r.Href"><i class="bi bi-folder2-open"></i> پرونده</a>
+                            <form method="post" asp-action="SetStatus" class="inline"
+                                  data-confirm="حساب «@r.Name» دوباره فعال شود؟ صاحب حساب با اعلان باخبر می‌شود.">
+                                <input type="hidden" name="kind" value="@r.Kind" />
+                                <input type="hidden" name="id" value="@r.Id" />
+                                <input type="hidden" name="status" value="@AccountStatus.Approved" />
+                                <input type="hidden" name="returnUrl" value="@ret" />
+                                <button class="btn2 sm grn"><i class="bi bi-check2-circle"></i> @(r.Status == AccountStatus.Suspended ? "فعال‌سازی دوباره" : "تأیید حساب")</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="6" class="empty"><i class="bi bi-person-check"></i>@(string.IsNullOrEmpty(q) ? "هیچ حساب مسدودشده‌ای نیست." : "حساب مسدودشده‌ای با این مشخصات پیدا نشد.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

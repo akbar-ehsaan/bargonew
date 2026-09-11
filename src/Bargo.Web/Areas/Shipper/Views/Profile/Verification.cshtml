@@ -1,0 +1,152 @@
+@model ShipperVerificationVm
+@{
+    var latestByKind = Model.Docs.GroupBy(x => x.Kind).ToDictionary(g => g.Key, g => g.First());
+    var suggestedKind = Model.RequiredKinds.FirstOrDefault(k => !latestByKind.ContainsKey(k) || latestByKind[k].Status == AccountStatus.Rejected)
+                        ?? Model.RequiredKinds.FirstOrDefault()
+                        ?? DocumentKind.NationalCard;
+    var requestedKind = Context.Request.Query["kind"].ToString();
+    var selectedKind = DocumentKind.ForShipper.Contains(requestedKind) ? requestedKind : suggestedKind;
+    var isBusiness = Model.Kind == "business";
+    string KindTitle(string k) => k == DocumentKind.Registration ? "آگهی تأسیس / روزنامهٔ رسمی" : DocumentKind.Label(k);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-patch-check"></i> احراز هویت</h1>
+        <p>حساب صاحب بار بدون احراز هم فعال است؛ احراز هویت اعتماد حمل‌کنندگان را بیشتر می‌کند و محدودیت‌های حساب تازه را برمی‌دارد. هر مدرک پس از بارگذاری توسط مدیر سامانه بررسی می‌شود.</p>
+    </div>
+    <div class="actions">@Ui.Pill(ShipperUi.VerifyLabel(Model.VerifyStatus), ShipperUi.VerifyTone(Model.VerifyStatus))</div>
+</div>
+
+<partial name="_Tabs" />
+
+@if (Model.VerifyStatus == AccountStatus.Approved)
+{
+    <div class="alert2 ok" role="status"><i class="bi bi-check-circle-fill"></i><div class="grow"><b>هویت شما احراز شده است.</b>@(Model.VerifiedAt is null ? "" : $" تاریخ تأیید: {Fa.Date(Model.VerifiedAt)}.") بارگذاری مدرک تازه یا تغییر اطلاعات هویتی، احراز را دوباره به صف بررسی می‌فرستد.</div></div>
+}
+else if (Model.VerifyStatus == AccountStatus.Pending)
+{
+    <div class="alert2 warn" role="status"><i class="bi bi-hourglass-split"></i><div class="grow"><b>مدارک شما در صف بررسی است.</b> نتیجه به شما اعلان می‌شود؛ تا آن زمان می‌توانید مثل همیشه بار ثبت کنید.</div></div>
+}
+else if (Model.VerifyStatus == AccountStatus.Rejected)
+{
+    <div class="alert2 err" role="alert"><i class="bi bi-x-octagon-fill"></i><div class="grow"><b>احراز هویت رد شده است.</b> یادداشت بررسی را در جدول زیر ببینید و نسخهٔ درست مدرک را بارگذاری کنید.</div></div>
+}
+else
+{
+    <div class="alert2 info" role="status"><i class="bi bi-info-circle-fill"></i><div class="grow">هنوز مدرکی برای احراز هویت نفرستاده‌اید. مدارک الزامی را از فرم کنار صفحه بارگذاری کنید.</div></div>
+}
+
+@if (!Model.ProfileComplete)
+{
+    <div class="alert2 warn"><i class="bi bi-person-exclamation"></i>
+        <div class="grow">
+            برای بررسی احراز هویت، این موارد در مشخصات حساب کامل نیست: <b>@string.Join("، ", Model.MissingProfile)</b>.
+            <a class="lnk" asp-action="Index">تکمیل مشخصات</a>
+        </div>
+    </div>
+}
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-list-check"></i> مدارک الزامی <span class="end small muted">@(isBusiness ? "کسب‌وکار" : "شخص حقیقی")</span></div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>مدرک</th><th>وضعیت</th><th>شماره</th><th>آخرین بارگذاری</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var reqKind in Model.RequiredKinds)
+                    {
+                        var latest = latestByKind.GetValueOrDefault(reqKind);
+                        <tr>
+                            <td><b>@KindTitle(reqKind)</b>@if (reqKind == DocumentKind.NationalCard && isBusiness) { <span class="sub">مدیرعامل یا صاحب امضا</span> }</td>
+                            <td>@(latest is null ? Ui.Pill("ارسال نشده", "mut") : Ui.AccountPill(latest.Status))</td>
+                            <td class="num">@(string.IsNullOrEmpty(latest?.Number) ? "—" : Fa.Digits(latest.Number))</td>
+                            <td class="nowrap">@(latest is null ? "—" : Fa.Date(latest.UploadedAt))</td>
+                            <td>
+                                <div class="row-actions">
+                                    @if (!string.IsNullOrEmpty(latest?.FilePath))
+                                    {
+                                        <a class="btn2 ghost sm" href="@DocumentStorage.Url(latest.FilePath)" target="_blank" rel="noopener"><i class="bi bi-eye"></i> مشاهده</a>
+                                    }
+                                    <a class="btn2 soft sm" asp-action="Verification" asp-route-kind="@reqKind" asp-fragment="upload"><i class="bi bi-cloud-arrow-up"></i> @(latest is null ? "بارگذاری" : "نسخهٔ تازه")</a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-clock-history"></i> همهٔ بارگذاری‌ها</div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>مدرک</th><th>بارگذاری</th><th>شماره</th><th>وضعیت</th><th>یادداشت بررسی</th><th>فایل</th></tr></thead>
+                    <tbody>
+                    @foreach (var uploaded in Model.Docs)
+                    {
+                        <tr>
+                            <td><b>@KindTitle(uploaded.Kind)</b></td>
+                            <td class="nowrap">@Fa.Stamp(uploaded.UploadedAt)</td>
+                            <td class="num">@(string.IsNullOrEmpty(uploaded.Number) ? "—" : Fa.Digits(uploaded.Number))</td>
+                            <td>@Ui.AccountPill(uploaded.Status)</td>
+                            <td>
+                                @(string.IsNullOrEmpty(uploaded.ReviewNote) ? "—" : uploaded.ReviewNote)
+                                @if (uploaded.ReviewedAt is DateTime reviewedAt)
+                                {
+                                    <span class="sub">بررسی در @Fa.Date(reviewedAt)</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(uploaded.FilePath))
+                                {
+                                    <a class="btn2 ghost sm" href="@DocumentStorage.Url(uploaded.FilePath)" target="_blank" rel="noopener"><i class="bi bi-file-earmark"></i> مشاهده</a>
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Docs.Count == 0)
+                    {
+                        <tr><td colspan="6" class="empty"><i class="bi bi-folder2-open"></i>هنوز مدرکی بارگذاری نکرده‌اید. با فرم کنار صفحه تصویر @(isBusiness ? "آگهی تأسیس و کارت ملی" : "کارت ملی") را بفرستید.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card2" id="upload">
+        <div class="hd"><i class="bi bi-cloud-arrow-up"></i> بارگذاری مدرک</div>
+        <div class="bd">
+            <form method="post" asp-action="Verification" enctype="multipart/form-data">
+                <div class="form-grid">
+                    <div class="fld full">
+                        <label>نوع مدرک <span class="req">*</span></label>
+                        <select name="kind" required>
+                            @foreach (var kindOpt in DocumentKind.ForShipper)
+                            {
+                                <option value="@kindOpt" selected="@(kindOpt == selectedKind)">@KindTitle(kindOpt)@(Model.RequiredKinds.Contains(kindOpt) ? "" : " (اختیاری)")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld full">
+                        <label>شمارهٔ مدرک</label>
+                        <input name="number" dir="ltr" maxlength="40" inputmode="numeric" />
+                        <span class="hint">کد ملی برای کارت ملی؛ شمارهٔ ثبت یا شناسهٔ ملی برای آگهی تأسیس.</span>
+                    </div>
+                    <div class="fld full">
+                        <label>فایل مدرک <span class="req">*</span></label>
+                        <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required />
+                        <span class="hint">تصویر خوانا و بدون برش (jpg، png، webp) یا PDF — حداکثر ۸ مگابایت.</span>
+                    </div>
+                </div>
+                <div class="form-actions"><button class="btn2 pri block"><i class="bi bi-cloud-arrow-up"></i> بارگذاری و ارسال برای بررسی</button></div>
+            </form>
+        </div>
+    </div>
+</div>

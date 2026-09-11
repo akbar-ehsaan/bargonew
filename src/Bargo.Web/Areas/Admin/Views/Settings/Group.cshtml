@@ -1,0 +1,20 @@
+@model SettingsPageVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi @Model.Icon"></i> @Model.Title</h1>
+        @if (!string.IsNullOrEmpty(Model.Subtitle))
+        {
+            <p>@Model.Subtitle</p>
+        }
+    </div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Logs" asp-route-entity="Setting"><i class="bi bi-journal-code"></i> تاریخچهٔ تغییرات</a></div>
+</div>
+
+<div class="alert2 info"><i class="bi bi-info-circle"></i><div class="grow">تغییرات پس از ذخیره تا <b>۵ دقیقه</b> ممکن است در همهٔ بخش‌ها اعمال نشود (تنظیمات در حافظه نگه داشته می‌شود). هر تغییر با نام شما در لاگ ثبت می‌شود.</div></div>
+
+<div class="@(Model.Groups.Count > 1 ? "grid2" : "")" style="max-width:@(Model.Groups.Count > 1 ? "none" : "760px")">
+    @foreach (var g in Model.Groups)
+    {
+        <partial name="_GroupForm" model="g" />
+    }
+</div>

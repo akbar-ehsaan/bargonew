@@ -1,0 +1,158 @@
+@model SmsBroadcastVm
+@{
+    (string Key, string Icon)[] audiences = [("all", "bi-people"), ("drivers", "bi-person-badge"), ("shippers", "bi-person-workspace"), ("companies", "bi-buildings")];
+    var segments = BackofficeFormat.SmsSegments(Model.Text);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-phone"></i> پیامک گروهی</h1>
+        <p>هر ۷۰ نویسهٔ فارسی یک بخش پیامک است (لاتین خالص ۱۶۰). ارسال دو مرحله‌ای است: نخست شمار گیرندگان، سپس تأیید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-megaphone"></i> اعلان درون‌برنامه‌ای</a>
+        <a class="btn2 ghost" href="/Admin/Settings/Sms"><i class="bi bi-chat-square-text"></i> تنظیمات پیامک</a>
+    </div>
+</div>
+
+<div class="stats">
+    @foreach (var a in audiences)
+    {
+        <div class="stat @(Model.Audience == a.Key ? "p" : "i")"><div class="l"><i class="bi @a.Icon"></i> @BackofficeFormat.AudienceLabel(a.Key)</div><div class="v">@Fa.N(Model.Reach.GetValueOrDefault(a.Key)) <small>حساب تأییدشده</small></div></div>
+    }
+</div>
+
+@if (Model.Confirming)
+{
+    <div class="card2" style="margin-bottom:18px">
+        <div class="hd"><i class="bi bi-exclamation-triangle" style="color:#d68a0c"></i> تأیید ارسال</div>
+        <div class="bd">
+            <div class="alert2 warn">
+                <i class="bi bi-phone-vibrate"></i>
+                <div class="grow">
+                    این پیامک برای <b>@Fa.N(Model.Recipients)</b> شمارهٔ یکتا (@BackofficeFormat.AudienceLabel(Model.Audience)) ارسال می‌شود —
+                    <b>@Fa.N(segments)</b> بخش برای هر گیرنده، در مجموع <b>@Fa.N((long)segments * Model.Recipients)</b> بخش پیامک. پس از ارسال قابل بازپس‌گیری نیست.
+                </div>
+            </div>
+            <div class="card2" style="margin-bottom:14px"><div class="bd" style="white-space:pre-line;font-size:14px">@Model.Text</div></div>
+            <form method="post" asp-action="Sms" class="row-actions">
+                <input type="hidden" name="audience" value="@Model.Audience" />
+                <input type="hidden" name="text" value="@Model.Text" />
+                <input type="hidden" name="confirm" value="true" />
+                <button class="btn2 red"><i class="bi bi-send-check"></i> تأیید و ارسال به @Fa.N(Model.Recipients) شماره</button>
+                <a class="btn2 ghost" asp-action="Sms" asp-route-audience="@Model.Audience">انصراف و ویرایش</a>
+            </form>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card2" style="margin-bottom:18px">
+        <div class="hd"><i class="bi bi-pencil-square"></i> پیامک تازه</div>
+        <div class="bd">
+            <form method="post" asp-action="Sms">
+                <input type="hidden" name="confirm" value="false" />
+                <div class="form-grid">
+                    <div class="fld">
+                        <label>مخاطب</label>
+                        <select name="audience">
+                            @foreach (var a in audiences)
+                            {
+                                <option value="@a.Key" selected="@(Model.Audience == a.Key)">@BackofficeFormat.AudienceLabel(a.Key) (@Fa.N(Model.Reach.GetValueOrDefault(a.Key)))</option>
+                            }
+                        </select>
+                        <span class="hint">صاحبان باری که پیامک را در تنظیماتشان خاموش کرده‌اند کنار گذاشته می‌شوند.</span>
+                    </div>
+                    <div class="fld">
+                        <label>شمارنده</label>
+                        <input id="sms-counter" value="@Fa.N(Model.Text.Length) نویسه · @Fa.N(segments) بخش" disabled />
+                        <span class="hint">بیشینه ۵ بخش (۳۵۰ نویسهٔ فارسی).</span>
+                    </div>
+                    <div class="fld full">
+                        <label>متن پیامک <span class="req">*</span></label>
+                        <textarea id="sms-text" name="text" rows="4" minlength="5" maxlength="800" required placeholder="بارگو: ...">@Model.Text</textarea>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn2 pri"><i class="bi bi-people"></i> شمارش گیرندگان و ادامه</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<div class="grid2">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-clock-history"></i> پیامک‌های گروهی قبلی</div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>زمان</th><th>مخاطب</th><th>متن</th><th>گیرندگان</th><th>فرستنده</th></tr></thead>
+                <tbody>
+                @foreach (var b in Model.History)
+                {
+                    <tr>
+                        <td class="nowrap">@Fa.Stamp(b.CreatedAt)</td>
+                        <td><span class="chip">@BackofficeFormat.AudienceLabel(b.Audience)</span></td>
+                        <td class="small">@(b.Body.Length > 90 ? b.Body[..90] + "…" : b.Body)</td>
+                        <td class="num">@Fa.N(b.SentCount)</td>
+                        <td>@(b.CreatedBy ?? "—")</td>
+                    </tr>
+                }
+                @if (Model.History.Count == 0)
+                {
+                    <tr><td colspan="5" class="empty"><i class="bi bi-phone"></i>هنوز پیامک گروهی ارسال نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-journal-text"></i> ۵۰ پیامک اخیر سامانه <span class="end muted small">همهٔ مقاصد: کد ورود، اطلاع‌رسانی، گروهی</span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>زمان</th><th>موبایل</th><th>مقصود</th><th>متن</th><th>نتیجه</th></tr></thead>
+                <tbody>
+                @foreach (var l in Model.Logs)
+                {
+                    <tr>
+                        <td class="nowrap">@Fa.Stamp(l.CreatedAt)</td>
+                        <td class="num">@l.Mobile</td>
+                        <td><span class="chip">@l.Purpose</span></td>
+                        <td class="small">@(l.Text.Length > 70 ? l.Text[..70] + "…" : l.Text)</td>
+                        <td>
+                            @(l.Success ? Ui.Pill("ارسال شد", "ok") : Ui.Pill("ناموفق", "no"))
+                            @if (!string.IsNullOrEmpty(l.Response))
+                            {
+                                <span class="sub num">@l.Response</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Logs.Count == 0)
+                {
+                    <tr><td colspan="5" class="empty"><i class="bi bi-journal-text"></i>هنوز پیامکی از سامانه ارسال نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    var ta = document.getElementById('sms-text'), out = document.getElementById('sms-counter');
+    if (!ta || !out) return;
+    function fa(n) { return String(n).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; }); }
+    function update() {
+        var t = ta.value, len = t.length;
+        var per = /^[\x00-\x7F]*$/.test(t) ? 160 : 70;
+        var seg = len === 0 ? 0 : Math.ceil(len / per);
+        out.value = fa(len) + ' نویسه · ' + fa(seg) + ' بخش' + (seg > 5 ? ' — بیش از حد مجاز' : '');
+        out.style.color = seg > 5 ? 'var(--no)' : '';
+    }
+    ta.addEventListener('input', update);
+    update();
+})();
+</script>
+}

@@ -1,0 +1,39 @@
+@model LoginVm
+@{
+    Layout = "_AuthLayout";
+    ViewData["Skin"] = Model.Role switch { Roles.Driver => "skin-driver", Roles.Company => "skin-company", Roles.Admin => "skin-admin", _ => "skin-shipper" };
+}
+<h1>ورود به بارگو</h1>
+<p class="sub">نقش خود را انتخاب کنید؛ هر نقش پنل مخصوص خودش را دارد.</p>
+
+<form method="post" action="/account/login">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="ReturnUrl" />
+    <div asp-validation-summary="ModelOnly" class="val-err" style="margin-bottom:10px"></div>
+
+    <div class="role-pick" role="radiogroup" aria-label="نقش">
+        <label><input type="radio" name="Role" value="shipper" checked="@(Model.Role == Roles.Shipper)" /><i class="bi bi-box-seam"></i> صاحب بار</label>
+        <label><input type="radio" name="Role" value="driver" checked="@(Model.Role == Roles.Driver)" /><i class="bi bi-truck"></i> راننده</label>
+        <label><input type="radio" name="Role" value="company" checked="@(Model.Role == Roles.Company)" /><i class="bi bi-buildings"></i> شرکت حمل‌ونقل</label>
+        <label><input type="radio" name="Role" value="admin" checked="@(Model.Role == Roles.Admin)" /><i class="bi bi-shield-lock"></i> مدیر سامانه</label>
+    </div>
+
+    <div class="fld">
+        <label for="Mobile">شمارهٔ موبایل</label>
+        <input asp-for="Mobile" inputmode="tel" autocomplete="username" placeholder="09xxxxxxxxx" dir="ltr" />
+        <span asp-validation-for="Mobile" class="val-err"></span>
+    </div>
+    <div class="fld">
+        <label for="Password">گذرواژه</label>
+        <input asp-for="Password" type="password" autocomplete="current-password" dir="ltr" />
+        <span asp-validation-for="Password" class="val-err"></span>
+    </div>
+    <button type="submit" class="btn2 pri lg block"><i class="bi bi-box-arrow-in-left"></i> ورود</button>
+</form>
+
+<div class="linkrow">
+    حساب ندارید؟
+    <a class="lnk" href="/account/register?type=shipper">ثبت‌نام صاحب بار</a> ·
+    <a class="lnk" href="/account/register?type=driver">راننده</a> ·
+    <a class="lnk" href="/account/register?type=company">شرکت</a>
+</div>

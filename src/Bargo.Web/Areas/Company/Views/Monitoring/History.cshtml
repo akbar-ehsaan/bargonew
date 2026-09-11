@@ -1,0 +1,109 @@
+@model OpsHistoryVm
+@{
+    var picked = Model.VehicleId is not null || Model.DriverId is not null;
+    var markers = Model.Markers.Select(m => new { lat = m.Lat, lng = m.Lng, kind = m.Kind, label = m.Label, href = m.Href }).ToList();
+    var subject = Model.VehicleId is int v ? Model.Vehicles.FirstOrDefault(o => o.Id == v)?.Label
+                : Model.DriverId is int d ? Model.Drivers.FirstOrDefault(o => o.Id == d)?.Label : null;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-clock-history"></i> سوابق مسیر</h1>
+        <p>نقاط GPS یک خودرو یا راننده در یک روز — مسافت، سرعت و مسیر روی نقشه.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-map"></i> نقشهٔ آنلاین</a>
+        <a class="btn2 ghost" asp-action="Route"><i class="bi bi-bezier2"></i> مسیر سفر</a>
+    </div>
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="History" class="filters">
+        <div class="fld">
+            <label>خودرو</label>
+            <select name="vehicleId">
+                <option value="">—</option>
+                @foreach (var o in Model.Vehicles)
+                {
+                    <option value="@o.Id" selected="@(Model.VehicleId == o.Id)">@o.Label</option>
+                }
+            </select>
+        </div>
+        <div class="fld">
+            <label>راننده</label>
+            <select name="driverId">
+                <option value="">—</option>
+                @foreach (var o in Model.Drivers)
+                {
+                    <option value="@o.Id" selected="@(Model.DriverId == o.Id)">@o.Label</option>
+                }
+            </select>
+        </div>
+        <div class="fld narrow">
+            <label>روز</label>
+            <input name="date" data-jdate value="@Fa.DateBox(Model.Date)" placeholder="۱۴۰۵/۰۶/۲۱" />
+        </div>
+        <div class="row-actions">
+            <button type="submit" class="btn2 pri"><i class="bi bi-search"></i> نمایش</button>
+            <a class="btn2 ghost" asp-action="History">پاک کردن</a>
+        </div>
+    </form>
+
+    @if (!picked)
+    {
+        <div class="empty-state">
+            <i class="bi bi-clock-history"></i>
+            <b>خودرو یا راننده را انتخاب کنید</b>
+            @(Model.Vehicles.Count == 0 && Model.Drivers.Count == 0 ? "هنوز خودرو یا راننده‌ای در شرکت ثبت نشده است." : "سوابق مسیر هر روز به‌تفکیک خودرو یا راننده نگه داشته می‌شود.")
+        </div>
+    }
+    else if (Model.Count == 0)
+    {
+        <div class="empty-state">
+            <i class="bi bi-geo"></i>
+            <b>در @Fa.LongDate(Model.Date) نقطه‌ای ثبت نشده است</b>
+            @subject — روز دیگری را انتخاب کنید یا مطمئن شوید اشتراک موقعیت در اپ راننده روشن است.
+        </div>
+    }
+    else
+    {
+        <div class="bd">
+            <div class="stats">
+                <div class="stat p"><div class="l"><i class="bi bi-geo-alt"></i> نقاط</div><div class="v">@Fa.N(Model.Count)<small>نقطه</small></div></div>
+                <div class="stat s"><div class="l"><i class="bi bi-signpost-2"></i> مسافت</div><div class="v">@Fa.N(Model.Km, 1)<small>کیلومتر</small></div></div>
+                <div class="stat i"><div class="l"><i class="bi bi-speedometer"></i> بیشترین سرعت</div><div class="v">@(Model.MaxSpeed is double ms ? Fa.N(ms) : "—")<small>km/h</small></div></div>
+                <div class="stat t"><div class="l"><i class="bi bi-clock"></i> بازهٔ حرکت</div><div class="v" style="font-size:18px">@Fa.Time(Model.First) تا @Fa.Time(Model.Last)</div></div>
+            </div>
+            @if (Model.Line.Count > 0)
+            {
+                <div class="map" data-map='@Json.Serialize(new { markers, line = Model.Line, fit = true })'></div>
+            }
+        </div>
+        @if (Model.Page is not null)
+        {
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>زمان</th><th>سفر</th><th>مختصات</th><th>سرعت</th><th>دقت</th><th>گام</th></tr></thead>
+                    <tbody>
+                    @foreach (var p in Model.Page.Rows)
+                    {
+                        <tr>
+                            <td class="nowrap">@Fa.Stamp(p.RecordedAt)</td>
+                            <td>
+                                @if (p.TripId is int tid && Model.TripCodes.TryGetValue(tid, out var code)) { <a class="num" href="/Company/Trips/Detail/@tid">@code</a> }
+                                else { <span class="muted">خارج از سفر</span> }
+                            </td>
+                            <td class="num" dir="ltr">@p.Lat.ToString("0.00000"), @p.Lng.ToString("0.00000")</td>
+                            <td class="num">@(p.SpeedKmh is double s ? Fa.N(s) + " km/h" : "—")</td>
+                            <td class="num">@(p.AccuracyM is double a ? Fa.N(a) + " متر" : "—")</td>
+                            <td class="num">@(p.StepKm > 0 ? Fa.N(p.StepKm, 2) + " کیلومتر" : "—")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <partial name="_Pager" model="Model.Page.Pager" />
+        }
+    }
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

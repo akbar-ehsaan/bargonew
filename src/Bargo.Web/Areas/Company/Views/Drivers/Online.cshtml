@@ -1,0 +1,91 @@
+@model OpsOnlineVm
+@{
+    var minutes = (int)ViewBag.Minutes;
+    var inTrip = Model.Drivers.Count(d => Model.Busy.GetValueOrDefault(d.DriverId) is { Hard: true });
+    var ready = Model.Drivers.Count(d => Model.Busy.GetValueOrDefault(d.DriverId) is not { Hard: true } && d.IsAvailable);
+    var noPosition = Model.Drivers.Count - Model.Markers.Count;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-broadcast"></i> رانندگان آنلاین</h1>
+        <p>رانندگانی که در @Fa.N(minutes) دقیقهٔ اخیر از اپ موقعیت فرستاده‌اند. برای رهگیری سفرهای در راه از «نقشهٔ آنلاین» استفاده کنید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Activity"><i class="bi bi-activity"></i> وضعیت فعالیت</a>
+        <a class="btn2 ghost" href="/Company/Monitoring?layer=drivers"><i class="bi bi-map"></i> نقشهٔ آنلاین</a>
+        <a class="btn2 soft" asp-action="Online"><i class="bi bi-arrow-clockwise"></i> به‌روزرسانی</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat s"><div class="l"><i class="bi bi-broadcast"></i> آنلاین</div><div class="v">@Fa.N(Model.Drivers.Count) <small>از @Fa.N(Model.Total) رانندهٔ تأییدشده</small></div></div>
+    <div class="stat p"><div class="l"><i class="bi bi-truck"></i> در سفر</div><div class="v">@Fa.N(inTrip)</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-check2-circle"></i> آماده بار</div><div class="v">@Fa.N(ready)</div></div>
+</div>
+
+@if (Model.Markers.Count > 0)
+{
+    <div class="card2" style="margin-bottom:18px">
+        <div class="hd">
+            <i class="bi bi-map"></i> موقعیت روی نقشه
+            <span class="end">
+                <span class="muted small">@Fa.N(Model.Markers.Count) راننده</span>
+                @if (noPosition > 0)
+                {
+                    <span class="muted small">· @Fa.N(noPosition) بدون مختصات</span>
+                }
+            </span>
+        </div>
+        <div class="map" data-map="@Json.Serialize(new { markers = Model.Markers, fit = true })"></div>
+    </div>
+}
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>راننده</th><th>آخرین حضور</th><th>وضعیت</th><th>سفر جاری</th><th>شهر</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var d in Model.Drivers)
+            {
+                var busy = Model.Busy.GetValueOrDefault(d.DriverId);
+                var (avLabel, avTone) = OpsLabels.Availability(d, busy);
+                <tr data-href="/Company/Drivers/Detail/@d.DriverId">
+                    <td><a class="lnk" asp-action="Detail" asp-route-id="@d.DriverId">@d.FullName</a><span class="sub num">@Fa.Digits(d.Mobile)</span></td>
+                    <td class="nowrap">@Fa.Ago(d.LastSeenAt!.Value)<span class="sub">@Fa.Time(d.LastSeenAt)</span></td>
+                    <td>@Ui.Pill(avLabel, avTone)</td>
+                    <td>
+                        @if (busy is not null)
+                        {
+                            <a class="lnk num" href="/Company/Trips/Detail/@busy.TripId">@busy.Code</a><span class="sub">@TripStatus.Label(busy.Status)</span>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td>@(d.City?.Name ?? "—")</td>
+                    <td>
+                        @if (d.LastLat is null)
+                        {
+                            <span class="chip"><i class="bi bi-geo"></i> بدون مختصات</span>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Drivers.Count == 0)
+            {
+                <tr>
+                    <td colspan="6" class="empty">
+                        <i class="bi bi-broadcast"></i>
+                        @(Model.Total == 0
+                            ? "هنوز رانندهٔ تأییدشده‌ای در ناوگان شرکت نیست."
+                            : $"در {Fa.N(minutes)} دقیقهٔ اخیر هیچ راننده‌ای موقعیت نفرستاده است. راننده باید اپ بارگو را باز و «اشتراک موقعیت» را روشن داشته باشد.")
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

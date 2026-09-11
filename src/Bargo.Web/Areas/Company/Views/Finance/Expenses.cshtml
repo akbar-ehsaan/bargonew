@@ -1,0 +1,143 @@
+@model CompanyExpensesVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-graph-down-arrow"></i> هزینه</h1>
+        <p>هزینه‌های عملیاتی شرکت — سوخت، عوارض، تعمیر، حقوق و سایر. این ردیف‌ها فقط دفتر داخلی شرکت‌اند و از کیف پول کم نمی‌شوند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Report"><i class="bi bi-file-bar-graph"></i> گزارش مالی</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat r"><div class="l"><i class="bi bi-cash"></i> جمع هزینهٔ بازه</div><div class="v">@Fa.Toman(Model.Total)</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-receipt"></i> تعداد ردیف</div><div class="v">@Fa.N(Model.Count)</div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-calendar-range"></i> میانگین روزانه</div><div class="v">@Fa.Toman(Model.Total / Model.Range.Days)</div></div>
+</div>
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-pie-chart"></i> سهم هر نوع هزینه در بازه</div>
+            <div class="bd">
+                @foreach (var k in Model.ByKind)
+                {
+                    <div class="kvrow" style="display:block">
+                        <div style="display:flex;justify-content:space-between;gap:10px">
+                            <span><i class="bi @CompanyLabels.ExpenseIcon(k.Key)"></i> <a class="lnk" asp-action="Expenses" asp-route-kind="@k.Key" asp-route-from="@Model.Range.FromBox" asp-route-to="@Model.Range.ToBox">@k.Label</a> <small class="muted">(@Fa.N(k.Count))</small></span>
+                            <b>@Fa.Toman(k.Amount)</b>
+                        </div>
+                        <partial name="_Bar" model='new BarVm(k.Amount, Model.MaxKind, "var(--no)")' />
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <form method="get" asp-action="Expenses" class="filters">
+                <div class="fld narrow">
+                    <label>نوع</label>
+                    <select name="kind">
+                        <option value="">همه</option>
+                        @foreach (var k in CompanyLabels.ExpenseKinds)
+                        {
+                            <option value="@k" selected="@(Model.Kind == k)">@CompanyLabels.ExpenseKind(k)</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld narrow"><label>از تاریخ</label><input name="from" data-jdate value="@Model.Range.FromBox" dir="ltr" /></div>
+                <div class="fld narrow"><label>تا تاریخ</label><input name="to" data-jdate value="@Model.Range.ToBox" dir="ltr" /></div>
+                <button class="btn2 ghost"><i class="bi bi-funnel"></i> اعمال</button>
+                <a class="btn2 ghost" asp-action="Expenses"><i class="bi bi-x-lg"></i> ۳۰ روز اخیر</a>
+            </form>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>تاریخ</th><th>نوع</th><th>مبلغ</th><th>مربوط به</th><th>یادداشت</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var e in Model.Page.Rows)
+                    {
+                        <tr>
+                            <td data-label="تاریخ" class="nowrap">@Fa.Date(e.SpentAt)</td>
+                            <td data-label="نوع"><span class="chip"><i class="bi @CompanyLabels.ExpenseIcon(e.Kind)"></i> @CompanyLabels.ExpenseKind(e.Kind)</span></td>
+                            <td data-label="مبلغ" class="nowrap"><b>@Fa.Toman(e.Amount)</b></td>
+                            <td data-label="مربوط به">
+                                @if (e.TripCode is not null) { <a class="lnk" href="/Company/Trips/Detail/@e.TripId">سفر @Fa.Digits(e.TripCode)</a> }
+                                @if (e.Plate is not null) { <span class="plate">@e.Plate</span> }
+                                @if (e.DriverName is not null) { <span class="sub"><i class="bi bi-person"></i> @e.DriverName</span> }
+                                @if (e.TripCode is null && e.Plate is null && e.DriverName is null) { <span class="muted">عمومی</span> }
+                            </td>
+                            <td data-label="یادداشت">@(string.IsNullOrEmpty(e.Note) ? "—" : e.Note)</td>
+                            <td>
+                                <form method="post" asp-action="Delete" asp-route-id="@e.Id" class="inline" data-confirm="این هزینه (@Fa.Toman(e.Amount)) حذف شود؟">
+                                    <button class="btn2 ghost sm" title="حذف"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Page.Total == 0)
+                    {
+                        <tr><td colspan="6" class="empty"><i class="bi bi-receipt"></i>@(Model.Kind is null ? "در این بازه هزینه‌ای ثبت نشده است. اولین هزینه را از فرم کنار صفحه ثبت کنید." : $"در این بازه هزینهٔ «{CompanyLabels.ExpenseKind(Model.Kind)}» ثبت نشده است.")</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <partial name="_Pager" model="Model.Page.Pager" />
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-plus-circle"></i> ثبت هزینه</div>
+        <div class="bd">
+            <form method="post" asp-action="AddExpense">
+                <div class="form-grid">
+                    <div class="fld">
+                        <label>نوع <span class="req">*</span></label>
+                        <select name="kind">
+                            @foreach (var k in CompanyLabels.ExpenseKinds)
+                            {
+                                <option value="@k">@CompanyLabels.ExpenseKind(k)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld">
+                        <label>مبلغ (تومان) <span class="req">*</span></label>
+                        <input name="amountToman" class="money" required />
+                    </div>
+                    <div class="fld">
+                        <label>تاریخ</label>
+                        <input name="spentAt" data-jdate value="@Fa.DateBox(DateTime.UtcNow)" dir="ltr" />
+                    </div>
+                    <div class="fld">
+                        <label>کد سفر</label>
+                        <input name="tripCode" dir="ltr" placeholder="T-050621-0042" />
+                    </div>
+                    <div class="fld full">
+                        <label>خودرو</label>
+                        <select name="vehicleId">
+                            <option value="">—</option>
+                            @foreach (var v in Model.Vehicles)
+                            {
+                                <option value="@v.Id">@v.Text</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld full">
+                        <label>راننده</label>
+                        <select name="driverId">
+                            <option value="">—</option>
+                            @foreach (var d in Model.Drivers)
+                            {
+                                <option value="@d.Id">@d.Text</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld full">
+                        <label>یادداشت</label>
+                        <textarea name="note" rows="2" placeholder="شمارهٔ فاکتور، جایگاه سوخت، محل تعمیر…"></textarea>
+                    </div>
+                </div>
+                <div class="form-actions"><button class="btn2 pri block"><i class="bi bi-plus-lg"></i> ثبت هزینه</button></div>
+            </form>
+        </div>
+    </div>
+</div>

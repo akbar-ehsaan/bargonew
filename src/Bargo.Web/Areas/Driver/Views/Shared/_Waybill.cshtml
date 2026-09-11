@@ -1,0 +1,64 @@
+@model TripDetailVm
+@*
+    بدنهٔ کارت بارنامهٔ یک سفر: خلاصهٔ بارنامهٔ ثبت‌شده و — اگر هنوز مجاز است — فرم ثبت/به‌روزرسانی.
+    ViewData["back"]: ops | waybill | null (به کجا برگردد).
+*@
+@{
+    var t = Model.Trip;
+    var w = t.Waybill;
+    var back = ViewData["back"] as string;
+    var editable = w is null ? Model.ShowWaybillForm : Model.CanRegisterWaybill && w.Status != "verified";
+}
+@if (w is not null)
+{
+    <dl class="kv">
+        <dt>شمارهٔ بارنامه</dt><dd class="num">@w.Number</dd>
+        <dt>وضعیت</dt><dd>@Ui.Pill(WaybillRowVm.StatusLabel(w.Status), WaybillRowVm.StatusTone(w.Status))</dd>
+        <dt>ثبت</dt><dd>@Fa.Stamp(w.IssuedAt) · @(w.IssuedByKind == Roles.Driver ? "توسط شما" : OwnerKind.Label(w.IssuedByKind))</dd>
+        <dt>تصویر</dt>
+        <dd>
+            @if (!string.IsNullOrEmpty(w.FilePath))
+            {
+                <a class="chip" href="@DocumentStorage.Url(w.FilePath)" target="_blank"><i class="bi bi-file-earmark-image"></i> مشاهدهٔ تصویر بارنامه</a>
+            }
+            else
+            {
+                <span class="muted">بارگذاری نشده</span>
+            }
+        </dd>
+    </dl>
+    @if (w.Status == "verified")
+    {
+        <p class="muted small" style="margin:10px 0 0">بارنامه توسط مدیر تأیید شده و دیگر قابل تغییر نیست.</p>
+    }
+}
+@if (editable)
+{
+    <form method="post" asp-area="Driver" asp-controller="Trips" asp-action="Waybill" asp-route-id="@t.TripId" enctype="multipart/form-data" id="waybill" style="@(w is null ? "" : "margin-top:14px")">
+        <input type="hidden" name="back" value="@back" />
+        <div class="form-grid">
+            <div class="fld">
+                <label>شمارهٔ بارنامه <span class="req">*</span></label>
+                <input name="number" dir="ltr" maxlength="40" required value="@w?.Number" />
+                <span class="hint">شمارهٔ درج‌شده روی بارنامهٔ رسمی؛ حداکثر ۴۰ نویسه.</span>
+            </div>
+            <div class="fld">
+                <label>تصویر بارنامه@(w is null ? " (اختیاری)" : " (فقط اگر تغییر کرده)")</label>
+                <input type="file" name="file" accept="image/*,.pdf" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn2 pri"><i class="bi bi-file-earmark-check"></i> @(w is null ? "ثبت بارنامه" : "به‌روزرسانی بارنامه")</button>
+        </div>
+    </form>
+}
+else if (w is null)
+{
+    <div class="empty-state">
+        <i class="bi bi-file-earmark-text"></i>
+        <b>بارنامه‌ای ثبت نشده است</b>
+        @(t.Status is TripStatus.Accepted or TripStatus.ToOrigin or TripStatus.Assigned or TripStatus.AwaitingAssignment
+            ? "پس از «اعلام حضور در مبدا» می‌توانید شمارهٔ بارنامه را ثبت کنید."
+            : "در این مرحلهٔ سفر امکان ثبت بارنامه نیست.")
+    </div>
+}

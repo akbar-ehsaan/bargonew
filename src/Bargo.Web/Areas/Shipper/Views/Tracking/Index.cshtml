@@ -1,0 +1,288 @@
+@model ShipperTrackingVm
+@{
+    var trip = Model.Trip;
+    (string Key, string Label, string Icon)[] modes =
+    [
+        ("", "موقعیت خودرو", "bi-truck"),
+        ("route", "مسیر روی نقشه", "bi-map"),
+        ("status", "وضعیت لحظه‌ای", "bi-activity"),
+        ("eta", "زمان تقریبی رسیدن", "bi-stopwatch")
+    ];
+    var intro = Model.Mode switch
+    {
+        "route" => "مسیر طی‌شدهٔ خودرو از روی نقاط GPS اپ راننده، همراه مبدا و مقصد بار.",
+        "status" => "مرحلهٔ فعلی سفر و همهٔ رویدادهایی که راننده یا حمل‌کننده ثبت کرده است.",
+        "eta" => "زمان تقریبی رسیدن بار به مقصد بر پایهٔ مسافت باقی‌مانده و سرعت خودرو.",
+        _ => "آخرین موقعیت خودروی حامل بار شما روی نقشه، همراه مبدا و مقصد."
+    };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-geo-alt"></i> @ViewData["Title"]</h1>
+        <p>@intro</p>
+    </div>
+    <div class="actions">
+        @if (trip is not null)
+        {
+            <a class="btn2 ghost" href="/Shipper/Orders/Detail/@trip.TripId"><i class="bi bi-folder2-open"></i> پروندهٔ سفارش</a>
+            <a class="btn2 ghost" href="@Url.Action("Thread", "Messages", new { key = "trip:" + trip.TripId })"><i class="bi bi-chat-dots"></i> گفتگوی سفر</a>
+        }
+        <a class="btn2 ghost" asp-action="History" asp-route-tripId="@trip?.TripId"><i class="bi bi-clock-history"></i> سوابق موقعیت</a>
+    </div>
+</div>
+
+<div class="tabs">
+    @foreach (var md in modes)
+    {
+        <a asp-action="Index" asp-route-view="@(md.Key == "" ? null : md.Key)" asp-route-tripId="@trip?.TripId" class="@(Model.Mode == md.Key ? "on" : "")"><i class="bi @md.Icon"></i> @md.Label</a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Index" class="filters">
+        @if (Model.Mode != "")
+        {
+            <input type="hidden" name="view" value="@Model.Mode" />
+        }
+        <div class="fld">
+            <label>سفر</label>
+            <select name="tripId" onchange="this.form.submit()">
+                @if (Model.Picker.Count == 0)
+                {
+                    <option value="">سفر جاری یا آینده‌ای ندارید</option>
+                }
+                @foreach (var opt in Model.Picker)
+                {
+                    <option value="@opt.TripId" selected="@(trip?.TripId == opt.TripId)">@opt.Code — @opt.From به @opt.To · @TripStatus.Label(opt.Status)</option>
+                }
+            </select>
+        </div>
+        <div class="row-actions"><button type="submit" class="btn2 pri"><i class="bi bi-search"></i> نمایش</button></div>
+    </form>
+
+    @if (trip is null)
+    {
+        <div class="empty-state">
+            <i class="bi bi-truck"></i>
+            <b>باری در راه ندارید</b>
+            وقتی پیشنهاد یک راننده یا شرکت را بپذیرید، سفر ساخته می‌شود و از لحظهٔ حرکت راننده، موقعیت خودرو این‌جا دیده می‌شود.
+            <div class="form-actions" style="justify-content:center">
+                <a class="btn2 pri" href="/Shipper/Loads/Create"><i class="bi bi-plus-square"></i> ثبت بار جدید</a>
+                <a class="btn2 ghost" href="/Shipper/Orders?tab=done"><i class="bi bi-check-circle"></i> سفارش‌های تکمیل‌شده</a>
+            </div>
+        </div>
+    }
+</div>
+
+@if (trip is not null)
+{
+    var tl = trip.Load!;
+    var isLive = TripStatus.Live.Contains(trip.Status);
+    var isDone = TripStatus.Done.Contains(trip.Status);
+    var isCancelled = trip.Status == TripStatus.Cancelled;
+    var isStale = isLive && trip.LastPointAt is DateTime lpa && DateTime.UtcNow - lpa > TimeSpan.FromMinutes(30);
+    var hasGeo = Model.PointCount > 0 || tl.OriginLat is not null || tl.DestLat is not null || trip.LastLat is not null;
+    var etaText = isDone ? "تحویل‌شده"
+        : isCancelled ? "—"
+        : trip.Status is TripStatus.Arrived or TripStatus.Unloaded ? "رسیده به مقصد"
+        : trip.Status == TripStatus.InTransit && trip.EtaAt is DateTime etv ? Fa.Stamp(etv)
+        : trip.Status == TripStatus.InTransit ? "در حال محاسبه"
+        : "پس از شروع حمل";
+    var etaSub = "";
+    if (trip.Status == TripStatus.InTransit && trip.EtaAt is DateTime etw)
+    {
+        var leftSpan = etw - DateTime.UtcNow;
+        etaSub = leftSpan.TotalMinutes <= 0 ? "زمان تقریبی گذشته است"
+            : leftSpan.TotalHours < 1 ? $"حدود {Fa.N((int)Math.Ceiling(leftSpan.TotalMinutes))} دقیقهٔ دیگر"
+            : $"حدود {Fa.N(leftSpan.TotalHours, 1)} ساعت دیگر";
+    }
+    else if (isDone && trip.DeliveredAt is DateTime dla)
+    {
+        etaSub = Fa.Stamp(dla);
+    }
+
+    if (trip.IsProblem && !string.IsNullOrEmpty(trip.ProblemNote))
+    {
+        <div class="alert2 warn"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">این سفر برای بررسی به پشتیبانی بارگو ارجاع شده است: @trip.ProblemNote</div></div>
+    }
+    if (isStale)
+    {
+        <div class="alert2 warn"><i class="bi bi-broadcast-pin"></i><div class="grow">آخرین موقعیت خودرو @Fa.Ago(trip.LastPointAt!.Value) ثبت شده است؛ ممکن است اینترنت یا اشتراک موقعیت در اپ راننده قطع باشد. از گفتگوی سفر یا تماس با راننده پیگیری کنید.</div></div>
+    }
+    if (trip.Status == TripStatus.Unloaded)
+    {
+        <div class="alert2 info">
+            <i class="bi bi-shield-lock"></i>
+            <div class="grow">بار در مقصد تخلیه شد. کد تحویل@(trip.DeliveryOtpSentAt is DateTime osa ? " " + Fa.Ago(osa) : "") برای گیرنده پیامک شده است؛ گیرنده فقط پس از تحویل کامل و سالم بار، کد را به راننده بدهد.</div>
+            <form method="post" asp-controller="Orders" asp-action="ResendCode">
+                <input type="hidden" name="id" value="@trip.TripId" />
+                <button type="submit" class="btn2 soft sm"><i class="bi bi-arrow-repeat"></i> ارسال دوبارهٔ کد</button>
+            </form>
+        </div>
+    }
+
+    if (Model.Mode == "eta")
+    {
+        <div class="stats">
+            <div class="stat p"><div class="l"><i class="bi bi-stopwatch"></i> رسیدن تقریبی</div><div class="v" style="font-size:18px">@etaText</div>@if (etaSub.Length > 0) { <div class="muted small">@etaSub</div> }</div>
+            <div class="stat s"><div class="l"><i class="bi bi-signpost-2"></i> مسافت باقی‌مانده</div><div class="v">@(Model.RemainingKm is double rk && !isDone ? Fa.N(rk) : "—")<small>کیلومتر</small></div></div>
+            <div class="stat i"><div class="l"><i class="bi bi-speedometer"></i> آخرین سرعت</div><div class="v">@(Model.SpeedKmh is double sp ? Fa.N(sp) : "—")<small>کیلومتر بر ساعت</small></div></div>
+            <div class="stat t"><div class="l"><i class="bi bi-geo-alt"></i> آخرین موقعیت</div><div class="v" style="font-size:18px">@(trip.LastPointAt is DateTime lpb ? Fa.Ago(lpb) : "—")</div></div>
+        </div>
+        <div class="alert2 info"><i class="bi bi-info-circle"></i><div class="grow">زمان رسیدن از مسافت جاده‌ای باقی‌مانده تا مقصد و سرعت فعلی خودرو (یا میانگین سرعت کامیون) برآورد می‌شود و با هر نقطهٔ تازهٔ GPS به‌روز می‌شود. توقف‌های بین راه در آن دیده نمی‌شود.</div></div>
+    }
+    else
+    {
+        <div class="stats">
+            <div class="stat p"><div class="l"><i class="bi bi-activity"></i> وضعیت</div><div class="v" style="font-size:18px">@TripStatus.Label(trip.Status)</div></div>
+            <div class="stat t"><div class="l"><i class="bi bi-geo-alt"></i> آخرین موقعیت</div><div class="v" style="font-size:18px">@(trip.LastPointAt is DateTime lpc ? Fa.Ago(lpc) : "—")</div></div>
+            <div class="stat s"><div class="l"><i class="bi bi-signpost-2"></i> طی‌شده</div><div class="v">@(trip.TravelledKm > 0 ? Fa.N(trip.TravelledKm) : "—")<small>@(trip.PlannedKm is double pkm ? $"از {Fa.N(pkm)} کیلومتر" : "کیلومتر")</small></div></div>
+            <div class="stat i"><div class="l"><i class="bi bi-stopwatch"></i> رسیدن تقریبی</div><div class="v" style="font-size:18px">@etaText</div></div>
+        </div>
+    }
+
+    if (Model.Mode == "status")
+    {
+        <div class="card2">
+            <div class="bd"><partial name="_TripSteps" model="trip" /></div>
+        </div>
+        <div class="card2">
+            <div class="hd"><i class="bi bi-activity"></i> رویدادهای سفر <span class="end muted small">@Fa.N(Model.Events.Count) رویداد</span></div>
+            <div class="bd"><partial name="_TripEvents" model="Model.Events" /></div>
+        </div>
+    }
+
+    <div class="grid-side" style="margin-top:18px">
+        <div>
+            @if (hasGeo)
+            {
+                <div class="map @(Model.Mode == "route" ? "tall" : Model.Mode == "status" ? "short" : "")" data-map="@Model.MapJson"></div>
+                <p class="muted small" style="margin-top:8px">
+                    @if (Model.PointCount > 0)
+                    {
+                        <text>@Fa.N(Model.PointCount) نقطهٔ GPS برای این سفر ثبت شده است. </text>
+                    }
+                    else
+                    {
+                        <text>هنوز نقطهٔ GPS برای این سفر ثبت نشده است؛ مسیر پس از حرکت راننده و روشن شدن اشتراک موقعیت رسم می‌شود. </text>
+                    }
+                    @if (isLive)
+                    {
+                        <a href="@Context.Request.Path@Context.Request.QueryString"><i class="bi bi-arrow-clockwise"></i> به‌روزرسانی نقشه</a>
+                    }
+                </p>
+            }
+            else
+            {
+                <div class="card2"><div class="empty-state"><i class="bi bi-geo"></i><b>مختصاتی برای نمایش روی نقشه نیست</b>مبدا و مقصد این بار روی نقشه مشخص نشده و راننده هنوز موقعیتی نفرستاده است.</div></div>
+            }
+        </div>
+
+        <div class="stack">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-info-circle"></i> سفر <span class="num">@trip.Code</span> <span class="end">@Ui.TripPill(trip.Status)</span></div>
+                <div class="bd">
+                    <div class="kvrow"><span>مسیر</span><b>@Ui.Route(tl.OriginCity?.Name, tl.DestCity?.Name)</b></div>
+                    <div class="kvrow"><span>بار</span><b>@tl.Title</b></div>
+                    <div class="kvrow"><span>آخرین سرعت</span><b>@(Model.SpeedKmh is double spd ? Fa.N(spd) + " کیلومتر بر ساعت" : "—")</b></div>
+                    <div class="kvrow"><span>مسافت باقی‌مانده</span><b>@(Model.RemainingKm is double rkm && !isDone && !isCancelled ? "حدود " + Fa.N(rkm) + " کیلومتر" : "—")</b></div>
+                    @if (trip.Status == TripStatus.InTransit && trip.EtaAt is DateTime etx)
+                    {
+                        <div class="kvrow"><span>رسیدن تقریبی</span><b>@Fa.Stamp(etx)</b></div>
+                    }
+                    @if (isDone)
+                    {
+                        <div class="kvrow"><span>تحویل</span><b>@Fa.Stamp(trip.DeliveredAt)</b></div>
+                    }
+                    @if (isCancelled)
+                    {
+                        <div class="kvrow"><span>لغو</span><b>@Fa.Stamp(trip.CancelledAt)</b></div>
+                    }
+                </div>
+            </div>
+
+            <div class="card2">
+                <div class="hd"><i class="bi bi-person-badge"></i> حمل‌کننده</div>
+                <div class="bd">
+                    @if (trip.Company is { } tco)
+                    {
+                        <div class="kvrow"><span>شرکت</span><b>@tco.Name</b></div>
+                        <div class="kvrow"><span>تلفن شرکت</span><b class="num"><a href="tel:@(tco.Phone ?? tco.Mobile)">@Fa.Digits(tco.Phone ?? tco.Mobile)</a></b></div>
+                    }
+                    @if (trip.Driver is { } tdr)
+                    {
+                        <div class="kvrow"><span>راننده</span><b>@tdr.FullName</b></div>
+                        <div class="kvrow"><span>موبایل راننده</span><b class="num"><a href="tel:@tdr.Mobile">@Fa.Digits(tdr.Mobile)</a></b></div>
+                    }
+                    else
+                    {
+                        <div class="kvrow"><span>راننده</span><b class="chip">هنوز تعیین نشده</b></div>
+                    }
+                    @if (trip.Vehicle is { } tve)
+                    {
+                        <div class="kvrow"><span>خودرو</span><b><span class="plate">@tve.PlateNo</span></b></div>
+                        <div class="kvrow"><span>نوع</span><b>@(tve.VehicleType?.Name ?? "—") · @ShipperUi.Ton(tve.CapacityTon)</b></div>
+                    }
+                    else
+                    {
+                        <div class="kvrow"><span>خودرو</span><b class="chip">هنوز تعیین نشده</b></div>
+                    }
+                    <div class="form-actions" style="margin-top:12px">
+                        <a class="btn2 ghost sm" href="@Url.Action("Thread", "Messages", new { key = "trip:" + trip.TripId })"><i class="bi bi-chat-dots"></i> پیام به حمل‌کننده</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card2">
+                <div class="hd"><i class="bi bi-link-45deg"></i> پیوند رهگیری برای گیرنده</div>
+                <div class="bd">
+                    @if (isCancelled)
+                    {
+                        <p class="muted small" style="margin:0">این سفر لغو شده و پیوند رهگیری آن دیگر موقعیتی نشان نمی‌دهد.</p>
+                    }
+                    else
+                    {
+                        <div class="fld">
+                            <input readonly dir="ltr" value="@Model.ShareUrl" id="track-url" />
+                            <span class="hint">این پیوند را برای گیرنده بفرستید تا بدون ورود به بارگو، مراحل سفر و محل خودرو را ببیند. اطلاعات مالی و تماس در آن نمایش داده نمی‌شود.</span>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn2 soft sm" id="track-copy"><i class="bi bi-clipboard"></i> کپی پیوند</button>
+                            <a class="btn2 ghost sm" href="@Model.ShareUrl" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> باز کردن</a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    if (Model.Mode != "status")
+    {
+        <div class="grid2" style="margin-top:18px">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-signpost-split"></i> مراحل سفر</div>
+                <div class="bd"><partial name="_TripSteps" model="trip" /></div>
+            </div>
+            <div class="card2">
+                <div class="hd"><i class="bi bi-activity"></i> رویدادهای سفر <span class="end muted small">@Fa.N(Model.Events.Count) رویداد</span></div>
+                <div class="bd"><partial name="_TripEvents" model="Model.Events" /></div>
+            </div>
+        </div>
+    }
+}
+
+@section Scripts {
+    <partial name="_MapAssets" />
+    <script>
+        (function () {
+            var btn = document.getElementById('track-copy'), box = document.getElementById('track-url');
+            if (!btn || !box) return;
+            btn.addEventListener('click', function () {
+                var done = function () { btn.innerHTML = '<i class="bi bi-check2"></i> کپی شد'; };
+                var legacy = function () { box.select(); document.execCommand('copy'); done(); };
+                if (navigator.clipboard) navigator.clipboard.writeText(box.value).then(done, legacy);
+                else legacy();
+            });
+        })();
+    </script>
+}

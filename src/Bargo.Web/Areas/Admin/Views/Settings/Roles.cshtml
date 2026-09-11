@@ -1,0 +1,161 @@
+@model RolesVm
+@{
+    var e = Model.Edit;
+    var isSelf = e is not null && e.AdminId == Model.MeId;
+    var editSuper = e?.IsSuper ?? false;
+    var lockedByRole = !Model.MeSuper && editSuper;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-shield-lock"></i> نقش‌ها و دسترسی‌ها</h1>
+        <p>مدیر ارشد همهٔ اختیارات را دارد؛ اپراتورها فقط بخش‌های تیک‌خورده را می‌بینند. تغییر دسترسی بی‌درنگ اثر می‌کند.</p>
+    </div>
+    <div class="actions">
+        @if (e is not null)
+        {
+            <a class="btn2 pri" asp-action="Roles"><i class="bi bi-person-plus"></i> مدیر تازه</a>
+        }
+    </div>
+</div>
+
+@if (Model.ActiveSupers <= 1)
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-triangle"></i><div class="grow">فقط <b>یک</b> مدیر ارشد فعال وجود دارد. برای این‌که قفل نشوید، مدیر ارشد دومی تعریف کنید.</div></div>
+}
+@if (!Model.MeSuper)
+{
+    <div class="alert2 info"><i class="bi bi-info-circle"></i><div class="grow">شما مدیر ارشد نیستید: می‌توانید اپراتور بسازید و دسترسی بدهید، اما تعریف مدیر ارشد و تفویض «تنظیمات» فقط با مدیر ارشد است.</div></div>
+}
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-people"></i> مدیران <span class="end muted small">@Fa.N(Model.Rows.Count) نفر · @Fa.N(Model.ActiveSupers) مدیر ارشد فعال</span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>مدیر</th><th>نقش و دسترسی</th><th>وضعیت</th><th>آخرین ورود</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var a in Model.Rows)
+                {
+                    <tr style="@(e?.AdminId == a.AdminId ? "background:var(--primary-soft)" : "")">
+                        <td>
+                            <b>@a.Name</b>@if (a.AdminId == Model.MeId) { <span class="chip" style="margin-inline-start:6px">شما</span> }
+                            <span class="sub num">@a.Mobile</span>
+                        </td>
+                        <td>
+                            @if (a.IsSuper)
+                            {
+                                @Ui.Pill("مدیر ارشد", "inf")
+                            }
+                            else
+                            {
+                                var labels = AdminPermissionLabels.All.Where(p => a.Permissions.HasFlag(p.Flag)).Select(p => p.Label).ToList();
+                                if (labels.Count == 0)
+                                {
+                                    <span class="muted small">بدون دسترسی</span>
+                                }
+                                else
+                                {
+                                    <div class="row-actions" style="gap:4px">
+                                        @foreach (var lbl in labels)
+                                        {
+                                            <span class="chip">@lbl</span>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </td>
+                        <td>@(a.IsActive ? Ui.Pill("فعال", "ok") : Ui.Pill("غیرفعال", "no"))</td>
+                        <td class="nowrap small">@(a.LastLoginAt is DateTime l ? Fa.Ago(l) : "هرگز")</td>
+                        <td>
+                            <div class="row-actions">
+                                <a class="btn2 sm soft" asp-action="Roles" asp-route-edit="@a.AdminId"><i class="bi bi-pencil"></i> ویرایش</a>
+                                @if (a.AdminId != Model.MeId && (Model.MeSuper || !a.IsSuper))
+                                {
+                                    <form method="post" asp-action="ToggleAdmin" asp-route-id="@a.AdminId" data-confirm="@(a.IsActive ? $"«{a.Name}» غیرفعال شود و از پنل بیرون بیفتد؟" : $"«{a.Name}» دوباره فعال شود؟")">
+                                        <button class="btn2 sm ghost" title="@(a.IsActive ? "غیرفعال‌سازی" : "فعال‌سازی")"><i class="bi @(a.IsActive ? "bi-person-slash" : "bi-person-check")"></i></button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Rows.Count == 0)
+                {
+                    <tr><td colspan="5" class="empty"><i class="bi bi-people"></i>هنوز مدیری تعریف نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi @(e is null ? "bi-person-plus" : "bi-pencil-square")"></i> @(e is null ? "مدیر تازه" : "ویرایش " + e.Name)</div>
+            <div class="bd">
+                @if (lockedByRole)
+                {
+                    <div class="alert2 warn"><i class="bi bi-lock"></i><div class="grow">این مدیر ارشد است و فقط مدیر ارشد دیگری می‌تواند ویرایشش کند.</div></div>
+                }
+                <form method="post" asp-action="SaveAdmin">
+                    @if (e is not null)
+                    {
+                        <input type="hidden" name="id" value="@e.AdminId" />
+                    }
+                    <div class="stack" style="gap:12px">
+                        <div class="fld"><label>نام <span class="req">*</span></label><input name="name" value="@e?.Name" maxlength="100" required /></div>
+                        <div class="fld"><label>موبایل (نام کاربری) <span class="req">*</span></label><input name="mobile" value="@e?.Mobile" dir="ltr" inputmode="numeric" required placeholder="09xxxxxxxxx" /></div>
+                        @if (e is null)
+                        {
+                            <div class="fld"><label>گذرواژه <span class="req">*</span></label><input name="password" type="password" minlength="8" required autocomplete="new-password" /><span class="hint">دست‌کم ۸ نویسه؛ به مدیر تازه بدهید تا پس از ورود عوضش کند.</span></div>
+                        }
+                        @if (Model.MeSuper)
+                        {
+                            <label class="check"><input type="checkbox" name="isSuper" value="true" checked="@editSuper" disabled="@isSelf" /><input type="hidden" name="isSuper" value="false" /> مدیر ارشد (همهٔ اختیارات)</label>
+                        }
+                        <div class="fld">
+                            <label>دسترسی‌ها</label>
+                            <div class="stack" style="gap:6px">
+                                @foreach (var (flag, label) in AdminPermissionLabels.All)
+                                {
+                                    var granted = editSuper || (e?.Permissions.HasFlag(flag) ?? false);
+                                    var canGrant = Model.MeSuper || flag != AdminPermission.Settings;
+                                    <label class="check"><input type="checkbox" name="perms" value="@((int)flag)" checked="@granted" disabled="@(!canGrant && !granted)" /> @label@if (flag == AdminPermission.Settings) { <span class="muted small"> — شامل همین صفحه</span> }</label>
+                                }
+                            </div>
+                            <span class="hint">اگر «مدیر ارشد» تیک بخورد، این فهرست نادیده گرفته می‌شود.</span>
+                        </div>
+                        @if (!isSelf)
+                        {
+                            <label class="check"><input type="checkbox" name="isActive" value="true" checked="@(e?.IsActive ?? true)" /><input type="hidden" name="isActive" value="false" /> فعال</label>
+                        }
+                        else
+                        {
+                            <span class="hint"><i class="bi bi-lock"></i> نقش و وضعیت حساب خودتان از اینجا تغییر نمی‌کند.</span>
+                        }
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn2 pri" disabled="@lockedByRole"><i class="bi bi-check2"></i> ذخیره</button>
+                        @if (e is not null)
+                        {
+                            <a class="btn2 ghost" asp-action="Roles">انصراف</a>
+                        }
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        @if (e is not null && !lockedByRole)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-key"></i> بازنشانی گذرواژه</div>
+                <div class="bd">
+                    <form method="post" asp-action="ResetPassword" data-confirm="گذرواژهٔ «@e.Name» عوض شود؟">
+                        <input type="hidden" name="id" value="@e.AdminId" />
+                        <div class="fld"><label>گذرواژهٔ تازه</label><input name="password" type="password" minlength="8" required autocomplete="new-password" /><span class="hint">دست‌کم ۸ نویسه. نشست‌های فعلی این مدیر بسته نمی‌شود.</span></div>
+                        <div class="form-actions"><button class="btn2 ghost"><i class="bi bi-arrow-repeat"></i> تغییر گذرواژه</button></div>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+</div>

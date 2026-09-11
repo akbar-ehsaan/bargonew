@@ -1,0 +1,123 @@
+@model VehiclePageVm
+@{
+    var f = Model.Form;
+    var canAdd = (bool)ViewBag.CanAdd;
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-truck-front"></i> مشخصات خودرو</h1><p>خودرویی که با آن بار می‌گیرید. پس از ثبت، مدارک آن را بارگذاری کنید تا مدیر تأییدش کند؛ فقط با خودروی تأییدشده و فعال می‌توانید پیشنهاد قیمت بدهید.</p></div>
+    <div class="actions">
+        @if (Model.Editing)
+        {
+            <a class="btn2 ghost" asp-action="Index"><i class="bi bi-plus-lg"></i> ثبت خودروی تازه</a>
+        }
+        <a class="btn2 ghost" asp-action="Alerts"><i class="bi bi-alarm"></i> هشدار انقضا</a>
+    </div>
+</div>
+
+@if (Model.CompanyName is not null)
+{
+    <div class="alert2 info"><i class="bi bi-building"></i><div class="grow">شما عضو شرکت <b>@Model.CompanyName</b> هستید. خودروی شرکتی را شرکت هنگام تخصیص سفر تعیین می‌کند؛ اینجا فقط خودروی شخصی‌تان را برای گرفتن بار مستقل ثبت کنید.</div></div>
+}
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-truck"></i> خودروهای من <span class="end muted small">@Fa.N(Model.Vehicles.Count) خودرو</span></div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>پلاک</th><th>نوع و مدل</th><th>ظرفیت</th><th>وضعیت</th><th>تأیید مدیر</th><th>مدارک</th><th>بیمه</th><th>معاینه فنی</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Vehicles)
+            {
+                var v = r.Vehicle;
+                <tr>
+                    <td><span class="plate">@v.PlateNo</span>@if (r.InLiveTrip) { <span class="sub"><i class="bi bi-broadcast"></i> در سفر زنده</span> }</td>
+                    <td><b>@(v.VehicleType?.Name ?? "—")</b><span class="sub">@(string.Join(" · ", new[] { v.Brand, v.Model, v.Year is int y ? Fa.N(y) : null }.Where(s => !string.IsNullOrEmpty(s))))</span></td>
+                    <td class="num">@Fa.N(v.CapacityTon, 1) تن</td>
+                    <td>@Ui.VehiclePill(v.Status)</td>
+                    <td>@Ui.AccountPill(v.VerifyStatus)</td>
+                    <td><a class="lnk" asp-action="Documents" asp-route-kind="@DocumentKind.VehicleCard" asp-route-vehicleId="@v.VehicleId">@Fa.N(r.ApprovedDocs) تأیید</a>@if (r.PendingDocs > 0) { <span class="sub">@Fa.N(r.PendingDocs) در انتظار</span> }</td>
+                    <td>@Ui.Expiry(v.InsuranceExpiresAt, Model.WarnDays)</td>
+                    <td>@Ui.Expiry(v.InspectionExpiresAt, Model.WarnDays)</td>
+                    <td>
+                        <div class="row-actions">
+                            <a class="btn2 ghost sm" asp-action="Index" asp-route-edit="@v.VehicleId"><i class="bi bi-pencil"></i> ویرایش</a>
+                            @if (v.Status != VehicleStatus.Suspended)
+                            {
+                                <form method="post" asp-action="SetStatus" asp-route-id="@v.VehicleId" class="inline" style="display:inline-flex;gap:4px">
+                                    <select name="status" class="btn2 ghost sm" style="padding-inline:8px">
+                                        <option value="@VehicleStatus.Active" selected="@(v.Status == VehicleStatus.Active)">فعال</option>
+                                        <option value="@VehicleStatus.Inactive" selected="@(v.Status == VehicleStatus.Inactive)">غیرفعال</option>
+                                        <option value="@VehicleStatus.Maintenance" selected="@(v.Status == VehicleStatus.Maintenance)">در تعمیر</option>
+                                    </select>
+                                    <button class="btn2 soft sm"><i class="bi bi-check2"></i></button>
+                                </form>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Vehicles.Count == 0)
+            {
+                <tr><td colspan="9" class="empty"><i class="bi bi-truck-front"></i>هنوز خودرویی ثبت نکرده‌اید. در فرم پایین مشخصات خودرو را وارد کنید.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.Editing || canAdd)
+{
+    <div class="card2">
+        <div class="hd"><i class="bi @(Model.Editing ? "bi-pencil-square" : "bi-plus-square")"></i> @(Model.Editing ? $"ویرایش خودروی {f.PlateNo}" : "ثبت خودروی تازه")</div>
+        <div class="bd">
+            @if (Model.Editing)
+            {
+                <div class="alert2 warn"><i class="bi bi-exclamation-triangle"></i><div class="grow">تغییر پلاک یا نوع خودرو، تأیید مدیر را پس می‌گیرد و خودرو تا بررسی دوباره از پیشنهاد قیمت خارج می‌شود.</div></div>
+            }
+            <form method="post" asp-action="Save">
+                <input type="hidden" name="VehicleId" value="@f.VehicleId" />
+                <div class="form-grid cols3">
+                    <div class="fld">
+                        <label>نوع خودرو <span class="req">*</span></label>
+                        <select name="VehicleTypeId" required>
+                            <option value="">انتخاب کنید</option>
+                            @foreach (var t in Model.Types)
+                            {
+                                <option value="@t.VehicleTypeId" selected="@(t.VehicleTypeId == f.VehicleTypeId)">@(t.Name + (t.BodyKind is null ? "" : $" — {t.BodyKind}"))</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld">
+                        <label>شمارهٔ پلاک <span class="req">*</span></label>
+                        <input name="PlateNo" value="@f.PlateNo" maxlength="30" required placeholder="۱۲ ع ۳۴۵ ایران ۶۷" />
+                        <span class="hint">همان‌طور که روی پلاک نوشته شده، با فاصله</span>
+                    </div>
+                    <div class="fld">
+                        <label>ظرفیت بارگیری (تن) <span class="req">*</span></label>
+                        <input name="CapacityTon" type="number" step="0.5" min="0.5" max="100" value="@(f.CapacityTon?.ToString(System.Globalization.CultureInfo.InvariantCulture))" required dir="ltr" />
+                    </div>
+                    <div class="fld"><label>برند</label><input name="Brand" value="@f.Brand" maxlength="40" placeholder="مثلاً ولوو، بنز، هیوندای" /></div>
+                    <div class="fld"><label>مدل</label><input name="Model" value="@f.Model" maxlength="40" placeholder="مثلاً FH500" /></div>
+                    <div class="fld"><label>سال ساخت (شمسی)</label><input name="Year" type="number" min="1340" max="1500" value="@f.Year" dir="ltr" placeholder="۱۳۹۸" /></div>
+
+                    <div class="form-sec"><i class="bi bi-file-earmark-text"></i> مدارک خودرو</div>
+                    <div class="fld"><label>شمارهٔ کارت خودرو</label><input name="VehicleCardNo" value="@f.VehicleCardNo" maxlength="30" dir="ltr" /></div>
+                    <div class="fld"><label>شمارهٔ بیمه‌نامه</label><input name="InsurancePolicyNo" value="@f.InsurancePolicyNo" maxlength="30" dir="ltr" /></div>
+                    <div class="fld"><label>انقضای بیمه‌نامه</label><input name="InsuranceExpiresAt" data-jdate value="@Fa.DateBox(f.InsuranceExpiresAt)" placeholder="۱۴۰۵/۰۶/۲۱" /></div>
+                    <div class="fld"><label>انقضای معاینه فنی</label><input name="InspectionExpiresAt" data-jdate value="@Fa.DateBox(f.InspectionExpiresAt)" placeholder="۱۴۰۵/۰۶/۲۱" /></div>
+                    <div class="fld full"><span class="hint">شماره‌ها و تاریخ‌ها با بارگذاری مدرک در «کارت خودرو»، «بیمه» و «معاینه فنی» هم به‌روز می‌شوند. برای تأیید خودرو، تصویر هر سه مدرک لازم است.</span></div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn2 pri"><i class="bi bi-check2"></i> @(Model.Editing ? "ذخیرهٔ تغییرات" : "ثبت خودرو")</button>
+                    @if (Model.Editing)
+                    {
+                        <a class="btn2 ghost" asp-action="Index">انصراف</a>
+                    }
+                </div>
+            </form>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert2 info"><i class="bi bi-info-circle"></i><div class="grow">به سقف تعداد خودرو رسیده‌اید. برای ثبت خودروی تازه یکی از خودروهای قبلی را ویرایش کنید.</div></div>
+}

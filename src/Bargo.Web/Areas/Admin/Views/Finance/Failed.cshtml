@@ -1,0 +1,73 @@
+@model FailedPaymentsVm
+@{
+    string PurposeLabel(string p) => p switch { "charge" => "شارژ کیف پول", "fare" => "کرایهٔ سفر", "subscription" => "اشتراک", _ => p };
+    string MethodLabel(string m) => m switch { "gateway" => "درگاه", "wallet" => "کیف پول", "manual" => "دستی", _ => m };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-x-octagon"></i> پرداخت‌های ناموفق</h1>
+        <p>پرداخت ناموفق هیچ اثری روی کیف پول ندارد؛ این فهرست برای پیگیری مشکل درگاه و تماس با کاربر است.</p>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat r"><div class="l"><i class="bi bi-calendar3"></i> ناموفق این ماه</div><div class="v">@Fa.N(Model.MonthCount)</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-cash"></i> مبلغ ناموفق این ماه</div><div class="v">@Fa.Toman(Model.MonthSum)</div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-infinity"></i> کل ناموفق‌ها</div><div class="v">@Fa.N(Model.AllCount)</div></div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Failed" class="@(Model.Purpose is null ? "on" : "")">همه</a>
+    <a asp-action="Failed" asp-route-purpose="charge" class="@(Model.Purpose == "charge" ? "on" : "")">شارژ کیف پول</a>
+    <a asp-action="Failed" asp-route-purpose="fare" class="@(Model.Purpose == "fare" ? "on" : "")">کرایهٔ سفر</a>
+    <a asp-action="Failed" asp-route-purpose="subscription" class="@(Model.Purpose == "subscription" ? "on" : "")">اشتراک</a>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>زمان</th><th>پرداخت‌کننده</th><th>مبلغ</th><th>بابت</th><th>روش</th><th>سفر</th><th>علت خطا</th></tr></thead>
+            <tbody>
+            @foreach (var p in Model.Page.Rows)
+            {
+                <tr>
+                    <td class="num">@Fa.N(p.PaymentId)</td>
+                    <td class="nowrap">@Fa.Stamp(p.CreatedAt)</td>
+                    <td><b>@Model.Names.Name(p.PayerKind, p.PayerId)</b><span class="sub">@OwnerKind.Label(p.PayerKind) · <span class="num">@Model.Names.Mobile(p.PayerKind, p.PayerId)</span></span></td>
+                    <td class="nowrap"><b>@Fa.Toman(p.Amount)</b></td>
+                    <td>@PurposeLabel(p.Purpose)</td>
+                    <td>
+                        @MethodLabel(p.Method)
+                        @if (!string.IsNullOrEmpty(p.Gateway))
+                        {
+                            <span class="sub">@p.Gateway</span>
+                        }
+                    </td>
+                    <td>
+                        @if (p.TripId is int tid)
+                        {
+                            <a class="lnk num" href="/Admin/Trips/Case/@tid">@(Model.TripCodes.GetValueOrDefault(tid) ?? "#" + tid)</a>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td class="small">
+                        @(p.FailReason ?? "—")
+                        @if (!string.IsNullOrEmpty(p.Authority))
+                        {
+                            <span class="sub num">Authority: @p.Authority</span>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-check2-circle"></i>پرداخت ناموفقی ثبت نشده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

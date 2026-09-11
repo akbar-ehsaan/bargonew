@@ -1,0 +1,8 @@
+@model ContentItem?
+@{
+    Layout = "_PublicLayout";
+}
+<div class="card2">
+    <div class="hd"><i class="bi bi-journal-text"></i> @(Model?.Title ?? "قوانین و مقررات")</div>
+    <div class="bd" style="white-space:pre-line;max-width:75ch">@(Model?.Body ?? "متن قوانین هنوز ثبت نشده است.")</div>
+</div>

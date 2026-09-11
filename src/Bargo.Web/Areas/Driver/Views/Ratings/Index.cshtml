@@ -1,0 +1,70 @@
+@model RatingsVm
+@{
+    var maxDist = Model.Dist.Max();
+    string Tone(int s) => s >= 4 ? "var(--ok)" : s == 3 ? "#d68a0c" : "var(--no)";
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-star-half"></i> امتیاز من</h1><p>صاحبان بار پس از تحویل به شما امتیاز ۱ تا ۵ می‌دهند. این امتیاز در صفحهٔ پیشنهاد شما به صاحب بار نشان داده می‌شود.</p></div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Reviews"><i class="bi bi-chat-quote"></i> همهٔ نظرات</a></div>
+</div>
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-star-fill"></i> میانگین امتیاز</div><div class="v">@(Model.Count == 0 ? "—" : Fa.N(Model.Avg, 1)) <small>از ۵</small></div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-people"></i> شمار امتیازها</div><div class="v">@Fa.N(Model.Count) <small>نظر</small></div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-chat-left-text"></i> با متن نظر</div><div class="v">@Fa.N(Model.WithComment)</div></div>
+    <a class="stat @(Model.AwaitingMyRating > 0 ? "w" : "s")" href="/Driver/Trips?tab=done"><div class="l"><i class="bi bi-star"></i> امتیاز شما به صاحبان بار</div><div class="v">@Fa.N(Model.GivenByMe) @if (Model.AwaitingMyRating > 0) { <small>@Fa.N(Model.AwaitingMyRating) سفر منتظر</small> }</div></a>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-chat-quote"></i> آخرین نظرها</div>
+        @if (Model.Recent.Count == 0)
+        {
+            <div class="empty-state"><i class="bi bi-star"></i><b>هنوز امتیازی نگرفته‌اید</b>پس از تحویل اولین بار، صاحب بار می‌تواند به شما امتیاز بدهد.</div>
+        }
+        else
+        {
+            <div class="bd">
+                @foreach (var r in Model.Recent)
+                {
+                    <div class="kvrow" style="flex-direction:column;align-items:stretch;gap:4px">
+                        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                            <span><span class="stars"><i class="bi bi-star-fill"></i> @Fa.N(r.Score)</span> · <b style="color:var(--ink)">@(r.FromName ?? OwnerKind.Label(r.FromKind))</b></span>
+                            <span class="small muted">@Fa.Date(r.CreatedAt) · <a class="lnk" href="/Driver/Trips/Detail/@r.TripId">@r.TripCode</a> @Ui.Route(r.From, r.To)</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(r.Comment))
+                        {
+                            <div style="color:var(--ink);font-weight:500;white-space:pre-line">@r.Comment</div>
+                        }
+                        else
+                        {
+                            <div class="muted small">بدون متن نظر</div>
+                        }
+                    </div>
+                }
+                <div class="form-actions"><a class="btn2 ghost sm" asp-action="Reviews">مشاهدهٔ همهٔ نظرات</a></div>
+            </div>
+        }
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-bar-chart-steps"></i> توزیع امتیازها</div>
+        <div class="bd">
+            @for (var s = 5; s >= 1; s--)
+            {
+                var n = Model.Dist[s];
+                var pct = maxDist == 0 ? 0 : (int)Math.Round(n * 100.0 / maxDist);
+                var share = Model.Count == 0 ? 0 : (int)Math.Round(n * 100.0 / Model.Count);
+                <div class="kvrow" style="align-items:center;gap:10px">
+                    <span class="nowrap" style="min-width:64px"><i class="bi bi-star-fill" style="color:#b7791f"></i> @Fa.N(s)</span>
+                    <div style="flex:1;height:10px;background:var(--mut-bg);border-radius:5px;overflow:hidden"><div style="width:@pct%;height:100%;background:@Tone(s)"></div></div>
+                    <b class="nowrap" style="min-width:76px;text-align:left">@Fa.N(n) <small class="muted">(@Fa.N(share)٪)</small></b>
+                </div>
+            }
+            @if (Model.Count == 0)
+            {
+                <p class="muted small" style="margin:10px 0 0">با اولین امتیاز، نمودار پر می‌شود.</p>
+            }
+        </div>
+    </div>
+</div>

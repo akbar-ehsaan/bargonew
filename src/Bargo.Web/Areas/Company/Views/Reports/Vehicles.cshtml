@@ -1,0 +1,86 @@
+@model List<VehiclePerfRow>
+@{
+    var active = Model.Where(x => x.Trips > 0).ToList();
+    var idle = Model.Where(x => x.Trips == 0).ToList();
+    var maxTrips = active.Count == 0 ? 0 : active.Max(x => x.Trips);
+    var maxRevenue = active.Count == 0 ? 0 : active.Max(x => x.Revenue);
+    var totalKm = Model.Sum(x => x.Km);
+    var totalTracked = Model.Sum(x => x.TrackedKm);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-truck"></i> عملکرد خودروها</h1>
+        <p>سفر، تحویل، کیلومتر (طی‌شده در سفر و رهگیری‌شدهٔ GPS) و درآمد هر خودرو در بازه؛ خودروهای بیکار جداگانه فهرست می‌شوند.</p>
+    </div>
+</div>
+
+<partial name="_ReportHead" />
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-truck"></i> خودروهای فعال</div><div class="v">@Fa.N(active.Count)<small>از @Fa.N(Model.Count)</small></div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-flag"></i> سفر تحویل‌شده</div><div class="v">@Fa.N(active.Sum(x => x.Done))</div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-signpost"></i> کیلومتر سفرها</div><div class="v">@Fa.N(totalKm)<small>km</small></div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-broadcast-pin"></i> کیلومتر رهگیری‌شده</div><div class="v">@Fa.N(totalTracked)<small>km</small></div></div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-bar-chart-steps"></i> رتبه‌بندی خودروها</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>پلاک</th><th>نوع</th><th>وضعیت</th><th style="width:16%">سفر</th><th>تحویل‌شده</th><th>کیلومتر سفر</th><th>کیلومتر GPS</th><th style="width:16%">سهم شرکت</th><th>آخرین سفر</th></tr></thead>
+            <tbody>
+            @foreach (var v in active)
+            {
+                <tr>
+                    <td data-label="پلاک"><span class="plate">@v.Plate</span>@if (!v.InCompany) { <span class="sub">دیگر متعلق به شرکت نیست</span> }</td>
+                    <td data-label="نوع">@v.Type</td>
+                    <td data-label="وضعیت">@Ui.VehiclePill(v.Status)</td>
+                    <td data-label="سفر">
+                        <div class="small"><b>@Fa.N(v.Trips)</b></div>
+                        <partial name="_Bar" model="new BarVm(v.Trips, maxTrips)" />
+                    </td>
+                    <td data-label="تحویل‌شده" class="num">@Fa.N(v.Done)</td>
+                    <td data-label="کیلومتر سفر" class="num">@Fa.N(v.Km)</td>
+                    <td data-label="کیلومتر GPS" class="num">@(v.TrackedKm == 0 ? "—" : Fa.N(v.TrackedKm))</td>
+                    <td data-label="سهم شرکت">
+                        <div class="small nowrap">@Fa.Toman(v.Revenue)</div>
+                        <partial name="_Bar" model='new BarVm(v.Revenue, maxRevenue, "var(--ok)")' />
+                    </td>
+                    <td data-label="آخرین سفر" class="nowrap">@Fa.Date(v.LastTripAt)@if (v.IdleDays is int d && d > 0) { <span class="sub">@Fa.N(d) روز پیش</span> }</td>
+                </tr>
+            }
+            @if (active.Count == 0)
+            {
+                <tr><td colspan="9" class="empty"><i class="bi bi-truck"></i>در این بازه هیچ خودرویی به سفری تخصیص نیافته است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (idle.Count > 0)
+{
+    <div class="card2">
+        <div class="hd"><i class="bi bi-truck-flatbed"></i> خودروهای بدون سفر در این بازه <span class="end">@Fa.N(idle.Count) خودرو</span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>پلاک</th><th>نوع</th><th>وضعیت</th><th>آخرین سفر</th><th>بیکاری</th></tr></thead>
+                <tbody>
+                @foreach (var v in idle.OrderByDescending(x => x.IdleDays ?? int.MaxValue))
+                {
+                    <tr>
+                        <td data-label="پلاک"><span class="plate">@v.Plate</span></td>
+                        <td data-label="نوع">@v.Type</td>
+                        <td data-label="وضعیت">@Ui.VehiclePill(v.Status)</td>
+                        <td data-label="آخرین سفر" class="nowrap">@Fa.Date(v.LastTripAt)</td>
+                        <td data-label="بیکاری">
+                            @if (v.IdleDays is int d) { @Ui.Pill($"{Fa.N(d)} روز", d > 30 ? "no" : d > 7 ? "wait" : "ok") }
+                            else { @Ui.Pill("هرگز سفری نداشته", "mut") }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

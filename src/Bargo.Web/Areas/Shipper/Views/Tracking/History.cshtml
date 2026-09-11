@@ -1,0 +1,87 @@
+@model ShipperTrackHistoryVm
+@{
+    var row = Model.Trip;
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-clock-history"></i> @ViewData["Title"]</h1>
+        <p>همهٔ نقاط GPS که اپ راننده در طول سفر فرستاده است — زمان، مختصات و سرعت خودرو.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index" asp-route-tripId="@row?.TripId"><i class="bi bi-geo-alt"></i> موقعیت خودرو</a>
+        <a class="btn2 ghost" asp-action="Index" asp-route-view="route" asp-route-tripId="@row?.TripId"><i class="bi bi-map"></i> مسیر روی نقشه</a>
+        @if (row is not null)
+        {
+            <a class="btn2 ghost" href="/Shipper/Orders/Detail/@row.TripId"><i class="bi bi-folder2-open"></i> پروندهٔ سفارش</a>
+        }
+    </div>
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="History" class="filters">
+        <div class="fld">
+            <label>سفر</label>
+            <select name="tripId" onchange="this.form.submit()">
+                @if (Model.Picker.Count == 0)
+                {
+                    <option value="">سفری با موقعیت ثبت‌شده ندارید</option>
+                }
+                @foreach (var opt in Model.Picker)
+                {
+                    <option value="@opt.TripId" selected="@(row?.TripId == opt.TripId)">@opt.Code — @opt.From به @opt.To · @TripStatus.Label(opt.Status)</option>
+                }
+            </select>
+        </div>
+        <div class="row-actions"><button type="submit" class="btn2 pri"><i class="bi bi-search"></i> نمایش</button></div>
+    </form>
+
+    @if (row is null)
+    {
+        <div class="empty-state">
+            <i class="bi bi-clock-history"></i>
+            <b>هنوز سابقهٔ موقعیتی ندارید</b>
+            از لحظه‌ای که رانندهٔ یکی از سفرهای شما حرکت کند و اشتراک موقعیت در اپ روشن باشد، نقاط مسیر این‌جا ذخیره می‌شود.
+        </div>
+    }
+    else
+    {
+        <div class="bd">
+            <div class="kvrow"><span>سفر</span><b><a class="num" href="/Shipper/Orders/Detail/@row.TripId">@row.Code</a> · @Ui.Route(row.From, row.To) · @Ui.TripPill(row.Status)</b></div>
+            <div class="kvrow"><span>حمل‌کننده</span><b>@row.Carrier @if (!string.IsNullOrEmpty(row.PlateNo)) { <span class="plate">@row.PlateNo</span> }</b></div>
+            <div class="kvrow"><span>بازهٔ ثبت</span><b>@Fa.Stamp(Model.FirstAt) تا @Fa.Stamp(Model.LastAt)</b></div>
+
+            <div class="stats" style="margin:14px 0 0">
+                <div class="stat p"><div class="l"><i class="bi bi-geo-alt"></i> نقاط</div><div class="v">@Fa.N(Model.Points.Total)<small>نقطه</small></div></div>
+                <div class="stat s"><div class="l"><i class="bi bi-signpost-2"></i> مسافت طی‌شده</div><div class="v">@(row.TravelledKm > 0 ? Fa.N(row.TravelledKm, 1) : "—")<small>کیلومتر</small></div></div>
+                <div class="stat i"><div class="l"><i class="bi bi-speedometer2"></i> میانگین سرعت</div><div class="v">@(Model.AvgSpeed is double avg ? Fa.N(avg) : "—")<small>km/h</small></div></div>
+                <div class="stat t"><div class="l"><i class="bi bi-speedometer"></i> بیشترین سرعت</div><div class="v">@(Model.MaxSpeed is double mx ? Fa.N(mx) : "—")<small>km/h</small></div></div>
+            </div>
+        </div>
+
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>زمان ثبت</th><th>مختصات</th><th>سرعت</th><th>دقت GPS</th><th>جابه‌جایی</th></tr></thead>
+                <tbody>
+                @foreach (var pt in Model.Points.Rows)
+                {
+                    var lat = pt.Lat.ToString("0.00000", inv);
+                    var lng = pt.Lng.ToString("0.00000", inv);
+                    <tr>
+                        <td class="nowrap" data-label="زمان ثبت">@Fa.Stamp(pt.RecordedAt)<span class="sub">@Fa.Ago(pt.RecordedAt)</span></td>
+                        <td class="num" dir="ltr" data-label="مختصات"><a href="https://www.openstreetmap.org/?mlat=@lat&mlon=@lng#map=15/@lat/@lng" target="_blank" rel="noopener">@lat, @lng</a></td>
+                        <td class="num" data-label="سرعت">@(pt.SpeedKmh is double s ? Fa.N(s) + " km/h" : "—")</td>
+                        <td class="num" data-label="دقت GPS">@(pt.AccuracyM is double a ? Fa.N(a) + " متر" : "—")</td>
+                        <td class="num" data-label="جابه‌جایی">@(pt.StepKm > 0 ? Fa.N(pt.StepKm, 2) + " کیلومتر" : "—")</td>
+                    </tr>
+                }
+                @if (Model.Points.Total == 0)
+                {
+                    <tr><td colspan="5" class="empty"><i class="bi bi-geo"></i>برای این سفر هنوز نقطه‌ای ثبت نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Points.Pager" />
+    }
+</div>

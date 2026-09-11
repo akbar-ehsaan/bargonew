@@ -1,0 +1,142 @@
+@model CompanyAccountForm
+@{
+    var status = (string)ViewBag.Status;
+    var approved = (bool)ViewBag.Approved;
+    var cities = (List<OpsCityOption>)ViewBag.Cities;
+    var checks = (List<CompanyDocCheck>)ViewBag.Checks;
+    var errors = ViewBag.Errors as List<string>;
+    var (ratingAvg, ratingCount) = ((double, int))ViewBag.Rating;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-building"></i> مشخصات شرکت</h1>
+        <p>این مشخصات در بارنامه‌ها، فاکتورها و برای صاحبان بار نمایش داده می‌شود.</p>
+    </div>
+    <div class="actions">@Ui.AccountPill(status)</div>
+</div>
+
+<partial name="_Tabs" />
+<partial name="_Status" />
+
+@if (errors is { Count: > 0 })
+{
+    <div class="alert2 err" role="alert"><i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            <ul style="margin:0;padding-inline-start:18px">
+                @foreach (var e in errors) { <li>@e</li> }
+            </ul>
+        </div>
+    </div>
+}
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="bd">
+            <form method="post" asp-action="Index">
+                <div class="form-grid">
+                    <div class="form-sec"><i class="bi bi-building"></i> هویت شرکت</div>
+                    <div class="fld">
+                        <label>نام شرکت <span class="req">*</span></label>
+                        <input name="Name" value="@Model.Name" maxlength="150" required />
+                    </div>
+                    <div class="fld">
+                        <label>شناسهٔ ملی <span class="req">*</span></label>
+                        @if (approved)
+                        {
+                            <input value="@Fa.Digits(Model.NationalId)" dir="ltr" readonly style="background:#f5f7f9" />
+                            <span class="hint">پس از تأیید شرکت، شناسهٔ ملی قفل است. برای اصلاح با پشتیبانی تماس بگیرید.</span>
+                        }
+                        else
+                        {
+                            <input name="NationalId" value="@Model.NationalId" dir="ltr" inputmode="numeric" maxlength="11" required />
+                            <span class="hint">۱۱ رقم — مطابق آگهی تأسیس.</span>
+                        }
+                    </div>
+                    <div class="fld">
+                        <label>شمارهٔ ثبت</label>
+                        <input name="RegistrationNo" value="@Model.RegistrationNo" dir="ltr" inputmode="numeric" maxlength="30" />
+                    </div>
+                    <div class="fld"></div>
+
+                    <div class="form-sec"><i class="bi bi-person-badge"></i> مدیرعامل</div>
+                    <div class="fld">
+                        <label>نام مدیرعامل <span class="req">*</span></label>
+                        <input name="ManagerName" value="@Model.ManagerName" maxlength="100" required />
+                    </div>
+                    <div class="fld">
+                        <label>کد ملی مدیرعامل</label>
+                        <input name="ManagerNationalCode" value="@Model.ManagerNationalCode" dir="ltr" inputmode="numeric" maxlength="10" />
+                        <span class="hint">با کارت ملی بارگذاری‌شده در «مدارک» تطبیق داده می‌شود.</span>
+                    </div>
+
+                    <div class="form-sec"><i class="bi bi-telephone"></i> تماس</div>
+                    <div class="fld">
+                        <label>موبایل شرکت <span class="req">*</span></label>
+                        <input name="Mobile" value="@Model.Mobile" dir="ltr" inputmode="numeric" maxlength="13" required />
+                        <span class="hint">پیامک‌های سامانه به این شماره می‌رود. شمارهٔ ورودِ کاربران جداست.</span>
+                    </div>
+                    <div class="fld">
+                        <label>تلفن ثابت</label>
+                        <input name="Phone" value="@Model.Phone" dir="ltr" inputmode="tel" maxlength="20" placeholder="۰۲۱xxxxxxxx" />
+                    </div>
+                    <div class="fld">
+                        <label>ایمیل</label>
+                        <input name="Email" value="@Model.Email" dir="ltr" type="email" maxlength="120" />
+                    </div>
+                    <div class="fld">
+                        <label>شهر</label>
+                        <select name="CityId">
+                            <option value="">انتخاب کنید</option>
+                            @foreach (var g in cities.GroupBy(c => c.Province))
+                            {
+                                <optgroup label="@g.Key">
+                                    @foreach (var c in g)
+                                    {
+                                        <option value="@c.CityId" selected="@(Model.CityId == c.CityId)">@c.Name</option>
+                                    }
+                                </optgroup>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld full">
+                        <label>نشانی دفتر</label>
+                        <textarea name="Address" rows="3" maxlength="500">@Model.Address</textarea>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn2 pri"><i class="bi bi-check2"></i> ذخیرهٔ مشخصات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-patch-check"></i> وضعیت حساب</div>
+            <div class="bd">
+                <div class="kvrow"><span>وضعیت</span>@Ui.AccountPill(status)</div>
+                <div class="kvrow"><span>تاریخ عضویت</span><b>@Fa.Date((DateTime)ViewBag.CreatedAt)</b></div>
+                <div class="kvrow"><span>تاریخ تأیید</span><b>@Fa.Date(ViewBag.ApprovedAt as DateTime?)</b></div>
+                <div class="kvrow"><span>کاربران فعال</span><b>@Fa.N((int)ViewBag.UserCount)</b></div>
+                <div class="kvrow"><span>امتیاز شرکت</span>@Ui.Stars(ratingAvg, ratingCount)</div>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-folder2-open"></i> مدارک الزامی <a class="end lnk" asp-action="Documents">مدیریت مدارک</a></div>
+            <div class="bd">
+                @foreach (var k in checks)
+                {
+                    <div class="kvrow">
+                        <span>@(k.Label + (k.Kind == DocumentKind.NationalCard ? " مدیرعامل" : ""))</span>
+                        @Ui.Pill(k.StateLabel, k.Tone)
+                    </div>
+                }
+                @if (checks.All(k => k.State == "approved"))
+                {
+                    <p class="muted small" style="margin:10px 0 0"><i class="bi bi-check-circle"></i> همهٔ مدارک تأیید شده است.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>

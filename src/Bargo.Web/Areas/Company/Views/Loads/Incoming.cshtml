@@ -1,0 +1,98 @@
+@model OpsIncomingVm
+@{
+    (string Key, string Label)[] filters =
+    [
+        (OfferStatus.Pending, "در انتظار پاسخ"),
+        (OfferStatus.Accepted, "پذیرفته‌شده"),
+        (OfferStatus.Rejected, "ردشده"),
+        (OfferStatus.Withdrawn, "پس‌گرفته"),
+        ("all", "همه")
+    ];
+    int CountOf(string k) => k == "all" ? Model.OfferCounts.Values.Sum() : Model.OfferCounts.GetValueOrDefault(k);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-inbox"></i> بارهای دریافتی</h1>
+        <p>درخواست‌هایی که صاحبان بار مستقیماً برای شرکت فرستاده‌اند و پیشنهادهایی که شرکت روی بارهای بازار داده است.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Market"><i class="bi bi-shop"></i> بازار بار</a>
+    </div>
+</div>
+
+<div class="sec-title"><i class="bi bi-envelope-paper"></i> درخواست‌های مستقیم (@Fa.N(Model.Requests.Count))</div>
+@if (Model.Requests.Count == 0)
+{
+    <div class="card2">
+        <div class="empty-state"><i class="bi bi-envelope-open"></i><b>درخواست مستقیمی در انتظار نیست</b>صاحبان بار می‌توانند از صفحهٔ شرکت، بار را مستقیم برای شما بفرستند.</div>
+    </div>
+}
+else
+{
+    <div class="loads">
+        @foreach (var c in Model.Requests)
+        {
+            <partial name="_LoadCard" model="c" />
+        }
+    </div>
+}
+
+<div class="sec-title"><i class="bi bi-tags"></i> پیشنهادهای شرکت</div>
+<div class="tabs">
+    @foreach (var f in filters)
+    {
+        <a asp-action="Incoming" asp-route-offers="@f.Key" class="@(Model.StatusFilter == f.Key ? "on" : "")">@f.Label <span class="n">@Fa.N(CountOf(f.Key))</span></a>
+    }
+</div>
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>بار</th><th>مسیر</th><th>بارگیری</th><th>مبلغ پیشنهاد</th><th>رسیدن به مبدا</th><th>خودرو</th><th>وضعیت</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var o in Model.Offers.Rows)
+            {
+                var l = o.Load!;
+                <tr data-href="/Company/Loads/Detail/@l.LoadId">
+                    <td><a class="lnk" href="/Company/Loads/Detail/@l.LoadId">@l.Title</a><span class="sub num">@l.Code · @Fa.Ago(o.CreatedAt)</span></td>
+                    <td>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</td>
+                    <td class="nowrap">@Fa.Stamp(l.LoadingFrom)</td>
+                    <td class="num"><b>@Fa.Toman(o.Amount)</b></td>
+                    <td>@OpsLabels.Hours(o.EtaHours)</td>
+                    <td>
+                        @if (o.Vehicle is not null)
+                        {
+                            <span class="plate">@o.Vehicle.PlateNo</span>
+                        }
+                        else
+                        {
+                            <span class="muted">هنگام تخصیص</span>
+                        }
+                    </td>
+                    <td>@Ui.OfferPill(o.Status)</td>
+                    <td>
+                        <div class="row-actions">
+                            @if (o.Status == OfferStatus.Pending)
+                            {
+                                <form method="post" asp-action="Withdraw" class="inline" data-confirm="پیشنهاد پس گرفته شود؟">
+                                    <input type="hidden" name="offerId" value="@o.OfferId" />
+                                    <input type="hidden" name="back" value="incoming" />
+                                    <button type="submit" class="btn2 ghost sm"><i class="bi bi-arrow-counterclockwise"></i> پس گرفتن</button>
+                                </form>
+                            }
+                            @if (Model.TripOfOffer.TryGetValue(o.OfferId, out var tripId))
+                            {
+                                <a class="btn2 soft sm" href="/Company/Dispatch/Assign/@tripId"><i class="bi bi-person-check"></i> تخصیص</a>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Offers.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-tags"></i>پیشنهادی با این وضعیت ندارید.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Offers.Pager" />
+</div>

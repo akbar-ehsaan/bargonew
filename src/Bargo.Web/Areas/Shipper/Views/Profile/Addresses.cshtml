@@ -1,0 +1,149 @@
+@model List<SavedAddress>
+@{
+    var cities = (List<ShipperCityOption>)ViewBag.Cities;
+    var maxAddresses = 30;
+    var isFull = Model.Count >= maxAddresses;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-geo"></i> آدرس‌های منتخب</h1>
+        <p>نشانی انبار، کارخانه یا مشتریان پرتکرار را یک بار ذخیره کنید تا در فرم ثبت بار با یک انتخاب، مبدا یا مقصد پر شود.</p>
+    </div>
+    <div class="actions">
+        <span class="chip"><i class="bi bi-geo-alt"></i> @Fa.N(Model.Count) از @Fa.N(maxAddresses) آدرس</span>
+        <a class="btn2 ghost" href="/Shipper/Loads/Create?section=route"><i class="bi bi-plus-square"></i> ثبت بار</a>
+    </div>
+</div>
+
+<partial name="_Tabs" />
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-list-ul"></i> آدرس‌های ذخیره‌شده</div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>عنوان</th><th>شهر</th><th>نشانی</th><th>تحویل‌گیرنده / تحویل‌دهنده</th><th>مختصات</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var addr in Model)
+                {
+                    <tr>
+                        <td><b>@addr.Title</b></td>
+                        <td class="nowrap">@(addr.City?.Name ?? "—")<span class="sub">@(addr.City?.Province?.Name)</span></td>
+                        <td style="white-space:pre-line">@addr.Address</td>
+                        <td>
+                            @(addr.ContactName ?? "")
+                            @if (!string.IsNullOrEmpty(addr.ContactMobile))
+                            {
+                                <span class="sub num">@Fa.Digits(addr.ContactMobile)</span>
+                            }
+                            @if (string.IsNullOrEmpty(addr.ContactName) && string.IsNullOrEmpty(addr.ContactMobile))
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
+                        <td class="nowrap">
+                            @if (addr.Lat is double && addr.Lng is double)
+                            {
+                                <span class="num small">@Fa.Digits(ShipperUi.Box(addr.Lat)), @Fa.Digits(ShipperUi.Box(addr.Lng))</span>
+                            }
+                            else
+                            {
+                                <span class="muted">ثبت نشده</span>
+                            }
+                        </td>
+                        <td>
+                            <form method="post" asp-action="DeleteAddress" data-confirm="@($"آدرس «{addr.Title}» حذف شود؟")">
+                                <input type="hidden" name="id" value="@addr.SavedAddressId" />
+                                <button class="btn2 ghost sm"><i class="bi bi-trash"></i> حذف</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="6" class="empty"><i class="bi bi-geo"></i>هنوز آدرسی ذخیره نکرده‌اید. با فرم کنار صفحه اولین نشانی بارگیری یا تحویل را اضافه کنید.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2" id="add">
+        <div class="hd"><i class="bi bi-plus-circle"></i> افزودن آدرس</div>
+        <div class="bd">
+            @if (isFull)
+            {
+                <div class="alert2 warn"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">به سقف @Fa.N(maxAddresses) آدرس رسیده‌اید. برای افزودن آدرس تازه، یکی از آدرس‌های قبلی را حذف کنید.</div></div>
+            }
+            <form method="post" asp-action="Addresses">
+                <div class="form-grid">
+                    <div class="fld full">
+                        <label>عنوان <span class="req">*</span></label>
+                        <input name="title" maxlength="60" minlength="2" required placeholder="مثلاً انبار مرکزی" disabled="@isFull" />
+                    </div>
+                    <div class="fld full">
+                        <label>شهر <span class="req">*</span></label>
+                        <select name="cityId" required disabled="@isFull">
+                            <option value="">انتخاب کنید</option>
+                            @foreach (var provinceGroup in cities.GroupBy(c => c.Province))
+                            {
+                                <optgroup label="@provinceGroup.Key">
+                                    @foreach (var cityOpt in provinceGroup)
+                                    {
+                                        <option value="@cityOpt.CityId">@cityOpt.Name</option>
+                                    }
+                                </optgroup>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld full">
+                        <label>نشانی کامل <span class="req">*</span></label>
+                        <textarea name="address" rows="3" maxlength="500" minlength="5" required placeholder="خیابان، کوچه، پلاک، ورودی انبار…" disabled="@isFull"></textarea>
+                    </div>
+                    <div class="fld">
+                        <label>عرض جغرافیایی</label>
+                        <input name="lat" dir="ltr" inputmode="decimal" maxlength="20" placeholder="35.6892" disabled="@isFull" />
+                    </div>
+                    <div class="fld">
+                        <label>طول جغرافیایی</label>
+                        <input name="lng" dir="ltr" inputmode="decimal" maxlength="20" placeholder="51.3890" disabled="@isFull" />
+                    </div>
+                    <div class="fld full">
+                        <button type="button" class="btn2 ghost sm" data-my-location disabled="@isFull"><i class="bi bi-crosshair"></i> موقعیت فعلی من</button>
+                        <span class="hint" data-location-hint>اختیاری — اگر همین حالا در محل هستید، مختصات را خودکار پر کنید تا راننده دقیق‌تر برسد.</span>
+                    </div>
+                    <div class="fld">
+                        <label>نام تحویل‌گیرنده / تحویل‌دهنده</label>
+                        <input name="contactName" maxlength="100" disabled="@isFull" />
+                    </div>
+                    <div class="fld">
+                        <label>موبایل</label>
+                        <input name="contactMobile" dir="ltr" inputmode="numeric" maxlength="13" placeholder="09xxxxxxxxx" disabled="@isFull" />
+                    </div>
+                </div>
+                <div class="form-actions"><button class="btn2 pri block" disabled="@isFull"><i class="bi bi-check2"></i> ذخیرهٔ آدرس</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var btn = document.querySelector('[data-my-location]');
+            var hint = document.querySelector('[data-location-hint]');
+            if (!btn) return;
+            if (!navigator.geolocation) { btn.hidden = true; return; }
+            btn.addEventListener('click', function () {
+                if (hint) hint.textContent = 'در حال دریافت موقعیت…';
+                navigator.geolocation.getCurrentPosition(function (pos) {
+                    document.querySelector('input[name="lat"]').value = pos.coords.latitude.toFixed(6);
+                    document.querySelector('input[name="lng"]').value = pos.coords.longitude.toFixed(6);
+                    if (hint) hint.textContent = 'مختصات فعلی شما در کادرها نشست.';
+                }, function () {
+                    if (hint) hint.textContent = 'دسترسی به موقعیت ممکن نشد؛ مختصات را دستی وارد کنید یا خالی بگذارید.';
+                }, { enableHighAccuracy: true, timeout: 15000 });
+            });
+        })();
+    </script>
+}

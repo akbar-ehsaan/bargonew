@@ -1,0 +1,43 @@
+@model PageVm<Notification>
+@{
+    var unread = (bool)ViewBag.Unread;
+    string Icon(string k) => k switch { "load" => "bi-box-seam", "offer" => "bi-tags", "trip" => "bi-truck", "finance" => "bi-wallet2", "document" => "bi-file-earmark-medical", "system" => "bi-megaphone", _ => "bi-bell" };
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-bell"></i> اعلان‌ها</h1></div>
+    <div class="actions">
+        <form method="post" asp-action="ReadAll"><button class="btn2 ghost"><i class="bi bi-check2-all"></i> همه خوانده شد</button></form>
+    </div>
+</div>
+<div class="tabs">
+    <a asp-action="Index" class="@(!unread ? "on" : "")">همه</a>
+    <a asp-action="Index" asp-route-unread="true" class="@(unread ? "on" : "")">خوانده‌نشده</a>
+</div>
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th></th><th>اعلان</th><th>زمان</th></tr></thead>
+            <tbody>
+            @foreach (var n in Model.Rows)
+            {
+                <tr data-href="@Url.Action("Open", new { id = n.NotificationId })" style="@(n.ReadAt is null ? "background:var(--signal-soft)" : "")">
+                    <td style="width:40px"><i class="bi @Icon(n.Kind)" style="font-size:18px;color:var(--primary)"></i></td>
+                    <td>
+                        <b>@n.Title</b>
+                        @if (!string.IsNullOrEmpty(n.Body) && !n.Body.StartsWith("doc:"))
+                        {
+                            <span class="sub">@n.Body</span>
+                        }
+                    </td>
+                    <td class="nowrap">@Fa.Ago(n.CreatedAt)</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="3" class="empty"><i class="bi bi-bell-slash"></i>اعلانی نیست.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

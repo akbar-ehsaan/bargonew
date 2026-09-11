@@ -1,0 +1,93 @@
+@model OpsMonitorVm
+@{
+    var markers = Model.Markers.Select(m => new { lat = m.Lat, lng = m.Lng, kind = m.Kind, label = m.Label, href = m.Href }).ToList();
+    var poll = Url.Action("Data", "Monitoring", new { area = "Company", layer = Model.Layer });
+    var moving = Model.Markers.Count(m => m.Kind == "truck");
+    var idle = Model.Markers.Count(m => m.Kind == "idle");
+    var stale = Model.Markers.Count(m => m.Kind == "stale");
+    var subject = Model.Layer switch { "drivers" => "راننده", "vehicles" => "خودرو", _ => "سفر در راه" };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-broadcast"></i> @ViewData["Title"]</h1>
+        <p>
+            @(Model.Layer switch
+            {
+                "drivers" => "آخرین موقعیت هر رانندهٔ شرکت — در سفر، آماده یا خارج از خدمت.",
+                "vehicles" => "آخرین موقعیت خودروهای ناوگان از روی نقاط GPS رانندهٔ هر سفر.",
+                _ => "سفرهای در راه با آخرین موقعیت ثبت‌شده از اپ راننده. نقشه هر ۳۰ ثانیه تازه می‌شود."
+            })
+        </p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Route"><i class="bi bi-bezier2"></i> مسیر سفر</a>
+        <a class="btn2 ghost" asp-action="Loads"><i class="bi bi-boxes"></i> وضعیت بارها</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Index" class="@(Model.Layer is null ? "on" : "")"><i class="bi bi-truck"></i> سفرهای در راه <span class="n">@Fa.N(Model.LiveTrips.Count)</span></a>
+    <a asp-action="Index" asp-route-layer="drivers" class="@(Model.Layer == "drivers" ? "on" : "")"><i class="bi bi-person-bounding-box"></i> موقعیت رانندگان</a>
+    <a asp-action="Index" asp-route-layer="vehicles" class="@(Model.Layer == "vehicles" ? "on" : "")"><i class="bi bi-truck-front"></i> موقعیت خودروها</a>
+</div>
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-geo-alt"></i> روی نقشه</div><div class="v">@Fa.N(Model.Markers.Count)<small>@subject</small></div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-truck"></i> در حرکت</div><div class="v">@Fa.N(moving)<small>موقعیت تازه</small></div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-pause-circle"></i> ساکن / آماده</div><div class="v">@Fa.N(idle)<small>تا ۲ ساعت پیش</small></div></div>
+    <div class="stat @(stale > 0 ? "r" : "i")"><div class="l"><i class="bi bi-wifi-off"></i> قطع ارتباط</div><div class="v">@Fa.N(stale)<small>بیش از ۳۰ دقیقه</small></div></div>
+</div>
+
+@if (Model.Markers.Count == 0)
+{
+    <div class="card2">
+        <div class="empty-state">
+            <i class="bi bi-map"></i>
+            <b>موقعیتی برای نمایش نیست</b>
+            @(Model.Layer switch
+            {
+                "drivers" => "هیچ راننده‌ای هنوز موقعیتش را از اپ فرستاده است. اشتراک موقعیت در پنل راننده روشن می‌شود.",
+                "vehicles" => "هنوز برای خودروهای ناوگان نقطهٔ GPS ثبت نشده است؛ با شروع اولین سفر، خودرو روی نقشه می‌آید.",
+                _ => Model.LiveTrips.Count == 0 ? "در حال حاضر سفری در راه نیست." : "سفرهای در راه هنوز موقعیتی نفرستاده‌اند؛ راننده باید اشتراک موقعیت را در اپ روشن کند."
+            })
+        </div>
+    </div>
+}
+else
+{
+    <div class="map tall" data-map='@Json.Serialize(new { markers, fit = true, poll })'></div>
+}
+
+@if (Model.LiveTrips.Count > 0)
+{
+    <div class="card2" style="margin-top:18px">
+        <div class="hd"><i class="bi bi-truck"></i> سفرهای در راه <span class="end muted small">@Fa.N(Model.WithPosition) از @Fa.N(Model.LiveTrips.Count) با موقعیت</span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>سفر</th><th>مسیر</th><th>راننده / خودرو</th><th>وضعیت</th><th>آخرین موقعیت</th><th>طی‌شده</th><th>رسیدن تقریبی</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var t in Model.LiveTrips)
+                {
+                    var l = t.Load!;
+                    var isStale = t.LastPointAt is DateTime lp && DateTime.UtcNow - lp > TimeSpan.FromMinutes(30);
+                    <tr data-href="/Company/Trips/Detail/@t.TripId">
+                        <td><a class="num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a><span class="sub">@l.Title</span></td>
+                        <td>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</td>
+                        <td>@(t.Driver?.FullName ?? "—")@if (t.Vehicle is not null) { <span class="sub"><span class="plate">@t.Vehicle.PlateNo</span></span> }</td>
+                        <td>@Ui.TripPill(t.Status)</td>
+                        <td>
+                            @if (t.LastPointAt is DateTime at) { @Ui.Pill(Fa.Ago(at), isStale ? "no" : "ok") }
+                            else { @Ui.Pill("بدون موقعیت", "mut") }
+                        </td>
+                        <td class="num">@(t.TravelledKm > 0 ? Fa.N(t.TravelledKm) + " کیلومتر" : "—")</td>
+                        <td class="nowrap">@(t.Status == TripStatus.InTransit && t.EtaAt is DateTime eta ? Fa.Stamp(eta) : "—")</td>
+                        <td><a class="btn2 ghost sm" asp-action="Route" asp-route-tripId="@t.TripId"><i class="bi bi-bezier2"></i> مسیر</a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@section Scripts { <partial name="_MapAssets" /> }

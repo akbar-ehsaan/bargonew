@@ -1,0 +1,30 @@
+@{
+    // سربرگ مشترک گزارش‌ها: تب‌ها (با حفظ بازه) + فرم بازهٔ تاریخ. ViewBag.Range از کنترلر می‌آید.
+    var r = (ReportRange)ViewBag.Range;
+    var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+    (string Action, string Icon, string Label)[] tabs =
+    [
+        ("Drivers", "bi-person-badge", "عملکرد رانندگان"),
+        ("Vehicles", "bi-truck", "عملکرد خودروها"),
+        ("Trips", "bi-123", "تعداد سفر"),
+        ("Revenue", "bi-cash-stack", "درآمد دوره‌ای"),
+        ("Cargo", "bi-boxes", "بارهای حمل‌شده"),
+        ("Routes", "bi-signpost-2", "مسیرهای پرتردد")
+    ];
+}
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        <a asp-area="Company" asp-controller="Reports" asp-action="@t.Action" asp-route-from="@r.FromBox" asp-route-to="@r.ToBox"
+           class="@(string.Equals(action, t.Action, StringComparison.OrdinalIgnoreCase) ? "on" : "")"><i class="bi @t.Icon"></i> @t.Label</a>
+    }
+</div>
+<div class="card2" style="margin-bottom:18px">
+    <form method="get" class="filters" style="border-bottom:0">
+        <div class="fld narrow"><label>از تاریخ</label><input name="from" data-jdate value="@r.FromBox" dir="ltr" /></div>
+        <div class="fld narrow"><label>تا تاریخ</label><input name="to" data-jdate value="@r.ToBox" dir="ltr" /></div>
+        <button class="btn2 pri"><i class="bi bi-funnel"></i> اعمال بازه</button>
+        <a class="btn2 ghost" asp-action="@action">پیش‌فرض</a>
+        <span class="small muted" style="margin-inline-start:auto;align-self:center">بازهٔ @Fa.N(r.Days) روزه · @Fa.Digits(r.FromBox) تا @Fa.Digits(r.ToBox)</span>
+    </form>
+</div>

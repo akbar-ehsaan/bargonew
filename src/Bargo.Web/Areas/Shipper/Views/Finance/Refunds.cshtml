@@ -1,0 +1,47 @@
+@model PageVm<ShipperRefundRow>
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-arrow-counterclockwise"></i> استرداد وجه</h1>
+        <p>کرایهٔ پرداخت‌شدهٔ سفری که لغو شود، خودکار به کیف پول شما برمی‌گردد. استرداد ناشی از شکایت یا اختلاف مالی پس از بررسی مدیر به کیف پول واریز می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Transactions" asp-route-kind="@WalletTxnKind.Refund"><i class="bi bi-arrow-left-right"></i> تراکنش‌های استرداد</a>
+        <a class="btn2 ghost" href="/Shipper/Complaints/Create"><i class="bi bi-exclamation-octagon"></i> ثبت شکایت مالی</a>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>شماره</th><th>تاریخ درخواست</th><th>سفر</th><th>علت</th><th>مبلغ</th><th>وضعیت</th><th>تاریخ واریز</th></tr></thead>
+            <tbody>
+            @foreach (var refund in Model.Rows)
+            {
+                <tr>
+                    <td class="num">#@Fa.N(refund.RefundId)</td>
+                    <td class="nowrap">@Fa.Stamp(refund.CreatedAt)</td>
+                    <td>
+                        @if (refund.TripId is int refundTripId)
+                        {
+                            <a class="lnk" href="/Shipper/Orders/Detail/@refundTripId">@(refund.TripCode ?? "جزئیات سفر")</a>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td style="white-space:pre-line">@(string.IsNullOrWhiteSpace(refund.Reason) ? "—" : refund.Reason)</td>
+                    <td class="nowrap"><b class="num">@Fa.Toman(refund.Amount)</b></td>
+                    <td>@Ui.Pill(ShipperUi.RefundLabel(refund.Status), ShipperUi.RefundTone(refund.Status))</td>
+                    <td class="nowrap">@(refund.DoneAt is null ? "—" : Fa.Date(refund.DoneAt))</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-arrow-counterclockwise"></i>استردادی برای شما ثبت نشده است. اگر سفری پس از پرداخت کرایه لغو شود، مبلغ آن اینجا و در کیف پول شما دیده می‌شود.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

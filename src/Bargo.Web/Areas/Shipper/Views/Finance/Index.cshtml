@@ -1,0 +1,124 @@
+@model ShipperFinanceVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-wallet2"></i> کیف پول</h1>
+        <p>کرایهٔ سفرها از همین کیف پول پرداخت می‌شود و تا تحویل بار نزد بارگو امانت می‌ماند. استرداد کرایهٔ سفرهای لغوشده هم به همین‌جا برمی‌گردد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 pri" asp-action="Pay"><i class="bi bi-credit-card"></i> پرداخت کرایه</a>
+        <a class="btn2 ghost" asp-action="Transactions"><i class="bi bi-arrow-left-right"></i> همهٔ تراکنش‌ها</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-wallet2"></i> موجودی</div><div class="v">@Fa.N(Model.Balance / 10) <small>تومان</small></div></div>
+    <a class="stat @(Model.UnpaidCount > 0 ? "w" : "i")" asp-action="Pay">
+        <div class="l"><i class="bi bi-hourglass-split"></i> کرایهٔ پرداخت‌نشده</div>
+        <div class="v">@Fa.N(Model.UnpaidTotal / 10) <small>تومان · @Fa.N(Model.UnpaidCount) سفر</small></div>
+    </a>
+    <a class="stat t" asp-action="Transactions" asp-route-kind="@WalletTxnKind.FarePayment"><div class="l"><i class="bi bi-credit-card"></i> پرداختی این ماه</div><div class="v">@Fa.N(Model.PaidThisMonth / 10) <small>تومان</small></div></a>
+    <a class="stat s" asp-action="Refunds"><div class="l"><i class="bi bi-arrow-counterclockwise"></i> مسترد‌شده</div><div class="v">@Fa.N(Model.RefundedTotal / 10) <small>تومان</small></div></a>
+</div>
+
+@if (Model.UnpaidCount > 0)
+{
+    var shortfall = Model.UnpaidTotal - Model.Balance;
+    <div class="alert2 @(shortfall > 0 ? "warn" : "info")"><i class="bi bi-receipt"></i>
+        <div class="grow">
+            کرایهٔ @Fa.N(Model.UnpaidCount) سفر به مبلغ @Fa.Toman(Model.UnpaidTotal) هنوز پرداخت نشده است.
+            @if (shortfall > 0)
+            {
+                <text>برای پرداخت همه، دست‌کم @Fa.Toman(shortfall) دیگر کیف پول را شارژ کنید.</text>
+            }
+            <a class="lnk" asp-action="Pay">پرداخت کرایه‌ها</a>
+        </div>
+    </div>
+}
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-clock-history"></i> آخرین تراکنش‌ها <span class="end"><a class="lnk" asp-action="Transactions">همه</a></span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>تاریخ</th><th>نوع</th><th>مبلغ</th><th>مانده</th><th>سفر / توضیح</th></tr></thead>
+                <tbody>
+                @foreach (var txn in Model.Recent)
+                {
+                    <tr>
+                        <td class="nowrap">@Fa.Stamp(txn.CreatedAt)</td>
+                        <td>@WalletTxnKind.Label(txn.Kind)</td>
+                        <td class="nowrap"><b class="num" style="color:@(txn.Amount >= 0 ? "var(--ok)" : "var(--no)")">@(txn.Amount >= 0 ? "+" : "−")@Fa.Toman(Math.Abs(txn.Amount))</b></td>
+                        <td class="num nowrap">@Fa.Toman(txn.BalanceAfter)</td>
+                        <td>
+                            @if (txn.TripId is int txnTripId)
+                            {
+                                <a class="lnk" href="/Shipper/Orders/Detail/@txnTripId">جزئیات سفر</a>
+                            }
+                            @if (!string.IsNullOrEmpty(txn.Note))
+                            {
+                                <span class="sub">@txn.Note</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Recent.Count == 0)
+                {
+                    <tr><td colspan="5" class="empty"><i class="bi bi-wallet2"></i>هنوز تراکنشی ندارید. با شارژ کیف پول یا پرداخت اولین کرایه، گردش حساب اینجا ثبت می‌شود.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2" id="charge">
+            <div class="hd"><i class="bi bi-plus-circle"></i> شارژ کیف پول <span class="end">@Ui.Pill("پرداخت آزمایشی", "wait")</span></div>
+            <div class="bd">
+                <div class="alert2 warn"><i class="bi bi-exclamation-triangle-fill"></i>
+                    <div class="grow">
+                        @if (Model.DemoGateway)
+                        {
+                            <text>درگاه پرداخت بانکی هنوز متصل نیست. این شارژ «پرداخت آزمایشی» است: هیچ مبلغی از حساب بانکی شما کسر نمی‌شود و موجودی فقط برای آزمودن سامانه افزایش می‌یابد.</text>
+                        }
+                        else
+                        {
+                            <text>درگاه پرداخت در تنظیمات سامانه تعریف شده ولی هنوز به این صفحه وصل نشده است؛ شارژ از این فرم همچنان «پرداخت آزمایشی» ثبت می‌شود و مبلغی از حساب بانکی کسر نمی‌شود.</text>
+                        }
+                    </div>
+                </div>
+                <form method="post" asp-action="Charge">
+                    <div class="fld">
+                        <label>مبلغ شارژ (تومان) <span class="req">*</span></label>
+                        <input name="amountToman" class="money" inputmode="numeric" required placeholder="مثلاً ۵۰۰,۰۰۰"
+                               value="@(Model.UnpaidTotal > Model.Balance ? ShipperUi.TomanBox(Model.UnpaidTotal - Model.Balance) : "")" />
+                        <span class="hint">حداقل ۱,۰۰۰ تومان و حداکثر ۱,۰۰۰,۰۰۰,۰۰۰ تومان در هر شارژ.@(Model.UnpaidTotal > Model.Balance ? " مبلغ پیشنهادی، کسری کرایه‌های پرداخت‌نشده است." : "")</span>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn2 pri block"><i class="bi bi-lightning-charge"></i> شارژ آزمایشی کیف پول</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-receipt"></i> شارژهای اخیر</div>
+            <div class="bd">
+                @if (Model.Charges.Count == 0)
+                {
+                    <div class="empty-state" style="padding:18px 8px"><i class="bi bi-inbox"></i><b>شارژی ثبت نشده است</b>پس از اولین شارژ، کد پیگیری آن اینجا می‌آید.</div>
+                }
+                @foreach (var pay in Model.Charges)
+                {
+                    <div class="kvrow">
+                        <span>@Fa.Stamp(pay.CreatedAt) @Ui.PaymentPill(pay.Status)</span>
+                        <b>@Fa.Toman(pay.Amount)</b>
+                    </div>
+                    @if (!string.IsNullOrEmpty(pay.RefId))
+                    {
+                        <div class="small muted" style="margin-top:-6px">کد پیگیری: <span class="num">@pay.RefId</span>@(pay.Gateway == "demo" ? " · آزمایشی" : "")</div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>

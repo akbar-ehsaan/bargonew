@@ -1,0 +1,54 @@
+@model PageVm<InvoiceRow>
+@{
+    var kind = ViewBag.Kind as string;
+    var counts = (Dictionary<string, int>)ViewBag.KindCounts;
+    string[] kinds = ["freight", "commission", "subscription"];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-receipt-cutoff"></i> فاکتورها</h1>
+        <p>فاکتورهای صادرشده برای شرکت: کمیسیون بارگو از سفرهایی که شرکت حمل کرده، کرایهٔ بارهایی که شرکت به حمل‌کنندهٔ دیگری داده، و اشتراک.</p>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat p"><div class="l"><i class="bi bi-receipt"></i> تعداد فاکتور</div><div class="v">@Fa.N(Model.Total)</div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-cash-stack"></i> جمع مبلغ @(kind is null ? "" : "(فیلترشده)")</div><div class="v">@Fa.Toman((long)ViewBag.Sum)</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-percent"></i> مالیات بر ارزش افزوده</div><div class="v">@Fa.Toman((long)ViewBag.Tax)</div></div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Invoices" class="@(kind is null ? "on" : "")">همه <span class="n">@Fa.N(counts.Values.Sum())</span></a>
+    @foreach (var k in kinds)
+    {
+        <a asp-action="Invoices" asp-route-kind="@k" class="@(kind == k ? "on" : "")">@CompanyLabels.InvoiceKind(k) <span class="n">@Fa.N(counts.GetValueOrDefault(k))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>شماره</th><th>تاریخ</th><th>نوع</th><th>سفر</th><th>مبلغ</th><th>مالیات</th><th>جمع</th><th>وضعیت</th></tr></thead>
+            <tbody>
+            @foreach (var i in Model.Rows)
+            {
+                <tr>
+                    <td data-label="شماره" class="num"><b>@Fa.Digits(i.No)</b></td>
+                    <td data-label="تاریخ" class="nowrap">@Fa.Date(i.IssuedAt)</td>
+                    <td data-label="نوع"><span class="chip">@CompanyLabels.InvoiceKind(i.Kind)</span></td>
+                    <td data-label="سفر">@if (i.TripCode is not null) { <a class="lnk" href="/Company/Trips/Detail/@i.TripId">@Fa.Digits(i.TripCode)</a> } else { <span class="muted">—</span> }</td>
+                    <td data-label="مبلغ" class="nowrap">@Fa.Toman(i.Amount)</td>
+                    <td data-label="مالیات" class="nowrap">@(i.Tax == 0 ? "—" : Fa.Toman(i.Tax))</td>
+                    <td data-label="جمع" class="nowrap"><b>@Fa.Toman(i.Total)</b></td>
+                    <td data-label="وضعیت">@Ui.PaymentPill(i.Status)</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-receipt-cutoff"></i>@(kind is null ? "هنوز فاکتوری برای شرکت صادر نشده است. فاکتور با تسویهٔ هر سفر خودکار صادر می‌شود." : $"فاکتور «{CompanyLabels.InvoiceKind(kind)}» صادر نشده است.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

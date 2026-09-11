@@ -1,0 +1,114 @@
+@model OpsTripDocsVm
+@{
+    (string? Key, string Label, string Icon)[] tabs =
+    [
+        (null, "همه", "bi-folder2-open"),
+        (TripDocumentKind.LoadingReceipt, "رسید بارگیری", "bi-box-arrow-in-down"),
+        (TripDocumentKind.DeliveryReceipt, "رسید تحویل", "bi-receipt"),
+        (TripDocumentKind.CargoInsurance, "بیمه بار", "bi-shield-check"),
+        (TripDocumentKind.Photo, "تصویر بار", "bi-image"),
+        (TripDocumentKind.Other, "سایر", "bi-file-earmark")
+    ];
+    var all = Model.Counts.Values.Sum();
+    var docKinds = new[] { TripDocumentKind.LoadingReceipt, TripDocumentKind.DeliveryReceipt, TripDocumentKind.CargoInsurance, TripDocumentKind.Photo, TripDocumentKind.Other };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-folder2-open"></i> @ViewData["Title"]</h1>
+        <p>اسناد سفرهای شرکت — رسید بارگیری و تحویل، بیمه‌نامهٔ بار و تصاویر؛ چه راننده بارگذاری کرده باشد چه دفتر شرکت.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-files"></i> بارنامه‌ها</a>
+        <a class="btn2 ghost" asp-action="Issue"><i class="bi bi-file-earmark-plus"></i> ثبت بارنامه</a>
+    </div>
+</div>
+
+<div class="tabs">
+    @foreach (var tb in tabs)
+    {
+        <a asp-action="Documents" asp-route-kind="@tb.Key" class="@(Model.Kind == tb.Key ? "on" : "")"><i class="bi @tb.Icon"></i> @tb.Label <span class="n">@Fa.N(tb.Key is null ? all : Model.Counts.GetValueOrDefault(tb.Key))</span></a>
+    }
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>نوع</th><th>عنوان</th><th>سفر</th><th>مسیر</th><th>بارگذاری</th><th>فایل</th></tr></thead>
+                <tbody>
+                @foreach (var d in Model.Page.Rows)
+                {
+                    var t = d.Trip!;
+                    var l = t.Load!;
+                    <tr>
+                        <td>@TripDocumentKind.Label(d.Kind)</td>
+                        <td><b>@d.Title</b></td>
+                        <td><a class="num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a><span class="sub">@Ui.TripPill(t.Status)</span></td>
+                        <td>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</td>
+                        <td class="nowrap">@Fa.Stamp(d.CreatedAt)<span class="sub">@OwnerKind.Label(d.UploadedByKind)</span></td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(d.FilePath)) { <a class="btn2 ghost sm" href="@DocumentStorage.Url(d.FilePath)" target="_blank"><i class="bi bi-download"></i> مشاهده</a> }
+                            else { <span class="muted">—</span> }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Page.Total == 0)
+                {
+                    <tr>
+                        <td colspan="6" class="empty">
+                            <i class="bi bi-folder2-open"></i>
+                            @(Model.Kind is null ? "هنوز سندی برای سفرهای شرکت بارگذاری نشده است." : $"«{TripDocumentKind.Label(Model.Kind)}» برای هیچ سفری ثبت نشده است.")
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Page.Pager" />
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-upload"></i> بارگذاری سند</div>
+        <div class="bd">
+            @if (Model.Trips.Count == 0)
+            {
+                <div class="muted small">سفری برای بارگذاری سند وجود ندارد.</div>
+            }
+            else
+            {
+                <form method="post" asp-action="Upload" enctype="multipart/form-data">
+                    <div class="fld">
+                        <label>سفر <span class="req">*</span></label>
+                        <select name="tripId" required>
+                            <option value="">— انتخاب سفر —</option>
+                            @foreach (var o in Model.Trips)
+                            {
+                                <option value="@o.Id">@o.Label</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld" style="margin-top:8px">
+                        <label>نوع سند <span class="req">*</span></label>
+                        <select name="kind" required>
+                            @foreach (var k in docKinds)
+                            {
+                                <option value="@k" selected="@(Model.Kind == k)">@TripDocumentKind.Label(k)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld" style="margin-top:8px">
+                        <label>عنوان</label>
+                        <input name="title" maxlength="150" placeholder="اختیاری — پیش‌فرض: نام نوع سند" />
+                    </div>
+                    <div class="fld" style="margin-top:8px">
+                        <label>فایل <span class="req">*</span></label>
+                        <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required />
+                        <span class="hint">تصویر یا PDF، حداکثر ۸ مگابایت</span>
+                    </div>
+                    <div class="form-actions"><button type="submit" class="btn2 pri block"><i class="bi bi-upload"></i> بارگذاری</button></div>
+                </form>
+                <p class="muted small" style="margin-top:10px">صاحب بار سند را در رهگیری بار می‌بیند؛ رانندهٔ سفر هم اعلان می‌گیرد.</p>
+            }
+        </div>
+    </div>
+</div>

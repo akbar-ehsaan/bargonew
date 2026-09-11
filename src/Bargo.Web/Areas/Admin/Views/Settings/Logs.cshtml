@@ -1,0 +1,123 @@
+@model LogsVm
+@{
+    var isSms = Model.Tab == "sms";
+    string RoleLabel(string r) => r switch { "system" => "سامانه", _ => Roles.Title(r) is { Length: > 0 } t ? t : r };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-journal-code"></i> لاگ سیستم</h1>
+        <p>ردّ حسابرسی اقدامات حساس (چه کسی، کی، چه چیزی را عوض کرد) و پیامک‌های ارسال‌شده.</p>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Logs" asp-route-tab="audit" class="@(!isSms ? "on" : "")"><i class="bi bi-shield-check"></i> حسابرسی</a>
+    <a asp-action="Logs" asp-route-tab="sms" class="@(isSms ? "on" : "")"><i class="bi bi-chat-square-text"></i> پیامک</a>
+</div>
+
+@if (!isSms && Model.Audit is not null)
+{
+    <div class="card2">
+        <form method="get" asp-action="Logs" class="filters">
+            <input type="hidden" name="tab" value="audit" />
+            <div class="fld">
+                <label>موجودیت</label>
+                <select name="entity">
+                    <option value="">همه</option>
+                    @foreach (var en in Model.Entities)
+                    {
+                        <option value="@en" selected="@(Model.Entity == en)">@en</option>
+                    }
+                </select>
+            </div>
+            <div class="fld"><label>عمل</label><input name="action" value="@Model.ActionName" dir="ltr" placeholder="update, status:approved…" /></div>
+            <div class="fld"><label>انجام‌دهنده</label><input name="actor" value="@Model.Actor" placeholder="نام مدیر" /></div>
+            <div class="fld narrow"><label>از تاریخ</label><input name="from" data-jdate value="@Fa.DateBox(Model.From)" /></div>
+            <div class="fld narrow"><label>تا تاریخ</label><input name="to" data-jdate value="@Fa.DateBox(Model.To)" /></div>
+            <div class="row-actions">
+                <button class="btn2 pri"><i class="bi bi-funnel"></i> اعمال</button>
+                <a class="btn2 ghost" asp-action="Logs">پاک کردن</a>
+            </div>
+        </form>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>زمان</th><th>انجام‌دهنده</th><th>موجودیت</th><th>عمل</th><th>شرح</th><th>IP</th></tr></thead>
+                <tbody>
+                @foreach (var l in Model.Audit.Rows)
+                {
+                    var detail = BackofficeFormat.PrettyJson(l.DetailJson);
+                    <tr>
+                        <td class="nowrap small">@Fa.Stamp(l.CreatedAt)</td>
+                        <td><b>@(string.IsNullOrEmpty(l.ActorName) ? "—" : l.ActorName)</b><span class="sub">@RoleLabel(l.ActorRole)@(l.ActorId > 0 ? " #" + Fa.N(l.ActorId) : "")</span></td>
+                        <td class="num small">@l.Entity@(l.EntityId > 0 ? " #" + l.EntityId : "")</td>
+                        <td><span class="chip num">@l.Action</span></td>
+                        <td>
+                            <div class="small">@(string.IsNullOrEmpty(l.Summary) ? "—" : l.Summary)</div>
+                            @if (detail.Length > 0)
+                            {
+                                <details style="margin-top:4px">
+                                    <summary class="small lnk" style="cursor:pointer;color:var(--primary);font-weight:700">جزئیات</summary>
+                                    <pre dir="ltr" style="margin:6px 0 0;padding:8px 10px;background:#f5f7f9;border:1px solid var(--line);border-radius:8px;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-all;max-height:320px;overflow:auto;text-align:left">@detail</pre>
+                                </details>
+                            }
+                        </td>
+                        <td class="num small muted">@(l.Ip ?? "—")</td>
+                    </tr>
+                }
+                @if (Model.Audit.Total == 0)
+                {
+                    <tr><td colspan="6" class="empty"><i class="bi bi-journal-code"></i>رویدادی با این فیلترها ثبت نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Audit.Pager" />
+    </div>
+}
+else if (Model.Sms is not null)
+{
+    <div class="card2">
+        <form method="get" asp-action="Logs" class="filters">
+            <input type="hidden" name="tab" value="sms" />
+            <div class="fld"><label>موبایل</label><input name="mobile" value="@Model.Mobile" dir="ltr" inputmode="numeric" placeholder="0912…" /></div>
+            <div class="fld"><label>هدف</label><input name="purpose" value="@Model.Purpose" dir="ltr" placeholder="otp, notify, broadcast…" /></div>
+            <div class="fld narrow"><label>از تاریخ</label><input name="from" data-jdate value="@Fa.DateBox(Model.From)" /></div>
+            <div class="fld narrow"><label>تا تاریخ</label><input name="to" data-jdate value="@Fa.DateBox(Model.To)" /></div>
+            <div class="row-actions">
+                <button class="btn2 pri"><i class="bi bi-funnel"></i> اعمال</button>
+                <a class="btn2 ghost" asp-action="Logs" asp-route-tab="sms">پاک کردن</a>
+            </div>
+        </form>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>زمان</th><th>موبایل</th><th>هدف</th><th>متن</th><th>نتیجه</th></tr></thead>
+                <tbody>
+                @foreach (var s in Model.Sms.Rows)
+                {
+                    <tr>
+                        <td class="nowrap small">@Fa.Stamp(s.CreatedAt)</td>
+                        <td class="num">@s.Mobile</td>
+                        <td><span class="chip num">@s.Purpose</span></td>
+                        <td class="small" style="max-width:420px">@s.Text <span class="muted">(@Fa.N(BackofficeFormat.SmsSegments(s.Text)) بخش)</span></td>
+                        <td>
+                            @(s.Success ? Ui.Pill("ارسال شد", "ok") : Ui.Pill("ناموفق", "no"))
+                            @if (!string.IsNullOrEmpty(s.Response))
+                            {
+                                <details style="margin-top:4px">
+                                    <summary class="small" style="cursor:pointer;color:var(--primary);font-weight:700">پاسخ سرویس</summary>
+                                    <pre dir="ltr" style="margin:6px 0 0;padding:6px 8px;background:#f5f7f9;border:1px solid var(--line);border-radius:8px;font-size:12px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;text-align:left">@s.Response</pre>
+                                </details>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Sms.Total == 0)
+                {
+                    <tr><td colspan="5" class="empty"><i class="bi bi-chat-square-text"></i>پیامکی با این فیلترها ثبت نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Sms.Pager" />
+    </div>
+}

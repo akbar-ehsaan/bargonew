@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>@ViewData["Title"]</title>
+    <meta name="theme-color" content="#1b2a3a" />
+    <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
+    <link href="~/css/fonts.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link href="~/css/app.css" rel="stylesheet" asp-append-version="true" />
+</head>
+<body class="skin-shipper">
+<header class="pub-head">
+    <a class="brand" href="/?site=1"><img src="/img/logo.svg" alt="" />بارگو</a>
+    <nav class="row-actions">
+        <a class="btn2 sm ghost" href="/account/login">ورود</a>
+        <a class="btn2 sm pri" href="/account/register">ثبت‌نام</a>
+    </nav>
+</header>
+<main class="pub-wrap">
+    @RenderBody()
+</main>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

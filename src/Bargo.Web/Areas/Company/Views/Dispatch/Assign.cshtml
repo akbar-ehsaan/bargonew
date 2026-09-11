@@ -1,0 +1,149 @@
+@model OpsAssignVm
+@{
+    var t = Model.Form.Trip;
+    var l = t.Load!;
+    var isChange = t.DriverId is not null;
+    var oLat = l.OriginLat ?? l.OriginCity?.Lat;
+    var oLng = l.OriginLng ?? l.OriginCity?.Lng;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-person-check"></i> @ViewData["Title"] @Ui.TripPill(t.Status)</h1>
+        <p>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name) · حرکت @Fa.Stamp(t.ScheduledDepartureAt ?? l.LoadingFrom) · @l.Title</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="@(Model.Form.Back == "change" ? "Change" : "Index")"><i class="bi bi-arrow-right"></i> @(Model.Form.Back == "change" ? "تغییر راننده" : "صف تخصیص")</a>
+        <a class="btn2 ghost" asp-controller="Trips" asp-action="Detail" asp-route-id="@t.TripId"><i class="bi bi-folder2-open"></i> پروندهٔ سفر</a>
+    </div>
+</div>
+
+@if (Model.Rejection is { } rej && t.Status == TripStatus.AwaitingAssignment)
+{
+    <div class="alert2 warn">
+        <i class="bi bi-person-x-fill"></i>
+        <div class="grow">@(rej.Driver?.FullName ?? "راننده") مأموریت این سفر را نپذیرفت (@Fa.Ago(rej.CreatedAt))@(string.IsNullOrEmpty(rej.Reason) ? "" : $": {rej.Reason}").</div>
+    </div>
+}
+@if (t.Status == TripStatus.Assigned)
+{
+    <div class="alert2 info">
+        <i class="bi bi-send-check"></i>
+        <div class="grow">مأموریت برای @(t.Driver?.FullName ?? "راننده") فرستاده شده و منتظر قبول از اپ راننده است. انتخاب رانندهٔ دیگر، تخصیص فعلی را جایگزین می‌کند.</div>
+    </div>
+}
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi @(isChange ? "bi-arrow-repeat" : "bi-person-check")"></i> @(isChange ? "تعویض راننده / خودرو" : "تخصیص راننده و خودرو")</div>
+            <div class="bd">
+                @if (isChange)
+                {
+                    <div class="kvrow"><span>رانندهٔ فعلی</span><b>@t.Driver?.FullName <span class="num muted">@Fa.Digits(t.Driver?.Mobile)</span></b></div>
+                    <div class="kvrow"><span>خودروی فعلی</span><b>@if (t.Vehicle is not null) { <span class="plate">@t.Vehicle.PlateNo</span> <span class="muted">@t.Vehicle.VehicleType?.Name</span> } else { <text>—</text> }</b></div>
+                    <div style="height:14px"></div>
+                }
+                <partial name="_AssignForm" model="Model.Form" />
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-magic"></i> پیشنهاد سامانه <span class="end muted small">رانندگان آزاد و آماده، نزدیک‌ترین به مبدا</span></div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>راننده</th><th>فاصله تا مبدا</th><th>امتیاز</th><th>سفرها</th><th>آخرین موقعیت</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var d in Model.Suggestions)
+                    {
+                        <tr>
+                            <td><b>@d.Name</b><span class="sub num">@Fa.Digits(d.Mobile)</span>@if (d.Warning is not null) { <span class="sub">هشدار: @d.Warning</span> }</td>
+                            <td>@(d.DistanceKm is double dkm ? Fa.N(dkm) + " کیلومتر" : Ui.Pill("موقعیت نامشخص", "mut"))</td>
+                            <td>@Ui.Stars(d.RatingAvg, d.RatingCount)</td>
+                            <td class="num">@Fa.N(d.TripCount)</td>
+                            <td>@(d.LastSeenAt is DateTime s ? Fa.Ago(s) : "—")</td>
+                            <td><button type="button" class="btn2 soft sm" data-pick="@d.DriverId"><i class="bi bi-check2"></i> انتخاب</button></td>
+                        </tr>
+                    }
+                    @if (Model.Suggestions.Count == 0)
+                    {
+                        <tr><td colspan="6" class="empty"><i class="bi bi-people"></i>@(oLat is null ? "مبدا مختصات ندارد؛ فاصله محاسبه نمی‌شود." : "رانندهٔ آزاد و آماده‌ای برای پیشنهاد نیست.")</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @if (Model.History.Count > 0)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-clock-history"></i> سابقهٔ تخصیص این سفر</div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>زمان</th><th>راننده</th><th>خودرو</th><th>توسط</th><th>علت</th></tr></thead>
+                        <tbody>
+                        @foreach (var a in Model.History)
+                        {
+                            var rejected = a.PreviousDriverId == a.DriverId;
+                            <tr>
+                                <td class="nowrap">@Fa.Stamp(a.CreatedAt)</td>
+                                <td>@(a.Driver?.FullName ?? "—") @(rejected ? Ui.Pill("رد مأموریت", "no") : a.PreviousDriverId is null ? Ui.Pill("تخصیص", "ok") : Ui.Pill("تعویض", "wait"))</td>
+                                <td>@if (a.Vehicle is not null) { <span class="plate">@a.Vehicle.PlateNo</span> } else { <span class="muted">—</span> }</td>
+                                <td>@(a.ByName ?? "—")</td>
+                                <td class="small">@(a.Reason ?? "—")</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-box-seam"></i> بار <span class="end"><a class="small" href="/Company/Loads/Detail/@l.LoadId">@l.Code</a></span></div>
+            <div class="bd">
+                <dl class="kv">
+                    <dt>عنوان</dt><dd>@l.Title</dd>
+                    <dt>کالا</dt><dd>@l.CargoType@(string.IsNullOrEmpty(l.Packaging) ? "" : " · " + l.Packaging)</dd>
+                    <dt>وزن</dt><dd>@OpsLabels.Ton(l.WeightTon) تن</dd>
+                    <dt>نوع خودرو</dt><dd>@(l.VehicleType?.Name ?? "فرقی ندارد")</dd>
+                    <dt>مبدا</dt><dd>@l.OriginCity?.Name — @l.OriginAddress</dd>
+                    <dt>مقصد</dt><dd>@l.DestCity?.Name — @l.DestAddress</dd>
+                    <dt>بارگیری</dt><dd>@Fa.Stamp(l.LoadingFrom)</dd>
+                    <dt>مسافت</dt><dd>@(t.PlannedKm is double km ? Fa.N(km) + " کیلومتر" : "—")</dd>
+                    <dt>کرایه</dt><dd class="num">@Fa.Toman(t.Fare)</dd>
+                    @if (t.Commission > 0)
+                    {
+                        <dt>سهم شرکت</dt><dd class="num">@Fa.Toman(t.CarrierShare)</dd>
+                    }
+                    <dt>صاحب بار</dt><dd>@(l.Shipper?.DisplayName ?? Model.Customer?.Name ?? "مشتری شرکت")</dd>
+                    @if (!string.IsNullOrEmpty(l.ReceiverName))
+                    {
+                        <dt>گیرنده</dt><dd>@l.ReceiverName <span class="num">@Fa.Digits(l.ReceiverMobile)</span></dd>
+                    }
+                </dl>
+            </div>
+        </div>
+        @if (oLat is double ola && oLng is double olg)
+        {
+            <div class="map short" data-map='@Json.Serialize(new { markers = new[] { new { lat = ola, lng = olg, kind = "origin", label = "مبدا: " + l.OriginCity?.Name } }, fit = true })'></div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_MapAssets" />
+    <script>
+        // دکمهٔ «انتخاب» در جدول پیشنهاد، همان راننده را در فرم می‌نشاند
+        document.querySelectorAll('[data-pick]').forEach(function (b) {
+            b.addEventListener('click', function () {
+                var sel = document.querySelector('select[name="driverId"]');
+                if (!sel) return;
+                sel.value = b.getAttribute('data-pick');
+                sel.focus();
+                sel.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            });
+        });
+    </script>
+}

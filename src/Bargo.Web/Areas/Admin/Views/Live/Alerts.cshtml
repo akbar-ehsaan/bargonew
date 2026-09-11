@@ -1,0 +1,164 @@
+@model LiveAlertsVm
+@{
+    var now = DateTime.UtcNow;
+    string Payer(string kind, int id) => Model.PayerNames.TryGetValue($"{kind}:{id}", out var o) ? o.Name : $"{OwnerKind.Label(kind)} #{Fa.N(id)}";
+    string? PayerHref(string kind, int id) => Model.PayerNames.TryGetValue($"{kind}:{id}", out var o) ? o.Href : null;
+    string PurposeLabel(string p) => p switch { "charge" => "شارژ کیف پول", "fare" => "کرایهٔ سفر", "subscription" => "اشتراک", _ => p };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-bell"></i> هشدارهای سیستمی</h1>
+        <p>پنج قاعده، هر کدام با پیوند به صفحه‌ای که رسیدگی در آن انجام می‌شود. این فهرست محاسبه‌ای است و با رفع مشکل خودش خالی می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-map"></i> نقشهٔ کشور</a>
+        <a class="btn2 ghost" href="/Admin/Trips/Problems"><i class="bi bi-exclamation-triangle"></i> سفرهای مشکل‌دار</a>
+    </div>
+</div>
+
+<div class="stats cols5">
+    <a class="stat @(Model.NoGps.Count > 0 ? "r" : "s")" href="#no-gps"><div class="l"><i class="bi bi-broadcast"></i> بدون GPS</div><div class="v">@Fa.N(Model.NoGps.Count)</div></a>
+    <a class="stat @(Model.PastEta.Count > 0 ? "w" : "s")" href="#past-eta"><div class="l"><i class="bi bi-stopwatch"></i> گذشته از زمان رسیدن</div><div class="v">@Fa.N(Model.PastEta.Count)</div></a>
+    <a class="stat @(Model.ExpiredDocs.Count > 0 ? "r" : "s")" href="#expired"><div class="l"><i class="bi bi-calendar-x"></i> مدرک منقضی در راه</div><div class="v">@Fa.N(Model.ExpiredDocs.Count)</div></a>
+    <a class="stat @(Model.FailedPayments.Count > 0 ? "w" : "s")" href="#failed"><div class="l"><i class="bi bi-x-octagon"></i> پرداخت ناموفق امروز</div><div class="v">@Fa.N(Model.FailedPayments.Count)</div></a>
+    <a class="stat @(Model.StalePayouts.Count > 0 ? "w" : "s")" href="#payouts"><div class="l"><i class="bi bi-hourglass-split"></i> برداشت معطل > ۴۸ ساعت</div><div class="v">@Fa.N(Model.StalePayouts.Count)</div></a>
+</div>
+
+@if (Model.Total == 0)
+{
+    <div class="card2"><div class="empty-state"><i class="bi bi-check2-all"></i><b>هیچ هشداری نیست</b>همهٔ سفرهای زنده GPS می‌فرستند و در زمان‌اند، مدارک رانندگانِ در راه معتبرند، امروز پرداخت ناموفقی نبوده و درخواست برداشتِ معطلی وجود ندارد.</div></div>
+}
+
+<div class="stack">
+    <div class="card2" id="no-gps">
+        <div class="hd"><i class="bi bi-broadcast"></i> سفرهای زنده بدون GPS (بیش از دو ساعت) <span class="end"><a class="btn2 sm ghost" href="/Admin/Live/Trips">سفرهای فعال</a></span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>سفر</th><th>مسیر</th><th>راننده</th><th>وضعیت</th><th>آخرین GPS</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var t in Model.NoGps)
+                {
+                    <tr data-href="/Admin/Trips/Case/@t.TripId">
+                        <td><a class="lnk num" href="/Admin/Trips/Case/@t.TripId">@t.Code</a></td>
+                        <td>@Ui.Route(t.From, t.To)</td>
+                        <td>@(t.DriverName ?? "—")<span class="sub num">@t.DriverMobile</span></td>
+                        <td>@Ui.TripPill(t.Status)</td>
+                        <td>@OpsUi.Gps(t.LastPointAt)</td>
+                        <td><a class="btn2 sm pri" href="/Admin/Trips/Case/@t.TripId">پرونده</a></td>
+                    </tr>
+                }
+                @if (Model.NoGps.Count == 0)
+                {
+                    <tr><td colspan="6" class="empty"><i class="bi bi-check2-circle"></i>همهٔ سفرهای زنده در دو ساعت اخیر موقعیت فرستاده‌اند.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2" id="past-eta">
+        <div class="hd"><i class="bi bi-stopwatch"></i> گذشته از زمان تقریبی رسیدن و هنوز تحویل‌نشده <span class="end"><a class="btn2 sm ghost" href="/Admin/Trips/Problems">صف مشکل‌دار</a></span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>سفر</th><th>مسیر</th><th>راننده</th><th>وضعیت</th><th>زمان تقریبی رسیدن</th><th>تأخیر</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var t in Model.PastEta)
+                {
+                    <tr data-href="/Admin/Trips/Case/@t.TripId">
+                        <td><a class="lnk num" href="/Admin/Trips/Case/@t.TripId">@t.Code</a></td>
+                        <td>@Ui.Route(t.From, t.To)</td>
+                        <td>@(t.DriverName ?? "—")<span class="sub num">@t.DriverMobile</span></td>
+                        <td>@Ui.TripPill(t.Status)</td>
+                        <td class="nowrap">@Fa.Stamp(t.EtaAt)</td>
+                        <td>@(t.EtaAt is DateTime eta ? Ui.Pill(BackofficeFormat.Duration((now - eta).TotalMinutes), "no") : Ui.Pill("—", "mut"))</td>
+                        <td><a class="btn2 sm pri" href="/Admin/Trips/Case/@t.TripId">پرونده</a></td>
+                    </tr>
+                }
+                @if (Model.PastEta.Count == 0)
+                {
+                    <tr><td colspan="7" class="empty"><i class="bi bi-check2-circle"></i>هیچ سفری از زمان تقریبی رسیدن نگذشته است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2" id="expired">
+        <div class="hd"><i class="bi bi-calendar-x"></i> رانندگان و خودروهای در راه با مدرک منقضی <span class="end"><a class="btn2 sm ghost" href="/Admin/Documents/Expired">مدارک منقضی</a></span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>سفر</th><th>راننده</th><th>خودرو</th><th>مدرک</th><th>انقضا</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var x in Model.ExpiredDocs)
+                {
+                    <tr>
+                        <td><a class="lnk num" href="/Admin/Trips/Case/@x.Trip.TripId">@x.Trip.Code</a><span class="sub">@Ui.Route(x.Trip.From, x.Trip.To)</span></td>
+                        <td>@if (x.Trip.DriverId is int did) { <a class="lnk" href="/Admin/Users/Driver/@did">@x.Trip.DriverName</a><span class="sub num">@x.Trip.DriverMobile</span> } else { <span class="muted">—</span> }</td>
+                        <td>@OpsUi.Plate(x.Trip.Plate)</td>
+                        <td><b>@x.What</b></td>
+                        <td>@Ui.Expiry(x.ExpiredAt) <span class="muted small">@Fa.Ago(x.ExpiredAt)</span></td>
+                        <td>@if (x.Trip.DriverId is int did2) { <a class="btn2 sm ghost" href="/Admin/Users/Driver/@did2">پروندهٔ راننده</a> }</td>
+                    </tr>
+                }
+                @if (Model.ExpiredDocs.Count == 0)
+                {
+                    <tr><td colspan="6" class="empty"><i class="bi bi-check2-circle"></i>مدارک همهٔ رانندگان و خودروهای در راه معتبر است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2" id="failed">
+        <div class="hd"><i class="bi bi-x-octagon"></i> پرداخت‌های ناموفق امروز <span class="end"><a class="btn2 sm ghost" href="/Admin/Finance/Failed">همهٔ پرداخت‌های ناموفق</a></span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>#</th><th>زمان</th><th>پرداخت‌کننده</th><th>مبلغ</th><th>بابت</th><th>سفر</th><th>علت خطا</th></tr></thead>
+                <tbody>
+                @foreach (var p in Model.FailedPayments)
+                {
+                    <tr>
+                        <td class="num">@Fa.N(p.PaymentId)</td>
+                        <td class="nowrap">@Fa.Time(p.CreatedAt)</td>
+                        <td>@if (PayerHref(p.PayerKind, p.PayerId) is string ph) { <a class="lnk" href="@ph">@Payer(p.PayerKind, p.PayerId)</a> } else { <b>@Payer(p.PayerKind, p.PayerId)</b> }<span class="sub">@OwnerKind.Label(p.PayerKind)</span></td>
+                        <td class="nowrap"><b>@Fa.Toman(p.Amount)</b></td>
+                        <td>@PurposeLabel(p.Purpose)@if (!string.IsNullOrEmpty(p.Gateway)) { <span class="sub">@p.Gateway</span> }</td>
+                        <td>@if (p.TripId is int tid) { <a class="lnk" href="/Admin/Trips/Case/@tid">پروندهٔ سفر</a> } else { <span class="muted">—</span> }</td>
+                        <td class="small">@(p.FailReason ?? "—")</td>
+                    </tr>
+                }
+                @if (Model.FailedPayments.Count == 0)
+                {
+                    <tr><td colspan="7" class="empty"><i class="bi bi-check2-circle"></i>امروز پرداخت ناموفقی ثبت نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2" id="payouts">
+        <div class="hd"><i class="bi bi-hourglass-split"></i> درخواست‌های برداشتِ بیش از ۴۸ ساعت بی‌پاسخ <span class="end"><a class="btn2 sm ghost" href="/Admin/Finance/Payouts">صف تسویه</a></span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>#</th><th>درخواست‌کننده</th><th>مبلغ</th><th>ثبت</th><th>معطل</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var p in Model.StalePayouts)
+                {
+                    <tr>
+                        <td class="num">@Fa.N(p.PayoutRequestId)</td>
+                        <td><b>@p.OwnerName</b><span class="sub">@OwnerKind.Label(p.OwnerKind)</span></td>
+                        <td class="nowrap"><b>@Fa.Toman(p.Amount)</b></td>
+                        <td class="nowrap">@Fa.Stamp(p.CreatedAt)</td>
+                        <td>@Ui.Pill(BackofficeFormat.Duration((now - p.CreatedAt).TotalMinutes), "wait")</td>
+                        <td><a class="btn2 sm pri" href="/Admin/Finance/Payouts?owner=@p.OwnerKind">رسیدگی</a></td>
+                    </tr>
+                }
+                @if (Model.StalePayouts.Count == 0)
+                {
+                    <tr><td colspan="6" class="empty"><i class="bi bi-check2-circle"></i>درخواست برداشتی بیش از ۴۸ ساعت بی‌پاسخ نمانده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,252 @@
+@model LoadDetailVm
+@{
+    var l = Model.Load;
+    var here = Context.Request.Path.Value + Context.Request.QueryString.Value;
+    var oLat = l.OriginLat ?? l.OriginCity?.Lat;
+    var oLng = l.OriginLng ?? l.OriginCity?.Lng;
+    var dLat = l.DestLat ?? l.DestCity?.Lat;
+    var dLng = l.DestLng ?? l.DestCity?.Lng;
+    var markers = new List<object>();
+    if (oLat is double ola && oLng is double olg) markers.Add(new { lat = ola, lng = olg, kind = "origin", label = "مبدا: " + l.OriginCity?.Name });
+    if (dLat is double dla && dLng is double dlg) markers.Add(new { lat = dla, lng = dlg, kind = "dest", label = "مقصد: " + l.DestCity?.Name });
+    var pending = Model.PendingOffer;
+    var canOffer = Model.InMarket && !Model.Blocked;
+    var loadingPassed = (l.LoadingTo ?? l.LoadingFrom) < DateTime.UtcNow;
+    var amountPrefill = pending is not null ? (pending.Amount / 10).ToString() : l.Price is long lp ? (lp / 10).ToString() : "";
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-box-seam"></i> @l.Title @Ui.LoadPill(l.Status)</h1>
+        <p><span class="num">@l.Code</span> · @Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)@(l.PublishedAt is DateTime pa ? " · انتشار " + Fa.Ago(pa) : "")@(Model.KmFromMe is double km ? " · " + Fa.N(km) + " کیلومتر تا مبدا" : "")</p>
+    </div>
+    <div class="actions">
+        @if (Model.Saved)
+        {
+            <form method="post" asp-action="Unsave" asp-route-id="@l.LoadId" class="inline">
+                <input type="hidden" name="returnUrl" value="@here" />
+                <button type="submit" class="btn2 ghost"><i class="bi bi-bookmark-fill"></i> ذخیره شده</button>
+            </form>
+        }
+        else if (Model.InMarket)
+        {
+            <form method="post" asp-action="Save" asp-route-id="@l.LoadId" class="inline">
+                <input type="hidden" name="returnUrl" value="@here" />
+                <button type="submit" class="btn2 ghost"><i class="bi bi-bookmark"></i> ذخیرهٔ بار</button>
+            </form>
+        }
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-arrow-right"></i> بازار بار</a>
+    </div>
+</div>
+
+@if (!Model.InMarket)
+{
+    <div class="alert2 info">
+        <i class="bi bi-info-circle-fill"></i>
+        <div class="grow">
+            این بار دیگر پیشنهاد نمی‌پذیرد (@LoadStatus.Label(l.Status)@(l.ExpiresAt is DateTime ex && ex <= DateTime.UtcNow ? " — مهلت پیشنهاد گذشته" : "")).
+            @(Model.MyOffers.Count > 0 ? "سابقهٔ پیشنهاد شما در همین صفحه نگه داشته شده است." : "")
+        </div>
+    </div>
+}
+@if (Model.Blocked)
+{
+    <div class="alert2 err">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            <b>تا رفع این موارد نمی‌توانید پیشنهاد بدهید:</b>
+            <ul style="margin:6px 0 0;padding-inline-start:18px">
+                @foreach (var i in Model.Issues.Where(i => i.Blocking))
+                {
+                    <li>@i.Text @if (i.Link is not null) { <a class="lnk" href="@i.Link">رفع مشکل</a> }</li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+@foreach (var w in Model.Warnings)
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-circle"></i><div class="grow">@w</div></div>
+}
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-card-list"></i> مشخصات بار</div>
+            <div class="bd">
+                <dl class="kv">
+                    <dt>نوع کالا</dt><dd>@l.CargoType@(string.IsNullOrEmpty(l.Packaging) ? "" : " · " + l.Packaging)</dd>
+                    <dt>وزن و حجم</dt>
+                    <dd>
+                        @Fa.N(l.WeightTon, 1) تن@(l.VolumeM3 is decimal v ? " · " + Fa.N(v, 1) + " مترمکعب" : "")
+                        @if (l.LengthM is not null || l.WidthM is not null || l.HeightM is not null)
+                        {
+                            <span class="muted"> · ابعاد @Fa.N(l.LengthM ?? 0, 1) × @Fa.N(l.WidthM ?? 0, 1) × @Fa.N(l.HeightM ?? 0, 1) متر</span>
+                        }
+                    </dd>
+                    <dt>نوع خودرو</dt><dd>@(l.VehicleType?.Name ?? "فرقی ندارد")</dd>
+                    <dt>مبدا</dt><dd>@l.OriginCity?.Name (@l.OriginCity?.Province?.Name)@(string.IsNullOrWhiteSpace(l.OriginAddress) ? "" : " — " + l.OriginAddress)</dd>
+                    <dt>مقصد</dt><dd>@l.DestCity?.Name (@l.DestCity?.Province?.Name)@(string.IsNullOrWhiteSpace(l.DestAddress) ? "" : " — " + l.DestAddress)</dd>
+                    <dt>زمان بارگیری</dt>
+                    <dd>
+                        @Fa.LongDate(l.LoadingFrom) ساعت @Fa.Time(l.LoadingFrom)@(l.LoadingTo is DateTime lt ? " تا " + Fa.LongDate(lt) + " ساعت " + Fa.Time(lt) : "")
+                        @if (loadingPassed && Model.InMarket)
+                        {
+                            @Ui.Pill("گذشته", "wait")
+                        }
+                    </dd>
+                    <dt>فاصلهٔ مسیر</dt><dd>@(l.DistanceKm is double dk ? Fa.N(dk) + " کیلومتر" : "—")</dd>
+                    <dt>کرایه</dt><dd>@PriceMode.Label(l.PriceMode) · @(l.Price is long p ? Fa.Toman(p) : "بدون مبلغ اعلامی — مبلغ را شما پیشنهاد می‌دهید")</dd>
+                    <dt>ارزش اعلامی</dt><dd>@Fa.Toman(l.DeclaredValue)@(l.InsuranceRequested ? " · صاحب بار بیمهٔ بار خواسته است" : "")</dd>
+                    @if (l.ExpiresAt is not null && Model.InMarket)
+                    {
+                        <dt>مهلت پیشنهاد</dt><dd>@Fa.Stamp(l.ExpiresAt)</dd>
+                    }
+                    @if (!string.IsNullOrEmpty(l.Description))
+                    {
+                        <dt>توضیحات</dt><dd style="white-space:pre-line">@l.Description</dd>
+                    }
+                </dl>
+                @if (l.Photos.Count > 0)
+                {
+                    <div class="row-actions" style="margin-top:12px">
+                        @foreach (var ph in l.Photos)
+                        {
+                            <a class="chip" href="@DocumentStorage.Url(ph.FilePath)" target="_blank"><i class="bi bi-image"></i> تصویر بار</a>
+                        }
+                    </div>
+                }
+                <p class="muted small" style="margin:12px 0 0">نشانی دقیق، نام و شمارهٔ گیرنده پس از پذیرش پیشنهاد در صفحهٔ سفر نمایش داده می‌شود.</p>
+            </div>
+        </div>
+
+        @if (markers.Count > 0)
+        {
+            <div class="map short" data-map="@Json.Serialize(new { markers, fit = true })"></div>
+        }
+
+        @if (Model.MyOffers.Count > 0)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-clock-history"></i> سابقهٔ پیشنهادهای من روی این بار</div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>زمان</th><th>مبلغ</th><th>رسیدن به مبدا</th><th>خودرو</th><th>وضعیت</th><th></th></tr></thead>
+                        <tbody>
+                        @foreach (var o in Model.MyOffers)
+                        {
+                            <tr>
+                                <td class="nowrap">@Fa.Stamp(o.CreatedAt)</td>
+                                <td class="num"><b>@Fa.Toman(o.Amount)</b></td>
+                                <td>@(o.EtaHours is int eh ? Fa.N(eh) + " ساعت" : "—")</td>
+                                <td>@if (o.Vehicle is not null) { <span class="plate">@o.Vehicle.PlateNo</span> } else { <span class="muted">—</span> }</td>
+                                <td>@Ui.OfferPill(o.Status) @if (o.RespondedAt is DateTime ra) { <span class="sub">@Fa.Ago(ra)</span> }</td>
+                                <td>
+                                    @if (Model.TripByOffer.TryGetValue(o.OfferId, out var tripId))
+                                    {
+                                        <a class="btn2 soft sm" asp-controller="Trips" asp-action="Detail" asp-route-id="@tripId"><i class="bi bi-signpost-split"></i> صفحهٔ سفر</a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-tag"></i> @(Model.IsFixed ? "درخواست حمل" : "پیشنهاد قیمت")</div>
+            <div class="bd">
+                @if (pending is not null)
+                {
+                    <div class="alert2 info">
+                        <i class="bi bi-hourglass-split"></i>
+                        <div class="grow">پیشنهاد شما: <b class="num">@Fa.Toman(pending.Amount)</b> · ثبت @Fa.Ago(pending.CreatedAt) · در انتظار پاسخ صاحب بار</div>
+                    </div>
+                }
+                @if (Model.PendingOffers > 0)
+                {
+                    <p class="muted small" style="margin-top:0">@Fa.N(Model.PendingOffers) پیشنهاد در انتظار روی این بار است@(pending is not null ? " (با احتساب پیشنهاد شما)" : "").</p>
+                }
+                @if (Model.InMarket)
+                {
+                    <form method="post" asp-action="Offer" asp-route-id="@l.LoadId">
+                        <div class="form-grid">
+                            @if (Model.IsFixed)
+                            {
+                                <div class="fld full">
+                                    <label>کرایهٔ اعلامی</label>
+                                    <div class="price" style="font-size:17px;font-weight:800;color:var(--primary)"><span class="num">@Fa.Toman(l.Price)</span></div>
+                                    <span class="hint">کرایهٔ این بار ثابت است؛ با ثبت درخواست، حمل با همین مبلغ را می‌پذیرید.</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="fld full">
+                                    <label>مبلغ پیشنهادی شما (تومان) <span class="req">*</span></label>
+                                    <input name="amountToman" class="money" inputmode="numeric" required value="@amountPrefill" />
+                                    <span class="hint">حداقل ۱۰۰,۰۰۰ تومان.@(l.Price is long lp0 ? " پیشنهاد اولیهٔ صاحب بار: " + Fa.Toman(lp0) : "")</span>
+                                </div>
+                            }
+                            <div class="fld">
+                                <label>رسیدن به مبدا (ساعت)</label>
+                                <input name="etaHours" type="number" min="0" max="720" dir="ltr" value="@pending?.EtaHours" />
+                                <span class="hint">چند ساعت دیگر می‌توانید در محل بارگیری باشید.</span>
+                            </div>
+                            <div class="fld">
+                                <label>خودرو</label>
+                                <select name="vehicleId">
+                                    <option value="">انتخاب نشده</option>
+                                    @foreach (var v in Model.Vehicles)
+                                    {
+                                        <option value="@v.VehicleId" selected="@(Model.DefaultVehicleId == v.VehicleId)">@v.PlateNo · @v.VehicleType?.Name (@Fa.N(v.CapacityTon, 1) تن)@(v.Status == VehicleStatus.Active ? "" : " — " + VehicleStatus.Label(v.Status))</option>
+                                    }
+                                </select>
+                                @if (Model.Vehicles.Count == 0)
+                                {
+                                    <span class="hint">خودرویی ثبت نکرده‌اید. <a class="lnk" href="/Driver/Vehicle">ثبت خودرو</a></span>
+                                }
+                            </div>
+                            <div class="fld full">
+                                <label>توضیح برای صاحب بار</label>
+                                <textarea name="note" rows="2" maxlength="500">@pending?.Note</textarea>
+                            </div>
+                        </div>
+                        <p class="muted small">کمیسیون بارگو هنگام پذیرش از کرایه کسر می‌شود و سهم شما پس از تحویل بار به کیف پولتان واریز می‌شود.</p>
+                        <div class="form-actions">
+                            <button type="submit" class="btn2 pri block" disabled="@(!canOffer)">
+                                <i class="bi bi-send"></i> @(pending is null ? (Model.IsFixed ? "ثبت درخواست حمل" : "ثبت پیشنهاد قیمت") : "به‌روزرسانی پیشنهاد")
+                            </button>
+                        </div>
+                    </form>
+                    @if (pending is not null)
+                    {
+                        <form method="post" asp-controller="Offers" asp-action="Withdraw" asp-route-id="@pending.OfferId" data-confirm="پیشنهاد پس گرفته شود؟" style="margin-top:10px">
+                            <input type="hidden" name="returnUrl" value="@here" />
+                            <button type="submit" class="btn2 ghost block"><i class="bi bi-arrow-counterclockwise"></i> پس گرفتن پیشنهاد</button>
+                        </form>
+                        <a class="btn2 soft block" style="margin-top:10px" href="@Url.Action("Thread", "Messages", new { key = "offer:" + pending.OfferId })"><i class="bi bi-chat-dots"></i> گفتگو با صاحب بار</a>
+                    }
+                }
+                else
+                {
+                    <div class="empty-state"><i class="bi bi-tag"></i><b>این بار دیگر پیشنهاد نمی‌پذیرد</b>بارهای مشابه را در بازار بار ببینید.</div>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi @(Model.OwnerIsCompany ? "bi-buildings" : "bi-person")"></i> صاحب بار</div>
+            <div class="bd">
+                <div class="kvrow"><span>نام</span><b>@(string.IsNullOrEmpty(Model.OwnerName) ? "—" : Model.OwnerName)</b></div>
+                <div class="kvrow"><span>نوع</span><b>@(Model.OwnerIsCompany ? "شرکت حمل‌ونقل (بار مشتری)" : "صاحب بار")</b></div>
+                <div class="kvrow"><span>امتیاز</span>@Ui.Stars(Model.OwnerRating, Model.OwnerRatingCount)</div>
+                <p class="muted small" style="margin:10px 0 0">شمارهٔ تماس صاحب بار پس از پذیرش پیشنهاد در صفحهٔ سفر نمایش داده می‌شود.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

@@ -1,0 +1,140 @@
+@model OpsTripsVm
+@{
+    (string Key, string Label, string Icon)[] tabs =
+    [
+        ("planned", "برنامه‌ریزی‌شده", "bi-calendar-event"),
+        ("current", "جاری", "bi-truck"),
+        ("done", "تکمیل‌شده", "bi-flag"),
+        ("cancelled", "لغوشده", "bi-slash-circle")
+    ];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-signpost-split"></i> @ViewData["Title"]</h1>
+        <p>سفرهایی که شرکت حمل‌کنندهٔ آن‌هاست، و سفرهایی که برای بارِ مشتریان شرکت ساخته شده‌اند.</p>
+    </div>
+    <div class="actions">
+        @if (Model.Tab == "planned")
+        {
+            <a class="btn2 pri" href="/Company/Dispatch"><i class="bi bi-person-check"></i> صف تخصیص</a>
+        }
+        else if (Model.Tab == "current")
+        {
+            <a class="btn2 pri" href="/Company/Monitoring"><i class="bi bi-map"></i> نقشهٔ آنلاین</a>
+        }
+        <a class="btn2 ghost" href="/Company/Dispatch/Schedule"><i class="bi bi-calendar-week"></i> برنامهٔ حمل</a>
+    </div>
+</div>
+
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        <a asp-action="Index" asp-route-tab="@t.Key" class="@(Model.Tab == t.Key ? "on" : "")"><i class="bi @t.Icon"></i> @t.Label <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(t.Key))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead>
+            <tr>
+                <th>سفر</th><th>بار</th><th>مسیر</th><th>حمل‌کننده</th>
+                <th>@(Model.Tab switch { "current" => "آخرین موقعیت", "done" => "تحویل", "cancelled" => "لغو", _ => "حرکت" })</th>
+                <th>کرایه</th><th>بارنامه</th><th>وضعیت</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var t in Model.Page.Rows)
+            {
+                var l = t.Load!;
+                var mine = t.CompanyId == Model.CompanyId;
+                <tr data-href="/Company/Trips/Detail/@t.TripId">
+                    <td>
+                        <a class="num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a>
+                        <span class="sub num">@l.Code</span>
+                        @if (t.IsProblem) { <span class="sub">@Ui.Pill("مشکل‌دار", "no")</span> }
+                    </td>
+                    <td><b>@l.Title</b><span class="sub">@l.CargoType · @OpsLabels.Ton(l.WeightTon) تن · @(l.Shipper?.DisplayName ?? "مشتری شرکت")</span></td>
+                    <td>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</td>
+                    <td>
+                        @if (mine)
+                        {
+                            if (t.Driver is not null) { <span>@t.Driver.FullName</span> } else { <span class="chip">بدون راننده</span> }
+                            if (t.Vehicle is not null) { <span class="sub"><span class="plate">@t.Vehicle.PlateNo</span></span> }
+                        }
+                        else
+                        {
+                            <span>@(t.Company?.Name ?? t.Driver?.FullName ?? "—")</span>
+                            <span class="sub">@CarrierKind.Label(t.CarrierKind) — بارِ مشتری شما</span>
+                        }
+                    </td>
+                    <td class="nowrap">
+                        @switch (Model.Tab)
+                        {
+                            case "current":
+                                <span>@(t.LastPointAt is DateTime lp ? Fa.Ago(lp) : "بدون موقعیت")</span>
+                                if (t.Status == TripStatus.InTransit && t.EtaAt is DateTime eta) { <span class="sub">رسیدن تقریبی @Fa.Stamp(eta)</span> }
+                                break;
+                            case "done":
+                                <span>@Fa.Stamp(t.DeliveredAt)</span>
+                                break;
+                            case "cancelled":
+                                <span>@Fa.Stamp(t.CancelledAt)</span>
+                                if (!string.IsNullOrEmpty(t.CancelReason)) { <span class="sub">@t.CancelReason</span> }
+                                break;
+                            default:
+                                <span>@Fa.Stamp(t.ScheduledDepartureAt ?? l.LoadingFrom)</span>
+                                break;
+                        }
+                    </td>
+                    <td class="num">
+                        @Fa.Toman(t.Fare)
+                        @if (mine && t.Commission > 0) { <span class="sub">سهم شرکت @Fa.Toman(t.CarrierShare)</span> }
+                    </td>
+                    <td>
+                        @if (t.Waybill is { } w && w.Status != "void")
+                        {
+                            <span class="num">@Fa.Digits(w.Number)</span><span class="sub">@Ui.Pill(OpsLabels.WaybillStatus(w.Status), OpsLabels.WaybillTone(w.Status))</span>
+                        }
+                        else if (mine && t.Status is TripStatus.AtOrigin or TripStatus.Loaded)
+                        {
+                            <a class="btn2 soft sm" href="/Company/Waybills/Issue"><i class="bi bi-file-earmark-plus"></i> ثبت</a>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td>
+                        @Ui.TripPill(t.Status)
+                        @if (mine && t.Status is TripStatus.AwaitingAssignment or TripStatus.Assigned)
+                        {
+                            <span class="sub"><a href="/Company/Dispatch/Assign/@t.TripId">تخصیص ←</a></span>
+                        }
+                        else if (t.Status == TripStatus.Settled && mine && t.DriverShare > 0 && t.DriverSharePaidAt is null)
+                        {
+                            <span class="sub">@Ui.Pill("سهم راننده پرداخت‌نشده", "wait")</span>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr>
+                    <td colspan="8" class="empty">
+                        <i class="bi bi-signpost-split"></i>
+                        @(Model.Tab switch
+                        {
+                            "current" => "هیچ سفری در راه نیست.",
+                            "done" => "هنوز سفری تحویل نشده است.",
+                            "cancelled" => "سفر لغوشده‌ای ندارید.",
+                            _ => "سفر برنامه‌ریزی‌شده‌ای ندارید. با پذیرش پیشنهاد در بازار بار یا ثبت بار برای مشتری، سفر ساخته می‌شود."
+                        })
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

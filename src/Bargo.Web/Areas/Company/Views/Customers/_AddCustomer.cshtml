@@ -1,0 +1,37 @@
+@{
+    var kind = ViewBag.Kind as string ?? "person";
+}
+<div class="card2">
+    <div class="hd"><i class="bi bi-person-plus"></i> افزودن مشتری</div>
+    <div class="bd">
+        <form method="post" asp-area="Company" asp-controller="Customers" asp-action="Add">
+            <div class="form-grid">
+                <div class="fld full">
+                    <label>نام مشتری <span class="req">*</span></label>
+                    <input name="name" maxlength="150" required placeholder="نام شخص یا شرکت" />
+                </div>
+                <div class="fld">
+                    <label>نوع</label>
+                    <select name="kind">
+                        <option value="person" selected="@(kind != "corporate")">حقیقی</option>
+                        <option value="corporate" selected="@(kind == "corporate")">شرکتی (حقوقی)</option>
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>موبایل</label>
+                    <input name="mobile" dir="ltr" inputmode="numeric" maxlength="13" placeholder="09xxxxxxxxx" />
+                </div>
+                <div class="fld full">
+                    <label>کد ملی / شناسهٔ ملی</label>
+                    <input name="nationalId" dir="ltr" inputmode="numeric" maxlength="11" />
+                    <span class="hint">حقیقی: کد ملی ۱۰ رقمی — شرکتی: شناسهٔ ملی ۱۱ رقمی. اختیاری است ولی اگر وارد شود بررسی می‌شود.</span>
+                </div>
+                <div class="fld full">
+                    <label>یادداشت</label>
+                    <textarea name="note" rows="3" placeholder="نوع بار، شرایط پرداخت، فرد رابط…"></textarea>
+                </div>
+            </div>
+            <div class="form-actions"><button class="btn2 pri"><i class="bi bi-plus-lg"></i> ثبت مشتری</button></div>
+        </form>
+    </div>
+</div>

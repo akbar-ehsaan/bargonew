@@ -1,0 +1,105 @@
+@model CitiesVm
+@{
+    var returnUrl = Context.Request.Path.Value + Context.Request.QueryString.Value;
+    var provinceName = Model.ProvinceId is int pid ? Model.Provinces.FirstOrDefault(p => p.ProvinceId == pid)?.Name : null;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-buildings"></i> شهرها@(provinceName is null ? "" : " — " + provinceName)</h1>
+        <p>مختصات هر شهر مبنای «بارهای نزدیک من» و برآورد مسافت است. شهر حذف نمی‌شود؛ غیرفعال کنید تا در فرم‌ها دیده نشود.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Index"><i class="bi bi-map"></i> استان‌ها</a></div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <form method="get" asp-action="Cities" class="filters">
+            <div class="fld">
+                <label>استان</label>
+                <select name="provinceId">
+                    <option value="">همه</option>
+                    @foreach (var p in Model.Provinces)
+                    {
+                        <option value="@p.ProvinceId" selected="@(Model.ProvinceId == p.ProvinceId)">@p.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="fld"><label>نام شهر</label><input name="q" value="@Model.Q" placeholder="جستجو…" /></div>
+            <div class="fld narrow">
+                <label>نمایش</label>
+                <select name="filter">
+                    <option value="" selected="@(Model.Filter is null)">همه</option>
+                    <option value="nocoords" selected="@(Model.Filter == "nocoords")">بدون مختصات</option>
+                    <option value="inactive" selected="@(Model.Filter == "inactive")">غیرفعال</option>
+                </select>
+            </div>
+            <div class="row-actions">
+                <button class="btn2 pri"><i class="bi bi-funnel"></i> اعمال</button>
+                <a class="btn2 ghost" asp-action="Cities">پاک کردن</a>
+            </div>
+        </form>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>شهر</th><th>استان</th><th>عرض جغرافیایی</th><th>طول جغرافیایی</th><th>فعال</th><th>بار</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var c in Model.Page.Rows)
+                {
+                    var fid = "city-" + c.CityId;
+                    <tr>
+                        <td><b>@c.Name</b></td>
+                        <td class="small">@c.ProvinceName</td>
+                        <td><input form="@fid" name="lat" value="@BackofficeLookup.Invariant(c.Lat)" dir="ltr" inputmode="decimal" placeholder="35.6892" style="width:110px;padding:5px 8px;border:1px solid #cdd5de;border-radius:7px;font:inherit;font-size:13px" /></td>
+                        <td><input form="@fid" name="lng" value="@BackofficeLookup.Invariant(c.Lng)" dir="ltr" inputmode="decimal" placeholder="51.3890" style="width:110px;padding:5px 8px;border:1px solid #cdd5de;border-radius:7px;font:inherit;font-size:13px" /></td>
+                        <td><label class="check"><input form="@fid" type="checkbox" name="isActive" value="true" checked="@c.IsActive" /><input form="@fid" type="hidden" name="isActive" value="false" /></label></td>
+                        <td class="num">@Fa.N(c.Loads)</td>
+                        <td><button form="@fid" class="btn2 sm soft"><i class="bi bi-check2"></i> ذخیره</button></td>
+                    </tr>
+                }
+                @if (Model.Page.Total == 0)
+                {
+                    <tr><td colspan="7" class="empty"><i class="bi bi-buildings"></i>شهری با این فیلترها پیدا نشد.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Page.Pager" />
+
+        @* فرم هر ردیف بیرون از جدول است (فرم درون tr مجاز نیست)؛ ورودی‌ها با ویژگی form به آن وصل‌اند *@
+        @foreach (var c in Model.Page.Rows)
+        {
+            <form id="city-@c.CityId" method="post" asp-action="SaveCity">
+                <input type="hidden" name="id" value="@c.CityId" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+            </form>
+        }
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-plus-circle"></i> شهر تازه</div>
+        <div class="bd">
+            <form method="post" asp-action="SaveCity">
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <div class="stack" style="gap:12px">
+                    <div class="fld">
+                        <label>استان <span class="req">*</span></label>
+                        <select name="provinceId" required>
+                            <option value="">انتخاب کنید…</option>
+                            @foreach (var p in Model.Provinces)
+                            {
+                                <option value="@p.ProvinceId" selected="@(Model.ProvinceId == p.ProvinceId)">@p.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld"><label>نام شهر <span class="req">*</span></label><input name="name" maxlength="40" required /></div>
+                    <div class="form-grid">
+                        <div class="fld"><label>عرض جغرافیایی</label><input name="lat" dir="ltr" inputmode="decimal" placeholder="35.6892" /></div>
+                        <div class="fld"><label>طول جغرافیایی</label><input name="lng" dir="ltr" inputmode="decimal" placeholder="51.3890" /></div>
+                    </div>
+                    <span class="hint">هر دو یا هیچ‌کدام؛ محدودهٔ ایران (عرض ۲۴ تا ۴۰، طول ۴۴ تا ۶۴).</span>
+                    <label class="check"><input type="checkbox" name="isActive" value="true" checked /><input type="hidden" name="isActive" value="false" /> فعال</label>
+                </div>
+                <div class="form-actions"><button class="btn2 pri"><i class="bi bi-plus-lg"></i> افزودن</button></div>
+            </form>
+        </div>
+    </div>
+</div>

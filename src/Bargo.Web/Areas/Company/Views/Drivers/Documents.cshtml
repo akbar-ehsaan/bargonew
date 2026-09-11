@@ -1,0 +1,165 @@
+@model OpsDocumentsVm
+@{
+    var pending = Model.Page.Rows.Count(x => x.Status == AccountStatus.Pending);
+    var selectedName = Model.OwnerId is int oid ? Model.Owners.GetValueOrDefault(oid) : null;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-folder2-open"></i> مدارک رانندگان</h1>
+        <p>کارت ملی، گواهینامه و کارت هوشمند رانندگان شرکت. مدرکی که اینجا بارگذاری می‌کنید به نام راننده ثبت و برای بررسی به مدیر بارگو می‌رود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-people"></i> لیست رانندگان</a>
+        <a class="btn2 ghost" asp-controller="Fleet" asp-action="Alerts"><i class="bi bi-alarm"></i> هشدار انقضا</a>
+    </div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <form method="get" asp-action="Documents" class="filters">
+            <div class="fld">
+                <label>راننده</label>
+                <select name="driverId">
+                    <option value="">همهٔ رانندگان</option>
+                    @foreach (var o in Model.OwnerOptions)
+                    {
+                        <option value="@o.Id" selected="@(Model.OwnerId == o.Id)">@o.Label</option>
+                    }
+                </select>
+            </div>
+            <div class="fld narrow">
+                <label>نوع مدرک</label>
+                <select name="kind">
+                    <option value="">همه</option>
+                    @foreach (var k in Model.Kinds)
+                    {
+                        <option value="@k" selected="@(Model.Kind == k)">@DocumentKind.Label(k)</option>
+                    }
+                </select>
+            </div>
+            <button class="btn2 ghost"><i class="bi bi-funnel"></i> فیلتر</button>
+            @if (Model.OwnerId is not null || Model.Kind is not null)
+            {
+                <a class="btn2 ghost" asp-action="Documents"><i class="bi bi-x-lg"></i> حذف فیلتر</a>
+            }
+        </form>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>راننده</th><th>مدرک</th><th>شماره</th><th>انقضا</th><th>وضعیت</th><th>بارگذاری</th><th>فایل</th></tr></thead>
+                <tbody>
+                @foreach (var x in Model.Page.Rows)
+                {
+                    <tr>
+                        <td><a class="lnk" asp-action="Detail" asp-route-id="@x.OwnerId">@Model.Owners.GetValueOrDefault(x.OwnerId, "—")</a></td>
+                        <td><b>@DocumentKind.Label(x.Kind)</b></td>
+                        <td class="num">@(x.Number is null ? "—" : Fa.Digits(x.Number))</td>
+                        <td>@(DocumentKind.Expiring.Contains(x.Kind) ? Ui.Expiry(x.ExpiresAt, Model.WarnDays) : Ui.Pill("بدون انقضا", "mut"))</td>
+                        <td>
+                            @Ui.AccountPill(x.Status)
+                            @if (!string.IsNullOrWhiteSpace(x.ReviewNote))
+                            {
+                                <span class="sub">@x.ReviewNote</span>
+                            }
+                        </td>
+                        <td class="nowrap">@Fa.Date(x.UploadedAt)<span class="sub">@Fa.Ago(x.UploadedAt)</span></td>
+                        <td>
+                            @if (x.FilePath is not null)
+                            {
+                                <a class="btn2 ghost sm" href="@DocumentStorage.Url(x.FilePath)" target="_blank"><i class="bi bi-eye"></i> مشاهده</a>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Page.Total == 0)
+                {
+                    <tr>
+                        <td colspan="7" class="empty">
+                            <i class="bi bi-folder2-open"></i>
+                            @if (Model.OwnerOptions.Count == 0)
+                            {
+                                <text>هنوز راننده‌ای در ناوگان شرکت نیست؛ ابتدا </text><a class="lnk" asp-action="Add">راننده اضافه کنید</a><text>.</text>
+                            }
+                            else if (selectedName is not null)
+                            {
+                                <text>برای @selectedName مدرکی@(Model.Kind is null ? "" : $" از نوع «{DocumentKind.Label(Model.Kind)}»") بارگذاری نشده است.</text>
+                            }
+                            else
+                            {
+                                <text>هنوز مدرکی برای رانندگان شرکت بارگذاری نشده است.</text>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Page.Pager" />
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-cloud-arrow-up"></i> بارگذاری مدرک به نیابت از راننده</div>
+            <div class="bd">
+                @if (Model.OwnerOptions.Count == 0)
+                {
+                    <div class="muted small">ابتدا راننده‌ای اضافه کنید.</div>
+                }
+                else
+                {
+                    <form method="post" asp-action="Upload" enctype="multipart/form-data">
+                        <div class="form-grid">
+                            <div class="fld full">
+                                <label>راننده <span class="req">*</span></label>
+                                <select name="driverId" required>
+                                    <option value="">انتخاب کنید</option>
+                                    @foreach (var o in Model.OwnerOptions)
+                                    {
+                                        <option value="@o.Id" selected="@(Model.OwnerId == o.Id)">@o.Label</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="fld full">
+                                <label>نوع مدرک <span class="req">*</span></label>
+                                <select name="kind" required>
+                                    @foreach (var k in Model.Kinds)
+                                    {
+                                        <option value="@k" selected="@(Model.Kind == k)">@DocumentKind.Label(k)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="fld">
+                                <label>شماره مدرک</label>
+                                <input name="number" maxlength="40" dir="ltr" />
+                            </div>
+                            <div class="fld">
+                                <label>تاریخ انقضا</label>
+                                <input name="expiresAt" data-jdate placeholder="۱۴۰۵/۰۶/۲۱" />
+                                <span class="hint">برای گواهینامه و کارت هوشمند لازم است.</span>
+                            </div>
+                            <div class="fld full">
+                                <label>فایل <span class="req">*</span></label>
+                                <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required />
+                                <span class="hint">تصویر (jpg، png، webp) یا PDF، حداکثر ۸ مگابایت.</span>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn2 pri block"><i class="bi bi-cloud-arrow-up"></i> بارگذاری</button>
+                        </div>
+                    </form>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-info-circle"></i> راهنما</div>
+            <div class="bd small">
+                <div class="kvrow"><span>در این صفحه</span><b>@Fa.N(pending) در انتظار بررسی</b></div>
+                <p class="muted" style="margin:10px 0 0">هر مدرک تازه، مدرک قبلیِ همان نوع را کنار می‌گذارد؛ برای تمدید بیمه یا گواهینامه فقط نسخهٔ جدید را بارگذاری کنید. شماره و تاریخ انقضای گواهینامه و کارت هوشمند روی پروفایل راننده هم به‌روز می‌شود.</p>
+            </div>
+        </div>
+    </div>
+</div>

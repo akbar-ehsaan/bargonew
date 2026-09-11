@@ -1,0 +1,96 @@
+@model CompanyUserForm
+@{
+    var errors = ViewBag.Errors as List<string>;
+    var selected = new HashSet<string>(Model.Perms ?? [], StringComparer.OrdinalIgnoreCase);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-person-plus"></i> تعریف کاربر</h1>
+        <p>کاربر تازه با موبایل و گذرواژه‌ای که اینجا تعیین می‌کنید وارد پنل شرکت می‌شود و فقط بخش‌های انتخاب‌شده را می‌بیند.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Index"><i class="bi bi-people"></i> فهرست کاربران</a></div>
+</div>
+
+@if (errors is { Count: > 0 })
+{
+    <div class="alert2 err" role="alert"><i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            <ul style="margin:0;padding-inline-start:18px">
+                @foreach (var e in errors) { <li>@e</li> }
+            </ul>
+        </div>
+    </div>
+}
+
+<div class="card2" style="max-width:860px">
+    <div class="bd">
+        <form method="post" asp-action="Add" autocomplete="off">
+            <div class="form-grid">
+                <div class="form-sec"><i class="bi bi-person"></i> مشخصات ورود</div>
+                <div class="fld">
+                    <label>نام و نام خانوادگی <span class="req">*</span></label>
+                    <input name="Name" value="@Model.Name" maxlength="100" required />
+                </div>
+                <div class="fld">
+                    <label>موبایل <span class="req">*</span></label>
+                    <input name="Mobile" value="@Model.Mobile" dir="ltr" inputmode="numeric" maxlength="13" placeholder="09xxxxxxxxx" required autocomplete="off" />
+                    <span class="hint">نام کاربری برای ورود است و باید در کل بارگو یکتا باشد.</span>
+                </div>
+                <div class="fld">
+                    <label>گذرواژه <span class="req">*</span></label>
+                    <input name="Password" type="password" dir="ltr" minlength="6" required autocomplete="new-password" />
+                    <span class="hint">دست‌کم ۶ نویسه. کاربر می‌تواند بعداً از «تنظیمات» عوضش کند.</span>
+                </div>
+                <div class="fld">
+                    <label>عنوان <span class="req">*</span></label>
+                    <select name="Title" id="title">
+                        @foreach (var t in CompanyLabels.AssignableTitles)
+                        {
+                            <option value="@t" selected="@(t == Model.Title)">@CompanyLabels.UserTitle(t)</option>
+                        }
+                    </select>
+                    <span class="hint">فقط برچسب است؛ با تغییرش دسترسی‌های پیشنهادی زیر علامت می‌خورند و باز هم قابل تغییرند.</span>
+                </div>
+
+                <div class="form-sec"><i class="bi bi-shield-lock"></i> دسترسی به بخش‌ها</div>
+                @foreach (var p in CompanyLabels.Permissions)
+                {
+                    var n = p.ToString();
+                    <label class="check">
+                        <input type="checkbox" name="Perms" value="@n" checked="@(selected.Contains(n))" data-perm="@n" />
+                        @CompanyLabels.Permission(p)
+                        @if (p == CompanyPermission.Users)
+                        {
+                            <span class="muted small">— تعریف کاربر، دسترسی‌ها، اطلاعات بانکی و تنظیمات شرکت</span>
+                        }
+                    </label>
+                }
+            </div>
+            <div class="form-actions">
+                <button class="btn2 pri"><i class="bi bi-person-plus"></i> تعریف کاربر</button>
+                <a class="btn2 ghost" asp-action="Index">انصراف</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    // پیش‌فرض دسترسی هر عنوان — همان CompanyLabels.DefaultFor؛ فقط راحتیِ فرم است، سرور دوباره می‌خواند
+    var defaults = {
+        dispatcher: ['Loads', 'Dispatch', 'Drivers', 'Fleet'],
+        accountant: ['Finance', 'Reports', 'Customers'],
+        viewer: ['Reports']
+    };
+    var sel = document.getElementById('title');
+    if (!sel) return;
+    sel.addEventListener('change', function () {
+        var on = defaults[sel.value] || [];
+        document.querySelectorAll('input[data-perm]').forEach(function (cb) {
+            cb.checked = on.indexOf(cb.getAttribute('data-perm')) >= 0;
+        });
+    });
+})();
+</script>
+}

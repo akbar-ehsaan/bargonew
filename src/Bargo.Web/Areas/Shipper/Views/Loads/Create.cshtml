@@ -1,0 +1,344 @@
+@model ShipperLoadForm
+@{
+    var lists = (ShipperLoadFormLists)ViewBag.Lists;
+    var copyCode = ViewBag.CopyCode as string;
+    var knownCargo = Model.CargoType is null || ShipperLoadForm.CargoTypes.Contains(Model.CargoType) || Model.CargoType == "other";
+
+    // خطای یک فیلد از ModelState — بدون مارک‌آپ Razor تا تابع محلی همگام بماند
+    Microsoft.AspNetCore.Html.IHtmlContent Err(string key)
+    {
+        var entry = ViewData.ModelState[key];
+        if (entry is null || entry.Errors.Count == 0) return Microsoft.AspNetCore.Html.HtmlString.Empty;
+        return new Microsoft.AspNetCore.Html.HtmlString("<span class=\"val-err\">" +
+            System.Text.Encodings.Web.HtmlEncoder.Default.Encode(entry.Errors[0].ErrorMessage) + "</span>");
+    }
+
+    // مقدار کادر تاریخ: اگر ورودی نامعتبر بود همان متن کاربر برگردد
+    string DateVal(string key, DateTime? value) => ViewData.ModelState[key]?.AttemptedValue ?? Fa.DateBox(value);
+
+    // async چون <option selected> تگ‌هلپر است و Razor درون تابع محلی فقط نسخهٔ async را می‌پذیرد
+    async Task CitySelect(string name, int? selected)
+    {
+        <select name="@name" id="@name" required>
+            <option value="">انتخاب شهر</option>
+            @foreach (var grp in lists.Cities.GroupBy(c => c.Province))
+            {
+                <optgroup label="@grp.Key">
+                    @foreach (var city in grp)
+                    {
+                        <option value="@city.CityId" selected="@(selected == city.CityId)">@city.Name</option>
+                    }
+                </optgroup>
+            }
+        </select>
+    }
+
+    async Task AddressPicker(string side)
+    {
+        if (lists.Addresses.Count == 0) { return; }
+        <div class="fld full">
+            <label>از آدرس‌های منتخب</label>
+            <select data-addr-for="@side">
+                <option value="">— انتخاب آدرس ذخیره‌شده —</option>
+                @foreach (var addr in lists.Addresses)
+                {
+                    <option value="@addr.SavedAddressId" data-city="@addr.CityId" data-address="@addr.Address"
+                            data-lat="@ShipperUi.Box(addr.Lat)" data-lng="@ShipperUi.Box(addr.Lng)">@addr.Title — @addr.City?.Name</option>
+                }
+            </select>
+        </div>
+    }
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-plus-square"></i> ثبت بار جدید</h1>
+        <p>مشخصات بار را کامل کنید تا رانندگان و شرکت‌های واجد شرایط روی آن پیشنهاد قیمت بدهند. می‌توانید فرم ناقص را پیش‌نویس کنید و بعد منتشر کنید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Shipper/Loads"><i class="bi bi-arrow-right"></i> بارهای من</a>
+    </div>
+</div>
+
+@if (copyCode is not null)
+{
+    <div class="alert2 info">
+        <i class="bi bi-copy"></i>
+        <div class="grow">مشخصات بار <b class="num">@copyCode</b> در فرم نشسته است. تاریخ بارگیری را بررسی کنید؛ تصاویر بار قبلی کپی نمی‌شوند.</div>
+    </div>
+}
+
+<form method="post" asp-action="Create" enctype="multipart/form-data">
+    <input type="hidden" name="CopyOf" value="@Model.CopyOf" />
+    <div class="grid-side">
+        <div class="card2">
+            <div class="bd">
+                <div class="form-grid">
+                    @* ---------------- مشخصات بار ---------------- *@
+                    <div class="form-sec" id="sec-cargo"><i class="bi bi-box"></i> مشخصات بار</div>
+                    <div class="fld">
+                        <label>نوع بار <span class="req">*</span></label>
+                        <select name="CargoType">
+                            <option value="">انتخاب کنید</option>
+                            @foreach (var ct in ShipperLoadForm.CargoTypes)
+                            {
+                                <option value="@ct" selected="@(Model.CargoType == ct)">@ct</option>
+                            }
+                            <option value="other" selected="@(Model.CargoType == "other" || !knownCargo)">سایر (بنویسید)</option>
+                        </select>
+                        @Err("CargoType")
+                    </div>
+                    <div class="fld">
+                        <label>نوع بار دیگر</label>
+                        <input name="CargoTypeOther" value="@(knownCargo ? Model.CargoTypeOther : Model.CargoType)" maxlength="60" placeholder="اگر در فهرست نیست، اینجا بنویسید" />
+                        <span class="hint">فقط وقتی «سایر» را انتخاب کرده‌اید.</span>
+                    </div>
+                    <div class="fld">
+                        <label>عنوان بار</label>
+                        <input name="Title" value="@Model.Title" maxlength="150" placeholder="مثلاً: ۲۰ تن برنج کیسه‌ای" />
+                        <span class="hint">اگر خالی بماند، از نوع بار و مسیر ساخته می‌شود.</span>
+                        @Err("Title")
+                    </div>
+                    <div class="fld">
+                        <label>بسته‌بندی</label>
+                        <input name="Packaging" value="@Model.Packaging" maxlength="40" list="packagings" placeholder="کارتن، پالت، فله…" />
+                        <datalist id="packagings">
+                            @foreach (var pk in ShipperLoadForm.Packagings)
+                            {
+                                <option value="@pk"></option>
+                            }
+                        </datalist>
+                        @Err("Packaging")
+                    </div>
+
+                    @* ---------------- مبدا و مقصد ---------------- *@
+                    <div class="form-sec" id="sec-route"><i class="bi bi-signpost-2"></i> مبدا و مقصد</div>
+                    @{ await AddressPicker("Origin"); }
+                    <div class="fld">
+                        <label>شهر مبدا <span class="req">*</span></label>
+                        @{ await CitySelect("OriginCityId", Model.OriginCityId); }
+                        @Err("OriginCityId")
+                    </div>
+                    <div class="fld">
+                        <label>نشانی محل بارگیری <span class="req">*</span></label>
+                        <input name="OriginAddress" id="OriginAddress" value="@Model.OriginAddress" required placeholder="خیابان، کوچه، انبار، پلاک" />
+                        @Err("OriginAddress")
+                    </div>
+                    <div class="fld">
+                        <label>عرض جغرافیایی مبدا</label>
+                        <input name="OriginLat" id="OriginLat" value="@Model.OriginLat" inputmode="decimal" dir="ltr" placeholder="35.6892" />
+                        @Err("OriginLat")
+                    </div>
+                    <div class="fld">
+                        <label>طول جغرافیایی مبدا</label>
+                        <input name="OriginLng" id="OriginLng" value="@Model.OriginLng" inputmode="decimal" dir="ltr" placeholder="51.3890" />
+                        <span class="hint">اختیاری؛ اگر خالی بماند مرکز شهر روی نقشه نشان داده می‌شود.</span>
+                    </div>
+
+                    @{ await AddressPicker("Dest"); }
+                    <div class="fld">
+                        <label>شهر مقصد <span class="req">*</span></label>
+                        @{ await CitySelect("DestCityId", Model.DestCityId); }
+                        @Err("DestCityId")
+                    </div>
+                    <div class="fld">
+                        <label>نشانی محل تخلیه <span class="req">*</span></label>
+                        <input name="DestAddress" id="DestAddress" value="@Model.DestAddress" required placeholder="خیابان، کوچه، انبار، پلاک" />
+                        @Err("DestAddress")
+                    </div>
+                    <div class="fld">
+                        <label>عرض جغرافیایی مقصد</label>
+                        <input name="DestLat" id="DestLat" value="@Model.DestLat" inputmode="decimal" dir="ltr" />
+                        @Err("DestLat")
+                    </div>
+                    <div class="fld">
+                        <label>طول جغرافیایی مقصد</label>
+                        <input name="DestLng" id="DestLng" value="@Model.DestLng" inputmode="decimal" dir="ltr" />
+                    </div>
+                    <div class="fld">
+                        <label>نام گیرنده</label>
+                        <input name="ReceiverName" value="@Model.ReceiverName" maxlength="100" />
+                        @Err("ReceiverName")
+                    </div>
+                    <div class="fld">
+                        <label>موبایل گیرنده</label>
+                        <input name="ReceiverMobile" value="@Model.ReceiverMobile" inputmode="tel" dir="ltr" placeholder="09xxxxxxxxx" />
+                        <span class="hint">کد تحویل و پیوند رهگیری بار برای این شماره پیامک می‌شود.</span>
+                        @Err("ReceiverMobile")
+                    </div>
+
+                    @* ---------------- زمان بارگیری ---------------- *@
+                    <div class="form-sec" id="sec-time"><i class="bi bi-calendar-check"></i> زمان بارگیری</div>
+                    <div class="fld">
+                        <label>تاریخ بارگیری <span class="req">*</span></label>
+                        <input type="text" name="LoadingDate" data-jdate value="@DateVal("LoadingDate", Model.LoadingDate)" placeholder="۱۴۰۵/۰۶/۲۱" required />
+                        @Err("LoadingDate")
+                    </div>
+                    <div class="fld">
+                        <label>ساعت بارگیری</label>
+                        <select name="LoadingHour">
+                            @for (var h = 0; h < 24; h++)
+                            {
+                                <option value="@h" selected="@(Model.LoadingHour == h)">@ShipperUi.Hour(h)</option>
+                            }
+                        </select>
+                        @Err("LoadingHour")
+                    </div>
+                    <div class="fld">
+                        <label>آخرین مهلت بارگیری</label>
+                        <input type="text" name="LoadingToDate" data-jdate value="@DateVal("LoadingToDate", Model.LoadingToDate)" placeholder="اختیاری" />
+                        <span class="hint">اگر در بازه‌ای چندروزه آماده بارگیری هستید.</span>
+                        @Err("LoadingToDate")
+                    </div>
+
+                    @* ---------------- نوع خودرو ---------------- *@
+                    <div class="form-sec" id="sec-vehicle"><i class="bi bi-truck"></i> نوع خودرو</div>
+                    <div class="fld full">
+                        <label>خودروی مورد نیاز <span class="req">*</span></label>
+                        <select name="VehicleTypeId">
+                            <option value="">انتخاب نوع خودرو</option>
+                            @foreach (var vt in lists.VehicleTypes)
+                            {
+                                <option value="@vt.VehicleTypeId" selected="@(Model.VehicleTypeId == vt.VehicleTypeId)">@vt.Name@(string.IsNullOrEmpty(vt.BodyKind) ? "" : " · " + vt.BodyKind) (ظرفیت @ShipperUi.Ton(vt.CapacityTon))</option>
+                            }
+                        </select>
+                        <span class="hint">وزن بار نباید از ظرفیت خودروی انتخابی بیشتر باشد.</span>
+                        @Err("VehicleTypeId")
+                    </div>
+
+                    @* ---------------- وزن و ابعاد ---------------- *@
+                    <div class="form-sec" id="sec-size"><i class="bi bi-rulers"></i> وزن و ابعاد</div>
+                    <div class="fld">
+                        <label>وزن (تن) <span class="req">*</span></label>
+                        <input name="WeightTon" value="@Model.WeightTon" inputmode="decimal" dir="ltr" required placeholder="22" />
+                        @Err("WeightTon")
+                    </div>
+                    <div class="fld">
+                        <label>حجم (مترمکعب)</label>
+                        <input name="VolumeM3" value="@Model.VolumeM3" inputmode="decimal" dir="ltr" />
+                        @Err("VolumeM3")
+                    </div>
+                    <div class="fld">
+                        <label>طول (متر)</label>
+                        <input name="LengthM" value="@Model.LengthM" inputmode="decimal" dir="ltr" />
+                        @Err("LengthM")
+                    </div>
+                    <div class="fld">
+                        <label>عرض (متر)</label>
+                        <input name="WidthM" value="@Model.WidthM" inputmode="decimal" dir="ltr" />
+                        @Err("WidthM")
+                    </div>
+                    <div class="fld">
+                        <label>ارتفاع (متر)</label>
+                        <input name="HeightM" value="@Model.HeightM" inputmode="decimal" dir="ltr" />
+                        @Err("HeightM")
+                    </div>
+
+                    @* ---------------- کرایه و ارزش بار ---------------- *@
+                    <div class="form-sec" id="sec-value"><i class="bi bi-gem"></i> کرایه و ارزش تقریبی بار</div>
+                    <div class="fld">
+                        <label>نوع کرایه</label>
+                        <select name="PriceMode">
+                            <option value="@PriceMode.Negotiable" selected="@(Model.PriceMode != PriceMode.Fixed)">توافقی — رانندگان قیمت پیشنهاد می‌دهند</option>
+                            <option value="@PriceMode.Fixed" selected="@(Model.PriceMode == PriceMode.Fixed)">کرایه ثابت — فقط همین مبلغ</option>
+                        </select>
+                    </div>
+                    <div class="fld">
+                        <label>کرایه (تومان)</label>
+                        <input name="PriceToman" class="money" inputmode="numeric" value="@Model.PriceToman" />
+                        <span class="hint">در حالت توافقی اختیاری است و پیشنهاد اولیهٔ شما دیده می‌شود؛ در کرایه ثابت الزامی است.</span>
+                        @Err("PriceToman")
+                    </div>
+                    <div class="fld">
+                        <label>ارزش تقریبی بار (تومان)</label>
+                        <input name="DeclaredValueToman" class="money" inputmode="numeric" value="@Model.DeclaredValueToman" />
+                        <span class="hint">مبنای بیمه و رسیدگی به خسارت.</span>
+                        @Err("DeclaredValueToman")
+                    </div>
+
+                    @* ---------------- توضیحات و تصاویر ---------------- *@
+                    <div class="form-sec" id="sec-media"><i class="bi bi-images"></i> توضیحات و تصاویر</div>
+                    <div class="fld full">
+                        <label>توضیحات</label>
+                        <textarea name="Description" maxlength="2000" rows="4" placeholder="ساعت کاری انبار، نیاز به لیفتراک، شرایط چیدمان، نکات ایمنی…">@Model.Description</textarea>
+                        @Err("Description")
+                    </div>
+                    <div class="fld full">
+                        <label>تصاویر بار</label>
+                        <input type="file" name="photos" multiple accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
+                        <span class="hint">حداکثر ۶ تصویر jpg، png یا webp؛ هر کدام تا ۸ مگابایت.</span>
+                        @Err("photos")
+                    </div>
+
+                    @* ---------------- بیمه بار ---------------- *@
+                    <div class="form-sec" id="sec-insurance"><i class="bi bi-shield-plus"></i> بیمه بار</div>
+                    <div class="fld full">
+                        <label class="check">
+                            <input type="checkbox" name="InsuranceRequested" value="true" checked="@Model.InsuranceRequested" />
+                            <span><b>بار نیاز به بیمه دارد</b></span>
+                        </label>
+                        <span class="hint">
+                            @if (lists.InsurancePercent is decimal pct)
+                            {
+                                <text>حق بیمهٔ بار حدود @Fa.N(pct, 2)٪ ارزش اعلامی است.</text>
+                            }
+                            برای بیمه، «ارزش تقریبی بار» را در بخش کرایه وارد کنید.
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stack">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-buildings"></i> درخواست مستقیم از شرکت</div>
+                <div class="bd">
+                    <div class="fld">
+                        <label>شرکت حمل‌ونقل</label>
+                        <select name="TargetCompanyId">
+                            <option value="">— انتشار عمومی برای همهٔ رانندگان و شرکت‌ها —</option>
+                            @foreach (var co in lists.Companies)
+                            {
+                                <option value="@co.CompanyId" selected="@(Model.TargetCompanyId == co.CompanyId)">@co.Name@(co.City is null ? "" : " · " + co.City)@(co.RatingCount > 0 ? " · ★ " + Fa.N(co.RatingAvg, 1) : "")</option>
+                            }
+                        </select>
+                        <span class="hint">با انتخاب شرکت، بار در بازار عمومی دیده نمی‌شود و فقط برای همان شرکت ارسال می‌شود.</span>
+                        @Err("TargetCompanyId")
+                    </div>
+                </div>
+            </div>
+
+            <div class="card2">
+                <div class="hd"><i class="bi bi-send"></i> ثبت</div>
+                <div class="bd">
+                    <p class="muted small" style="margin-top:0">
+                        با انتشار، بار تا دو روز پس از زمان بارگیری پیشنهاد می‌گیرد و رانندگان مورد علاقهٔ شما اعلان دریافت می‌کنند.
+                        پس از پذیرش یک پیشنهاد، کرایه از کیف پول پرداخت می‌شود.
+                    </p>
+                    <div class="form-actions">
+                        <button type="submit" name="intent" value="publish" class="btn2 pri lg block"><i class="bi bi-megaphone"></i> ثبت و انتشار بار</button>
+                        <button type="submit" name="intent" value="draft" class="btn2 ghost block" formnovalidate><i class="bi bi-pencil-square"></i> ذخیرهٔ پیش‌نویس</button>
+                    </div>
+                    <p class="muted small">پیش‌نویس فقط به شهر مبدا و مقصد نیاز دارد و برای رانندگان نمایش داده نمی‌شود.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        // آدرس منتخب → شهر، نشانی و مختصات همان سمت (مبدا/مقصد)
+        document.querySelectorAll('select[data-addr-for]').forEach(function (sel) {
+            sel.addEventListener('change', function () {
+                var o = sel.options[sel.selectedIndex];
+                if (!o || !o.value) return;
+                var side = sel.getAttribute('data-addr-for');
+                function set(id, v) { var el = document.getElementById(id); if (el && v != null) el.value = v; }
+                set(side + 'CityId', o.getAttribute('data-city'));
+                set(side + 'Address', o.getAttribute('data-address'));
+                set(side + 'Lat', o.getAttribute('data-lat'));
+                set(side + 'Lng', o.getAttribute('data-lng'));
+            });
+        });
+    </script>
+}

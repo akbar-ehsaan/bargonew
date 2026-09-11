@@ -1,0 +1,133 @@
+@model DocumentsVm
+@{
+    var kind = Model.Kind ?? DocumentKind.NationalCard;
+    var isVehicle = DocumentsVm.IsVehicleKind(kind);
+    var expiring = DocumentsVm.IsExpiringKind(kind);
+    var veh = isVehicle ? Model.Vehicles.FirstOrDefault(v => v.VehicleId == Model.VehicleId) : null;
+    var number = ViewBag.Number as string;
+    var expiresAt = ViewBag.ExpiresAt as DateTime?;
+    var current = Model.Rows.FirstOrDefault(r => r.IsCurrent);
+    string numberLabel = kind switch
+    {
+        DocumentKind.NationalCard => "کد ملی",
+        DocumentKind.License => "شمارهٔ گواهینامه",
+        DocumentKind.SmartCard => "شمارهٔ کارت هوشمند",
+        DocumentKind.VehicleCard => "شمارهٔ کارت خودرو",
+        DocumentKind.Insurance => "شمارهٔ بیمه‌نامه",
+        _ => "شماره (اختیاری)"
+    };
+    string Icon(string k) => k switch
+    {
+        DocumentKind.NationalCard => "bi-person-badge",
+        DocumentKind.License => "bi-person-vcard",
+        DocumentKind.SmartCard => "bi-sim",
+        DocumentKind.VehicleCard => "bi-credit-card-2-front",
+        DocumentKind.Insurance => "bi-shield-check",
+        DocumentKind.Inspection => "bi-tools",
+        _ => "bi-file-earmark"
+    };
+}
+<div class="page-head">
+    <div><h1><i class="bi @Icon(kind)"></i> @DocumentKind.Label(kind)</h1><p>مدارک شما و خودروهایتان. هر مدرک پس از بارگذاری توسط مدیر بررسی می‌شود؛ تا تأیید، امکان گرفتن بار نیست.</p></div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Alerts"><i class="bi bi-alarm"></i> هشدار انقضا</a></div>
+</div>
+
+<div class="tabs">
+    @foreach (var k in DocumentKind.ForDriver)
+    {
+        <a asp-action="Documents" asp-route-kind="@k" class="@(kind == k ? "on" : "")"><i class="bi @Icon(k)"></i> @DocumentKind.Label(k) <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(k))</span></a>
+    }
+    @foreach (var k in DocumentKind.ForVehicle)
+    {
+        <a asp-action="Documents" asp-route-kind="@k" asp-route-vehicleId="@Model.VehicleId" class="@(kind == k ? "on" : "")"><i class="bi @Icon(k)"></i> @DocumentKind.Label(k) <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(k))</span></a>
+    }
+</div>
+
+@if (isVehicle && Model.Vehicles.Count == 0)
+{
+    <div class="alert2 warn"><i class="bi bi-truck-front"></i><div class="grow">هنوز خودرویی ثبت نکرده‌اید. ابتدا <a class="lnk" asp-action="Index">مشخصات خودرو</a> را ثبت کنید، سپس مدارک آن را اینجا بارگذاری کنید.</div></div>
+}
+else
+{
+    if (isVehicle && Model.Vehicles.Count > 1)
+    {
+        <div class="row-actions" style="margin-bottom:14px">
+            <span class="muted small">خودرو:</span>
+            @foreach (var v in Model.Vehicles)
+            {
+                <a class="btn2 sm @(v.VehicleId == Model.VehicleId ? "soft" : "ghost")" asp-action="Documents" asp-route-kind="@kind" asp-route-vehicleId="@v.VehicleId">@v.PlateNo <small class="muted">· @(v.VehicleType?.Name)</small></a>
+            }
+        </div>
+    }
+
+    <div class="grid-side">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-files"></i> نسخه‌های بارگذاری‌شده @(veh is null ? "" : $"— خودروی {veh.PlateNo}")</div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>تاریخ بارگذاری</th><th>شماره</th><th>انقضا</th><th>وضعیت</th><th>نظر مدیر</th><th>فایل</th></tr></thead>
+                    <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        var d = r.Doc;
+                        <tr>
+                            <td class="nowrap">@Fa.Stamp(d.UploadedAt)@if (r.IsCurrent) { <span class="sub"><i class="bi bi-check2"></i> نسخهٔ جاری</span> }</td>
+                            <td dir="ltr" style="text-align:right">@(d.Number ?? "—")</td>
+                            <td>@(expiring ? Ui.Expiry(d.ExpiresAt, Model.WarnDays) : Ui.Pill("بدون انقضا", "mut"))</td>
+                            <td>@Ui.AccountPill(d.Status)@if (d.ReviewedAt is not null) { <span class="sub">بررسی @Fa.Date(d.ReviewedAt)</span> }</td>
+                            <td class="muted">@(string.IsNullOrEmpty(d.ReviewNote) ? "—" : d.ReviewNote)</td>
+                            <td>@if (!string.IsNullOrEmpty(d.FilePath)) { <a class="btn2 ghost sm" href="@DocumentStorage.Url(d.FilePath)" target="_blank"><i class="bi bi-eye"></i> مشاهده</a> } else { <span class="muted">—</span> }</td>
+                        </tr>
+                    }
+                    @if (Model.Rows.Count == 0)
+                    {
+                        <tr><td colspan="6" class="empty"><i class="bi @Icon(kind)"></i>@DocumentKind.Label(kind)@(veh is null ? "" : $" خودروی {veh.PlateNo}") هنوز بارگذاری نشده است. از فرم روبه‌رو تصویر آن را بفرستید.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="stack">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-cloud-arrow-up"></i> بارگذاری @(current is null ? "مدرک" : "نسخهٔ تازه")</div>
+                <div class="bd">
+                    @if (current is not null && current.Doc.Status == AccountStatus.Pending)
+                    {
+                        <div class="alert2 info"><i class="bi bi-hourglass-split"></i><div class="grow">نسخهٔ فعلی در انتظار بررسی مدیر است. بارگذاری دوباره فقط اگر تصویر ناخوانا بوده لازم است.</div></div>
+                    }
+                    else if (current is not null && current.Doc.Status == AccountStatus.Approved && !current.Doc.IsExpired)
+                    {
+                        <div class="alert2 ok"><i class="bi bi-check-circle"></i><div class="grow">این مدرک تأیید شده است. برای تمدید یا جایگزینی، نسخهٔ تازه را بارگذاری کنید؛ تا تأیید نسخهٔ تازه، نسخهٔ فعلی معتبر می‌ماند.</div></div>
+                    }
+                    else if (Model.Rows.Count > 0 && current is null)
+                    {
+                        <div class="alert2 err"><i class="bi bi-x-circle"></i><div class="grow">نسخهٔ قبلی رد شده است؛ نظر مدیر را در جدول ببینید و نسخهٔ درست را بفرستید.</div></div>
+                    }
+                    <form method="post" asp-action="Upload" enctype="multipart/form-data">
+                        <input type="hidden" name="kind" value="@kind" />
+                        <input type="hidden" name="vehicleId" value="@Model.VehicleId" />
+                        <div class="fld" style="margin-bottom:12px">
+                            <label>@numberLabel</label>
+                            <input name="number" value="@number" maxlength="40" dir="ltr" />
+                        </div>
+                        @if (expiring)
+                        {
+                            <div class="fld" style="margin-bottom:12px">
+                                <label>تاریخ انقضا <span class="req">*</span></label>
+                                <input name="expiresAt" data-jdate value="@Fa.DateBox(expiresAt)" placeholder="۱۴۰۵/۰۶/۲۱" required />
+                                <span class="hint">از @Fa.N(Model.WarnDays) روز قبل از انقضا هشدار می‌گیرید</span>
+                            </div>
+                        }
+                        <div class="fld" style="margin-bottom:12px">
+                            <label>تصویر یا PDF مدرک <span class="req">*</span></label>
+                            <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required />
+                            <span class="hint">jpg، png، webp یا pdf — حداکثر ۸ مگابایت. تصویر باید خوانا و بدون برش باشد.</span>
+                        </div>
+                        <div class="form-actions"><button class="btn2 pri block"><i class="bi bi-cloud-arrow-up"></i> بارگذاری</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}

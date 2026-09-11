@@ -1,0 +1,56 @@
+@model PageVm<WalletTransaction>
+@{
+    var currentKind = ViewBag.Kind as string;
+    var balance = (long)ViewBag.Balance;
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-arrow-left-right"></i> تراکنش‌های کیف پول</h1><p>هر ردیف یک تغییر در موجودی است؛ ستون «مانده» موجودی پس از همان تراکنش را نشان می‌دهد.</p></div>
+    <div class="actions">
+        <span class="chip"><i class="bi bi-wallet2"></i> موجودی فعلی: @Fa.Toman(balance)</span>
+        <a class="btn2 ghost" asp-action="Index" asp-fragment="charge"><i class="bi bi-plus-circle"></i> شارژ کیف پول</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Transactions" class="@(currentKind is null ? "on" : "")">همه</a>
+    @foreach (var kindOption in Bargo.Web.Areas.ShipperPanel.Controllers.FinanceController.TxnKinds)
+    {
+        <a asp-action="Transactions" asp-route-kind="@kindOption" class="@(currentKind == kindOption ? "on" : "")">@WalletTxnKind.Label(kindOption)</a>
+    }
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>شماره</th><th>تاریخ</th><th>نوع</th><th>مبلغ</th><th>مانده</th><th>سفر</th><th>توضیح</th></tr></thead>
+            <tbody>
+            @foreach (var txn in Model.Rows)
+            {
+                <tr>
+                    <td class="num">#@Fa.N(txn.WalletTransactionId)</td>
+                    <td class="nowrap">@Fa.Stamp(txn.CreatedAt)</td>
+                    <td>@WalletTxnKind.Label(txn.Kind)</td>
+                    <td class="nowrap"><b class="num" style="color:@(txn.Amount >= 0 ? "var(--ok)" : "var(--no)")">@(txn.Amount >= 0 ? "+" : "−")@Fa.Toman(Math.Abs(txn.Amount))</b></td>
+                    <td class="num nowrap">@Fa.Toman(txn.BalanceAfter)</td>
+                    <td>
+                        @if (txn.TripId is int txnTripId)
+                        {
+                            <a class="lnk" href="/Shipper/Orders/Detail/@txnTripId">جزئیات سفر</a>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td class="muted">@(txn.Note ?? "—")</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-arrow-left-right"></i>@(currentKind is null ? "هنوز تراکنشی ثبت نشده است. با شارژ کیف پول یا پرداخت اولین کرایه، گردش حساب اینجا می‌آید." : $"تراکنشی از نوع «{WalletTxnKind.Label(currentKind)}» ندارید.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

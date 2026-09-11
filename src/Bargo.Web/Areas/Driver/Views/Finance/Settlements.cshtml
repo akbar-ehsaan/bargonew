@@ -1,0 +1,75 @@
+@model SettlementsVm
+<div class="page-head">
+    <div><h1><i class="bi bi-bank"></i> تسویه‌حساب</h1><p>درخواست‌های برداشت شما و سرنوشت هر کدام. مبلغ در لحظهٔ واریز بانکی از کیف پول کسر می‌شود.</p></div>
+    <div class="actions">
+        <a class="btn2 pri @(Model.HasValidSheba && Model.Available >= Model.MinPayout ? "" : "off")" asp-action="Withdraw"><i class="bi bi-cash-coin"></i> درخواست برداشت تازه</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat s"><div class="l"><i class="bi bi-wallet2"></i> موجودی</div><div class="v">@Fa.N(Model.Balance / 10) <small>تومان</small></div></div>
+    <div class="stat p"><div class="l"><i class="bi bi-cash-coin"></i> قابل برداشت</div><div class="v">@Fa.N(Model.Available / 10) <small>تومان</small></div></div>
+    <div class="stat @(Model.OpenSum > 0 ? "w" : "i")"><div class="l"><i class="bi bi-hourglass-split"></i> در صف واریز</div><div class="v">@Fa.N(Model.OpenSum / 10) <small>تومان</small></div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-check2-all"></i> جمع واریزشده</div><div class="v">@Fa.N(Model.PaidSum / 10) <small>تومان</small></div></div>
+</div>
+
+@if (!Model.HasValidSheba)
+{
+    <div class="alert2 warn"><i class="bi bi-bank"></i><div class="grow">برای برداشت، ابتدا شمارهٔ شبا را در <a class="lnk" href="/Driver/Profile">حساب کاربری</a> ثبت کنید.</div></div>
+}
+else if (Model.Available < Model.MinPayout)
+{
+    <div class="alert2 info"><i class="bi bi-info-circle"></i><div class="grow">حداقل مبلغ هر درخواست @Fa.Toman(Model.MinPayout) است؛ موجودی قابل برداشت فعلاً @Fa.Toman(Model.Available) است.</div></div>
+}
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>شماره</th><th>تاریخ درخواست</th><th>مبلغ</th><th>شبا</th><th>وضعیت</th><th>نتیجه</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var p in Model.Page.Rows)
+            {
+                <tr>
+                    <td class="num">#@Fa.N(p.PayoutRequestId)</td>
+                    <td class="nowrap">@Fa.Stamp(p.CreatedAt)</td>
+                    <td><b>@Fa.Toman(p.Amount)</b></td>
+                    <td dir="ltr" style="text-align:right" class="small">@p.Sheba</td>
+                    <td>@Ui.PayoutPill(p.Status)</td>
+                    <td>
+                        @if (p.Status == PayoutStatus.Paid)
+                        {
+                            <span>واریز @Fa.Stamp(p.PaidAt)</span>
+                            @if (!string.IsNullOrEmpty(p.BankTrackingNo)) { <span class="sub">پیگیری بانک: <span dir="ltr">@p.BankTrackingNo</span></span> }
+                        }
+                        else if (p.Status == PayoutStatus.Rejected)
+                        {
+                            <span class="muted">@(string.IsNullOrEmpty(p.ReviewNote) ? "بدون توضیح" : p.ReviewNote)</span>
+                        }
+                        else if (p.Status == PayoutStatus.Approved)
+                        {
+                            <span class="muted">تأیید شده، در صف واریز بانکی</span>
+                        }
+                        else
+                        {
+                            <span class="muted">در انتظار بررسی مدیر</span>
+                        }
+                    </td>
+                    <td>
+                        @if (p.Status == PayoutStatus.Pending)
+                        {
+                            <form method="post" asp-action="CancelWithdraw" asp-route-id="@p.PayoutRequestId" class="inline" data-confirm="درخواست برداشت پس گرفته شود؟">
+                                <button class="btn2 ghost sm"><i class="bi bi-x-lg"></i> پس‌گرفتن</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-bank"></i>هنوز درخواست برداشتی ثبت نکرده‌اید.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

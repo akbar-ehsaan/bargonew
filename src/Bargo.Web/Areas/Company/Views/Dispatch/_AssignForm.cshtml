@@ -1,0 +1,90 @@
+@model OpsAssignFormVm
+@*
+    فرم تخصیص/تعویض راننده و خودرو — یک‌جا برای صف تخصیص (Compact)، صفحهٔ تک‌سفر و
+    «تغییر راننده». همه به Dispatch/Assign می‌فرستند؛ back می‌گوید بعدش کجا برویم.
+*@
+@{
+    var t = Model.Trip;
+    var l = t.Load!;
+    var tripId = t.TripId;
+    var selDriver = Model.SelectedDriverId ?? t.DriverId;
+    var fid = "af" + tripId;
+    var depHour = t.ScheduledDepartureAt is DateTime sd ? Fa.ToTehran(sd).Hour : 8;
+    var selectable = Model.Drivers.Count(d => d.Selectable(tripId));
+}
+<form method="post" asp-area="Company" asp-controller="Dispatch" asp-action="Assign" id="@fid"
+      data-confirm="@(Model.RequireReason ? "راننده/خودروی این سفر عوض شود؟ به رانندهٔ قبلی و صاحب بار اطلاع داده می‌شود." : null)">
+    <input type="hidden" name="tripId" value="@tripId" />
+    <input type="hidden" name="back" value="@Model.Back" />
+    <input type="hidden" name="focus" value="@(Model.FocusVehicle ? "vehicle" : "driver")" />
+    <div class="form-grid">
+        <div class="fld">
+            <label for="@fid-d">راننده <span class="req">*</span></label>
+            <select name="driverId" id="@fid-d" required autofocus="@(!Model.FocusVehicle && !Model.Compact)">
+                <option value="">— انتخاب راننده —</option>
+                @foreach (var d in Model.Drivers)
+                {
+                    <option value="@d.DriverId" selected="@(selDriver == d.DriverId)" disabled="@(!d.Selectable(tripId))">@d.LabelFor(tripId)</option>
+                }
+            </select>
+            @if (Model.Drivers.Count == 0)
+            {
+                <span class="hint">راننده تأییدشده‌ای در شرکت نیست. از «مدیریت رانندگان» راننده اضافه کنید.</span>
+            }
+            else if (selectable == 0)
+            {
+                <span class="hint">همهٔ رانندگان یا در سفرند یا مدرکشان ناقص است.</span>
+            }
+        </div>
+        <div class="fld">
+            <label for="@fid-v">خودرو@(l.VehicleType is not null ? $" (درخواستی: {l.VehicleType.Name})" : "")</label>
+            <select name="vehicleId" id="@fid-v" autofocus="@(Model.FocusVehicle && !Model.Compact)">
+                <option value="">— فعلاً بدون خودرو —</option>
+                @foreach (var v in Model.Vehicles)
+                {
+                    <option value="@v.VehicleId" selected="@(t.VehicleId == v.VehicleId)" disabled="@v.BusyElsewhere(tripId)">@v.LabelFor(tripId, l.WeightTon)</option>
+                }
+            </select>
+            @if (Model.Vehicles.Count == 0)
+            {
+                <span class="hint">خودروی فعال و تأییدشده‌ای در ناوگان نیست.</span>
+            }
+        </div>
+        @if (Model.RequireReason)
+        {
+            <div class="fld full">
+                <label for="@fid-r">علت تغییر <span class="req">*</span></label>
+                <input name="reason" id="@fid-r" maxlength="500" required placeholder="مثلاً: خرابی خودرو، مرخصی راننده" />
+            </div>
+        }
+        @if (!Model.Compact || t.ScheduledDepartureAt is null)
+        {
+            <div class="fld">
+                <label for="@fid-dep">تاریخ حرکت</label>
+                <input name="departure" id="@fid-dep" data-jdate value="@Fa.DateBox(t.ScheduledDepartureAt)" placeholder="۱۴۰۵/۰۶/۲۱" />
+                <span class="hint">خالی بماند تا زمان فعلی (@Fa.Stamp(t.ScheduledDepartureAt ?? l.LoadingFrom)) حفظ شود.</span>
+            </div>
+            <div class="fld">
+                <label for="@fid-h">ساعت حرکت</label>
+                <select name="hour" id="@fid-h">
+                    @for (var h = 0; h < 24; h++)
+                    {
+                        <option value="@h" selected="@(h == depHour)">@Fa.Digits($"{h:00}:00")</option>
+                    }
+                </select>
+            </div>
+        }
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn2 pri @(Model.Compact ? "sm" : "")" disabled="@(Model.Drivers.Count == 0)">
+            <i class="bi @(Model.RequireReason ? "bi-arrow-repeat" : "bi-person-check")"></i>
+            @(Model.RequireReason ? "ثبت تغییر" : "تخصیص و ارسال مأموریت")
+        </button>
+        @if (Model.Compact)
+        {
+            <a class="btn2 ghost sm" asp-area="Company" asp-controller="Dispatch" asp-action="Assign" asp-route-id="@tripId" asp-route-focus="@(Model.FocusVehicle ? "vehicle" : null)">
+                <i class="bi bi-magic"></i> پیشنهاد نزدیک‌ترین راننده
+            </a>
+        }
+    </div>
+</form>

@@ -1,0 +1,57 @@
+@model OpsVehicleForm
+@{
+    var errors = ViewBag.Errors as List<string>;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-plus-circle"></i> افزودن خودرو</h1>
+        <p>خودروی ملکی یا در اختیار شرکت. پس از ثبت، مدارکش را بارگذاری کنید؛ با تأیید مدیر بارگو در تخصیص انتخاب‌پذیر می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-arrow-right"></i> خودروهای شرکت</a>
+    </div>
+</div>
+
+@if (errors is { Count: > 0 })
+{
+    <div class="alert2 err" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            @foreach (var e in errors)
+            {
+                <div>@e</div>
+            }
+        </div>
+    </div>
+}
+
+<form method="post" asp-action="Add">
+    <div class="grid-side">
+        <div class="card2">
+            <div class="bd">
+                <partial name="_VehicleForm" model="Model" />
+                <div class="form-actions">
+                    <button type="submit" class="btn2 pri lg"><i class="bi bi-check2-circle"></i> ثبت خودرو</button>
+                    <a class="btn2 ghost lg" asp-action="Index">انصراف</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="stack">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-signpost-2"></i> مراحل فعال‌شدن خودرو</div>
+                <div class="bd">
+                    <ol class="small" style="margin:0;padding-inline-start:18px;line-height:2">
+                        <li><b>ثبت مشخصات</b> — همین فرم. خودرو با وضعیت «فعال» و تأیید «در انتظار» ساخته می‌شود.</li>
+                        <li><b>بارگذاری مدارک</b> — کارت خودرو، بیمه‌نامه و معاینه فنی از «مدارک».</li>
+                        <li><b>تأیید مدیر بارگو</b> — تا تأیید، خودرو در فهرست تخصیص نمی‌آید.</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="alert2 info" style="margin:0">
+                <i class="bi bi-info-circle-fill"></i>
+                <div class="grow">خودروی شرکت به رانندهٔ ثابتی وابسته نیست؛ هنگام تخصیص هر سفر، راننده و خودرو جداگانه انتخاب می‌شوند.</div>
+            </div>
+        </div>
+    </div>
+</form>

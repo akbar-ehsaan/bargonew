@@ -1,0 +1,56 @@
+@model PageVm<DocumentRowVm>
+@{
+    var q = ViewBag.Q as string;
+    var status = ViewBag.Status as string;
+    var kind = ViewBag.Kind as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    var kinds = (string[])ViewBag.Kinds;
+    int C(string s) => counts.TryGetValue(s, out var n) ? n : 0;
+    string[] tabs = [AccountStatus.Pending, AccountStatus.Approved, AccountStatus.Rejected];
+    ViewData["Mode"] = "list";
+    ViewData["ReturnUrl"] = Context.Request.Path + Context.Request.QueryString;
+    ViewData["WarnDays"] = (int)ViewBag.WarnDays;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-folder2-open"></i> مدارک رانندگان</h1>
+        <p>مدارک رانندگان (کارت ملی، گواهینامه، کارت هوشمند) و خودروهای رانندگان مستقل. تأیید و رد از همین‌جا انجام می‌شود و به دسترسی «احراز هویت و مدارک» نیاز دارد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Admin/Documents"><i class="bi bi-patch-check"></i> صف کامل مدارک</a>
+        <a class="btn2 ghost" href="/Admin/Documents/Alerts"><i class="bi bi-alarm"></i> هشدار انقضا</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Documents" asp-route-kind="@kind" asp-route-q="@q" class="@(status is null ? "on" : "")">همه <span class="n">@Fa.N(counts.Values.Sum())</span></a>
+    @foreach (var s in tabs)
+    {
+        <a asp-action="Documents" asp-route-status="@s" asp-route-kind="@kind" asp-route-q="@q" class="@(status == s ? "on" : "")">@AccountStatus.Label(s) <span class="n">@Fa.N(C(s))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Documents" class="filters">
+        <input type="hidden" name="status" value="@status" />
+        <div class="fld narrow">
+            <label>نوع مدرک</label>
+            <select name="kind">
+                <option value="">همه</option>
+                @foreach (var k in kinds)
+                {
+                    <option value="@k" selected="@(kind == k)">@DocumentKind.Label(k)</option>
+                }
+            </select>
+        </div>
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="نام راننده، موبایل یا پلاک" /></div>
+        <div class="row-actions">
+            <button class="btn2 pri"><i class="bi bi-funnel"></i> اعمال</button>
+            @if (!string.IsNullOrEmpty(q) || kind is not null)
+            {
+                <a class="btn2 ghost" asp-action="Documents" asp-route-status="@status">پاک کردن</a>
+            }
+        </div>
+    </form>
+    <partial name="_DocTable" model="Model" />
+</div>

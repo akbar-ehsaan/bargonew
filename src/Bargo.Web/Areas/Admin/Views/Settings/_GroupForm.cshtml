@@ -1,0 +1,56 @@
+@model SettingsGroupVm
+@* یک گروه تنظیمات = یک کارت و یک فرم؛ نوع هر فیلد را کنترلر تعیین کرده است *@
+<div class="card2">
+    <div class="hd"><i class="bi @Model.Icon"></i> @Model.Title</div>
+    <div class="bd">
+        @if (!string.IsNullOrEmpty(Model.Hint))
+        {
+            <p class="muted small" style="margin:0 0 14px">@Model.Hint</p>
+        }
+        <form method="post" asp-action="Save" asp-route-group="@Model.Group">
+            <div class="stack" style="gap:12px">
+                @foreach (var f in Model.Fields)
+                {
+                    switch (f.Type)
+                    {
+                        case "bool":
+                            <label class="check"><input type="checkbox" name="@f.Key" value="true" checked="@(f.Value.Trim().ToLowerInvariant() is "true" or "1" or "yes" or "on")" /><input type="hidden" name="@f.Key" value="false" /> @f.Label</label>
+                            break;
+                        case "money":
+                            <div class="fld"><label>@f.Label.Replace("(ریال)", "(تومان)")</label><input name="@f.Key" class="money" value="@f.Value" /><span class="hint num">@f.Key</span></div>
+                            break;
+                        case "number":
+                            <div class="fld"><label>@f.Label</label><input name="@f.Key" value="@f.Value" dir="ltr" inputmode="decimal" /><span class="hint num">@f.Key</span></div>
+                            break;
+                        default:
+                            <div class="fld">
+                                <label>@f.Label</label>
+                                <input name="@f.Key" value="@f.Value" dir="ltr" autocomplete="off" placeholder="@(f.Secret && f.Value.Length == 0 ? "تنظیم نشده" : "")" />
+                                @if (f.Secret)
+                                {
+                                    <span class="hint">فقط چهار نویسهٔ آخر نشان داده می‌شود؛ برای تغییر، مقدار کامل تازه را بنویسید.</span>
+                                    @if (f.Value.Length > 0)
+                                    {
+                                        <label class="check small"><input type="checkbox" name="@(f.Key)__clear" value="true" /> پاک کردن مقدار فعلی</label>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="hint num">@f.Key</span>
+                                }
+                            </div>
+                            break;
+                    }
+                }
+                @if (Model.Fields.Count == 0)
+                {
+                    <div class="empty-state"><i class="bi bi-sliders"></i>تنظیمی برای این گروه تعریف نشده است.</div>
+                }
+            </div>
+            @if (Model.Fields.Count > 0)
+            {
+                <div class="form-actions"><button class="btn2 pri"><i class="bi bi-check2"></i> ذخیرهٔ @Model.Title</button></div>
+            }
+        </form>
+    </div>
+</div>

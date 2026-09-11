@@ -1,0 +1,115 @@
+@model ComplaintsVm
+@{
+    (string Key, string Label)[] tabs =
+    [
+        ("open", "صف باز"), (ComplaintStatus.New, "جدید"), (ComplaintStatus.Reviewing, "در حال رسیدگی"),
+        (ComplaintStatus.Resolved, "وارد دانسته‌شده"), (ComplaintStatus.Rejected, "ردشده"), ("all", "همه")
+    ];
+    string UserLink(string kind, int id) => kind switch
+    {
+        OwnerKind.Driver => $"/Admin/Users/Driver/{id}",
+        OwnerKind.Shipper => $"/Admin/Users/Shipper/{id}",
+        OwnerKind.Company => $"/Admin/Users/Company/{id}",
+        _ => "#"
+    };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-exclamation-diamond"></i> @ViewData["Title"]</h1>
+        <p>صف باز از قدیمی‌ترین مرتب است. برای پرونده (سفر، طرفین، سوابق و تعیین نتیجه) روی ردیف بزنید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 @(Model.From == OwnerKind.Shipper ? "pri" : "ghost")" asp-action="Index" asp-route-from="shipper" asp-route-kind="@Model.Kind"><i class="bi bi-person-workspace"></i> صاحبان بار</a>
+        <a class="btn2 @(Model.From == OwnerKind.Driver ? "pri" : "ghost")" asp-action="Index" asp-route-from="driver" asp-route-kind="@Model.Kind"><i class="bi bi-person-badge"></i> رانندگان</a>
+        <a class="btn2 @(Model.From == OwnerKind.Company ? "pri" : "ghost")" asp-action="Index" asp-route-from="company" asp-route-kind="@Model.Kind"><i class="bi bi-buildings"></i> شرکت‌ها</a>
+        <a class="btn2 @(Model.From is null ? "pri" : "ghost")" asp-action="Index" asp-route-kind="@Model.Kind">همه</a>
+        <a class="btn2 ghost" asp-action="Violations"><i class="bi bi-exclamation-octagon"></i> تخلفات</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat w"><div class="l"><i class="bi bi-inbox"></i> جدید (بدون رسیدگی)</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault(ComplaintStatus.New))</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-hammer"></i> در حال رسیدگی</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault(ComplaintStatus.Reviewing))</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-check2-all"></i> بسته‌شده</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault(ComplaintStatus.Resolved) + Model.Counts.GetValueOrDefault(ComplaintStatus.Rejected))</div></div>
+</div>
+
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        <a asp-action="Index" asp-route-from="@Model.From" asp-route-kind="@Model.Kind" asp-route-status="@t.Key" class="@(Model.Status == t.Key ? "on" : "")">@t.Label <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(t.Key))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Index" class="filters">
+        <input type="hidden" name="from" value="@Model.From" />
+        <input type="hidden" name="status" value="@Model.Status" />
+        <div class="fld">
+            <label>نوع شکایت</label>
+            <select name="kind">
+                <option value="">همه</option>
+                @foreach (var k in ComplaintKind.All)
+                {
+                    <option value="@k" selected="@(Model.Kind == k)">@ComplaintKind.Label(k)</option>
+                }
+            </select>
+        </div>
+        <div class="row-actions">
+            <button class="btn2 pri"><i class="bi bi-funnel"></i> اعمال</button>
+            @if (Model.Kind is not null)
+            {
+                <a class="btn2 ghost" asp-action="Index" asp-route-from="@Model.From" asp-route-status="@Model.Status">پاک کردن</a>
+            }
+        </div>
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>کد</th><th>موضوع</th><th>شاکی</th><th>طرف شکایت</th><th>نوع</th><th>سفر</th><th>ثبت</th><th>وضعیت</th></tr></thead>
+            <tbody>
+            @foreach (var c in Model.Page.Rows)
+            {
+                <tr data-href="@Url.Action("Detail", new { id = c.ComplaintId })">
+                    <td class="num"><a class="lnk" asp-action="Detail" asp-route-id="@c.ComplaintId">@c.Code</a></td>
+                    <td><b>@c.Title</b><span class="sub">@(c.Body.Length > 80 ? c.Body[..80] + "…" : c.Body)</span></td>
+                    <td><a class="lnk" href="@UserLink(c.FromKind, c.FromId)">@Model.Names.Name(c.FromKind, c.FromId)</a><span class="sub">@OwnerKind.Label(c.FromKind) · <span class="num">@Model.Names.Mobile(c.FromKind, c.FromId)</span></span></td>
+                    <td>
+                        @if (c.AgainstKind is not null && c.AgainstId is int ag)
+                        {
+                            <a class="lnk" href="@UserLink(c.AgainstKind, ag)">@Model.Names.Name(c.AgainstKind, ag)</a>
+                            <span class="sub">@OwnerKind.Label(c.AgainstKind)</span>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td><span class="chip">@ComplaintKind.Label(c.Kind)</span></td>
+                    <td>
+                        @if (c.TripId is int tid)
+                        {
+                            <a class="lnk num" href="/Admin/Trips/Case/@tid">@(Model.TripCodes.GetValueOrDefault(tid) ?? "#" + tid)</a>
+                        }
+                        else
+                        {
+                            <span class="muted">بدون سفر</span>
+                        }
+                    </td>
+                    <td class="nowrap">@Fa.Stamp(c.CreatedAt)<span class="sub">@Fa.Ago(c.CreatedAt)</span></td>
+                    <td>
+                        @Ui.ComplaintPill(c.Status)
+                        @if (c.CompensationAmount is long comp && comp > 0)
+                        {
+                            <span class="sub">جبران @Fa.Toman(comp)</span>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-emoji-smile"></i>@(Model.Status == "open" ? "شکایت بازی نیست — همهٔ پرونده‌ها رسیدگی شده‌اند." : "شکایتی با این فیلترها پیدا نشد.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

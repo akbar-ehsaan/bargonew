@@ -1,0 +1,53 @@
+@model TimeSeriesVm
+@{
+    // جدولِ سری زمانی با نوار CSS برای هر ستون — بدون کتابخانهٔ نمودار.
+    string[] tones = ["var(--primary)", "var(--ok)", "var(--wait)", "var(--no)", "var(--inf)", "var(--mut)"];
+    var max = Model.Series.Select(s => s.Values.Length == 0 ? 0 : s.Values.Max()).ToArray();
+    var totals = Model.Series.Select(s => s.Values.Sum()).ToArray();
+    var any = totals.Any(t => t != 0);
+    string Val(SeriesVm s, long v) => s.Money ? Fa.Toman(v) : Fa.N(v);
+}
+<div class="tbl-wrap">
+    <table class="tbl">
+        <thead>
+            <tr>
+                <th>@Model.FirstColumn</th>
+                @for (var i = 0; i < Model.Series.Count; i++)
+                {
+                    <th style="min-width:170px"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:@tones[i % tones.Length];vertical-align:middle;margin-inline-end:6px"></span>@Model.Series[i].Title</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+        @if (!any)
+        {
+            <tr><td colspan="@(Model.Series.Count + 1)" class="empty"><i class="bi bi-bar-chart"></i>در این بازه داده‌ای ثبت نشده است.</td></tr>
+        }
+        else
+        {
+            for (var r = 0; r < Model.Labels.Count; r++)
+            {
+                <tr>
+                    <td class="nowrap"><b>@Model.Labels[r]</b></td>
+                    @for (var i = 0; i < Model.Series.Count; i++)
+                    {
+                        var s = Model.Series[i];
+                        var v = r < s.Values.Length ? s.Values[r] : 0;
+                        <td>
+                            <div class="small nowrap @(v == 0 ? "muted" : "")">@(v == 0 ? "—" : Val(s, v))</div>
+                            <div style="height:7px;border-radius:6px;background:var(--line-soft)"><div style="height:7px;border-radius:6px;background:@tones[i % tones.Length];width:@BackofficeFormat.Bar(v, max[i])%"></div></div>
+                        </td>
+                    }
+                </tr>
+            }
+            <tr style="background:#f5f7f9">
+                <td><b>جمع بازه</b></td>
+                @for (var i = 0; i < Model.Series.Count; i++)
+                {
+                    <td class="nowrap"><b>@Val(Model.Series[i], totals[i])</b></td>
+                }
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

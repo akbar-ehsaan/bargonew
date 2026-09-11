@@ -1,0 +1,115 @@
+@model OpsDispatchVm
+@{
+    var waiting = Model.Page.Rows.Count(t => t.Status == TripStatus.AwaitingAssignment);
+    var pending = Model.Page.Rows.Count(t => t.Status == TripStatus.Assigned);
+    var free = Model.Drivers.Count(d => d.Blocking is null && d.Busy is null && d.IsAvailable);
+    var freeVehicles = Model.Vehicles.Count(v => v.Busy is null);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi @(Model.FocusVehicle ? "bi-truck" : "bi-person-check")"></i> @ViewData["Title"]</h1>
+        <p>سفرهایی که راننده یا خودرو ندارند، یا راننده هنوز مأموریت را نپذیرفته. تخصیص، مأموریت را به اپ راننده می‌فرستد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Schedule"><i class="bi bi-calendar-week"></i> برنامهٔ حمل</a>
+        <a class="btn2 ghost" asp-action="Change" asp-route-focus="@(Model.FocusVehicle ? "vehicle" : null)"><i class="bi bi-arrow-repeat"></i> تغییر راننده/خودرو</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Index" class="@(Model.FocusVehicle ? "" : "on")"><i class="bi bi-person-check"></i> تخصیص راننده</a>
+    <a asp-action="Index" asp-route-focus="vehicle" class="@(Model.FocusVehicle ? "on" : "")"><i class="bi bi-truck"></i> تخصیص خودرو</a>
+</div>
+
+<div class="stats">
+    <div class="stat w"><div class="l"><i class="bi bi-hourglass-split"></i> در انتظار تخصیص</div><div class="v">@Fa.N(Model.Page.Total)<small>سفر</small></div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-send-check"></i> منتظر قبول راننده</div><div class="v">@Fa.N(pending)<small>از @Fa.N(Model.Page.Rows.Count) در این صفحه</small></div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-person-badge"></i> رانندهٔ آزاد</div><div class="v">@Fa.N(free)<small>از @Fa.N(Model.Drivers.Count)</small></div></div>
+    <div class="stat p"><div class="l"><i class="bi bi-truck-front"></i> خودروی آزاد</div><div class="v">@Fa.N(freeVehicles)<small>از @Fa.N(Model.Vehicles.Count)</small></div></div>
+</div>
+
+@if (Model.Page.Total == 0)
+{
+    <div class="card2">
+        <div class="empty-state">
+            <i class="bi bi-check2-circle"></i>
+            <b>صف تخصیص خالی است</b>
+            همهٔ سفرهای شرکت راننده دارند. سفر تازه از پذیرش پیشنهاد در بازار یا ثبت بار برای مشتری ساخته می‌شود.
+            <div class="form-actions" style="justify-content:center">
+                <a class="btn2 pri" href="/Company/Loads/Market"><i class="bi bi-shop"></i> بازار بار</a>
+                <a class="btn2 ghost" href="/Company/Loads/Create"><i class="bi bi-plus-square"></i> ثبت بار</a>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack">
+        @foreach (var t in Model.Page.Rows)
+        {
+            var l = t.Load!;
+            var rej = Model.Rejections.GetValueOrDefault(t.TripId);
+            var late = t.ScheduledDepartureAt is DateTime dep && dep < DateTime.UtcNow;
+            <div class="card2">
+                <div class="hd">
+                    <i class="bi bi-signpost-split"></i>
+                    <a class="num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a>
+                    @Ui.TripPill(t.Status)
+                    @if (late)
+                    {
+                        @Ui.Pill("زمان حرکت گذشته", "no")
+                    }
+                    <span class="end">
+                        @Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)
+                        <span class="muted small nowrap">حرکت @Fa.Stamp(t.ScheduledDepartureAt ?? l.LoadingFrom)</span>
+                    </span>
+                </div>
+                <div class="bd">
+                    <div class="grid-side">
+                        <div>
+                            <dl class="kv">
+                                <dt>بار</dt><dd>@l.Title — @l.CargoType · @OpsLabels.Ton(l.WeightTon) تن@(l.VehicleType is not null ? " · " + l.VehicleType.Name : "")</dd>
+                                <dt>صاحب بار</dt><dd>@(l.Shipper?.DisplayName ?? "مشتری شرکت")</dd>
+                                <dt>کرایه</dt><dd class="num">@Fa.Toman(t.Fare)@(t.Commission > 0 ? $" (سهم شرکت {Fa.Toman(t.CarrierShare)})" : "")</dd>
+                                @if (t.Status == TripStatus.Assigned)
+                                {
+                                    <dt>تخصیص فعلی</dt>
+                                    <dd>
+                                        @(t.Driver?.FullName ?? "—")
+                                        @if (t.Vehicle is not null)
+                                        {
+                                            <span class="plate">@t.Vehicle.PlateNo</span>
+                                        }
+                                        <span class="muted small">— منتظر قبول از اپ راننده@(Model.AssignedAt.TryGetValue(t.TripId, out var at) ? $" ({Fa.Ago(at)})" : "")</span>
+                                    </dd>
+                                }
+                            </dl>
+                            @if (rej is not null)
+                            {
+                                <div class="alert2 warn" style="margin-top:12px;margin-bottom:0">
+                                    <i class="bi bi-person-x-fill"></i>
+                                    <div class="grow">@(rej.Driver?.FullName ?? "راننده") مأموریت را نپذیرفت (@Fa.Ago(rej.CreatedAt))@(string.IsNullOrEmpty(rej.Reason) ? "" : $": {rej.Reason}"). رانندهٔ دیگری انتخاب کنید.</div>
+                                </div>
+                            }
+                            @if (t.Status == TripStatus.Assigned)
+                            {
+                                <form method="post" asp-controller="Trips" asp-action="Move" class="inline" style="margin-top:12px" data-confirm="تخصیص برداشته شود و سفر به صف برگردد؟">
+                                    <input type="hidden" name="id" value="@t.TripId" />
+                                    <input type="hidden" name="to" value="@TripStatus.AwaitingAssignment" />
+                                    <input type="hidden" name="note" value="برداشتن تخصیص توسط شرکت" />
+                                    <button type="submit" class="btn2 ghost sm"><i class="bi bi-x-circle"></i> برداشتن تخصیص</button>
+                                </form>
+                            }
+                        </div>
+                        <div>
+                            <partial name="_AssignForm" model='new OpsAssignFormVm { Trip = t, Drivers = Model.Drivers, Vehicles = Model.Vehicles, Back = "index", FocusVehicle = Model.FocusVehicle, Compact = true }' />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    <div class="card2" style="margin-top:18px">
+        <partial name="_Pager" model="Model.Page.Pager" />
+    </div>
+}

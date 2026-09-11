@@ -1,0 +1,52 @@
+@model OpsLoadCard
+<div class="load-card">
+    <div class="top">
+        <div>
+            <div class="rt">@Ui.Route(Model.Origin, Model.Dest)</div>
+            <div class="muted small">@Model.OriginProvince ← @Model.DestProvince · <span class="num">@Model.Code</span></div>
+        </div>
+        @if (Model.IsDirect)
+        {
+            <span class="pill wait">درخواست مستقیم</span>
+        }
+        else if (Model.MyOfferAmount is not null)
+        {
+            <span class="pill inf">پیشنهاد داده‌اید</span>
+        }
+    </div>
+    <div><b>@Model.Title</b></div>
+    <div class="meta">
+        <span class="chip"><i class="bi bi-box"></i> @Model.CargoType</span>
+        <span class="chip"><i class="bi bi-speedometer"></i> @OpsLabels.Ton(Model.WeightTon) تن</span>
+        @if (Model.VehicleType is not null)
+        {
+            <span class="chip"><i class="bi bi-truck"></i> @Model.VehicleType</span>
+        }
+        <span class="chip"><i class="bi bi-calendar-event"></i> @Fa.Stamp(Model.LoadingFrom)</span>
+        @if (Model.DistanceKm is double km)
+        {
+            <span class="chip"><i class="bi bi-signpost-2"></i> @Fa.N(km) کیلومتر</span>
+        }
+        @if (Model.InsuranceRequested)
+        {
+            <span class="chip"><i class="bi bi-shield-check"></i> بیمه</span>
+        }
+        @if (Model.PendingOffers > 0)
+        {
+            <span class="chip"><i class="bi bi-tags"></i> @Fa.N(Model.PendingOffers) پیشنهاد</span>
+        }
+    </div>
+    <div class="foot">
+        <div>
+            <div class="price">@(Model.Price is long p ? Fa.Toman(p) : "توافقی")</div>
+            <div class="muted small">
+                @PriceMode.Label(Model.PriceMode) · @Model.OwnerName @Ui.Stars(Model.OwnerRating, Model.OwnerRatingCount)
+            </div>
+            @if (Model.MyOfferAmount is long mine)
+            {
+                <div class="small">پیشنهاد شما: <b class="num">@Fa.Toman(mine)</b></div>
+            }
+        </div>
+        <a class="btn2 soft sm" href="/Company/Loads/Detail/@Model.LoadId"><i class="bi bi-tag"></i> جزئیات و پیشنهاد</a>
+    </div>
+</div>

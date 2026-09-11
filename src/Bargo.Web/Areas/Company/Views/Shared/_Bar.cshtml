@@ -1,0 +1,5 @@
+@model BarVm
+@{
+    var pct = CompanyLabels.Pct(Model.Value, Model.Max);
+}
+<div style="height:8px;border-radius:6px;background:var(--line-soft);min-width:60px" title="@pct٪"><div style="height:8px;border-radius:6px;background:@Model.Color;width:@pct%"></div></div>

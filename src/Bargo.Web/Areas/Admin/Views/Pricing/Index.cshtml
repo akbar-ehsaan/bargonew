@@ -1,0 +1,79 @@
+@model PricingVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-percent"></i> درصد کمیسیون</h1>
+        <p>کمیسیون بارگو از کرایهٔ هر سفر، حداقل کمیسیون و مالیات بر ارزش افزودهٔ فاکتورها.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" href="/Admin/Finance/Commission"><i class="bi bi-list-ul"></i> تراکنش‌های کمیسیون</a></div>
+</div>
+
+<div class="alert2 warn">
+    <i class="bi bi-lock"></i>
+    <div class="grow">تغییر نرخ فقط روی سفرهایی اثر دارد که <b>پس از ذخیره</b> ساخته می‌شوند. هر سفر هنگام پذیرش پیشنهاد، درصد و مبلغ کمیسیون را روی خودش قفل می‌کند تا تسویهٔ سفرهای جاری با عددی که طرفین پذیرفته‌اند انجام شود.</div>
+</div>
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-sliders"></i> نرخ‌ها</div>
+            <div class="bd">
+                <form method="post" asp-action="Save" data-confirm="نرخ‌های تازه برای سفرهای بعدی ذخیره شود؟">
+                    <div class="form-grid cols3">
+                        <div class="fld">
+                            <label>درصد کمیسیون بارگو <span class="req">*</span></label>
+                            <input name="commissionPercent" value="@BackofficeLookup.Invariant(Model.CommissionPercent)" inputmode="decimal" dir="ltr" required />
+                            <span class="hint">بین ۰ و ۵۰ — مثلاً ۸ یا ۷.۵</span>
+                        </div>
+                        <div class="fld">
+                            <label>حداقل کمیسیون هر سفر (تومان) <span class="req">*</span></label>
+                            <input name="commissionMinToman" class="money" value="@(Model.CommissionMinRial / 10)" required />
+                            <span class="hint">اگر درصد کمتر شود، این مبلغ کسر می‌شود (هرگز بیشتر از کرایه نه).</span>
+                        </div>
+                        <div class="fld">
+                            <label>مالیات بر ارزش افزوده (٪) <span class="req">*</span></label>
+                            <input name="vatPercent" value="@BackofficeLookup.Invariant(Model.VatPercent)" inputmode="decimal" dir="ltr" required />
+                            <span class="hint">روی فاکتور کرایه و کمیسیون؛ صفر یعنی بدون مالیات.</span>
+                        </div>
+                    </div>
+                    <div class="form-actions"><button class="btn2 pri"><i class="bi bi-check2"></i> ذخیرهٔ نرخ‌ها</button></div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-clock-history"></i> آخرین سفرها و نرخِ قفل‌شده</div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>سفر</th><th>ساخت</th><th>کرایه</th><th>نرخ</th><th>کمیسیون</th></tr></thead>
+                    <tbody>
+                    @foreach (var t in Model.Recent)
+                    {
+                        <tr>
+                            <td><a class="lnk num" href="/Admin/Trips/Case/@t.TripId">@t.Code</a></td>
+                            <td class="nowrap">@Fa.Stamp(t.CreatedAt)</td>
+                            <td class="nowrap">@Fa.Toman(t.Fare)</td>
+                            <td>@Fa.N(t.Percent, 2)٪</td>
+                            <td class="nowrap"><b>@Fa.Toman(t.Commission)</b></td>
+                        </tr>
+                    }
+                    @if (Model.Recent.Count == 0)
+                    {
+                        <tr><td colspan="5" class="empty"><i class="bi bi-signpost-split"></i>هنوز سفری ساخته نشده است.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-calculator"></i> نمونهٔ محاسبه با نرخ فعلی</div>
+        <div class="bd">
+            <div class="kvrow"><span>کرایهٔ توافقی</span><b>@Fa.Toman(Model.SampleFare)</b></div>
+            <div class="kvrow"><span>کمیسیون بارگو (@Fa.N(Model.CommissionPercent, 2)٪، حداقل @Fa.Toman(Model.CommissionMinRial))</span><b>@Fa.Toman(Model.SampleCommission)</b></div>
+            <div class="kvrow"><span>سهم حمل‌کننده</span><b>@Fa.Toman(Model.SampleFare - Model.SampleCommission)</b></div>
+            <div class="kvrow"><span>مالیات روی فاکتور کمیسیون</span><b>@Fa.Toman(Model.SampleTax)</b></div>
+            <p class="muted small" style="margin:10px 0 0">در سفر شرکتی، سهم راننده از «سهم حمل‌کننده» و با درصدِ تعیین‌شده در پروفایل همان شرکت محاسبه می‌شود.</p>
+        </div>
+    </div>
+</div>

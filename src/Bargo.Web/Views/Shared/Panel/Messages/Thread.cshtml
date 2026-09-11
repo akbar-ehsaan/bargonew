@@ -1,0 +1,33 @@
+@model List<Message>
+@inject CurrentUser Me
+@{
+    var owner = Me.Owner;
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-chat-left-dots"></i> @ViewData["Title"]</h1><p>طرف گفتگو: @ViewBag.Counterpart</p></div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Index"><i class="bi bi-arrow-right"></i> همهٔ گفتگوها</a></div>
+</div>
+<div class="card2" style="max-width:860px">
+    <div class="thread" id="thread">
+        @foreach (var m in Model)
+        {
+            var mine = m.FromKind == owner.Kind && m.FromId == owner.Id;
+            <div class="bubble @(mine ? "me" : "them")">
+                <div class="who">@(mine ? "شما" : m.FromName)</div>
+                <div style="white-space:pre-line">@m.Body</div>
+                <div class="when">@Fa.Stamp(m.CreatedAt)</div>
+            </div>
+        }
+        @if (Model.Count == 0)
+        {
+            <div class="empty-state"><i class="bi bi-chat-square"></i>اولین پیام را بفرستید.</div>
+        }
+    </div>
+    <div class="bd">
+        <form method="post" asp-action="Send" asp-route-key="@ViewBag.Key">
+            <div class="fld"><textarea name="body" rows="2" maxlength="2000" placeholder="پیام…" required></textarea></div>
+            <div class="form-actions" style="margin-top:10px"><button class="btn2 pri"><i class="bi bi-send"></i> ارسال</button></div>
+        </form>
+    </div>
+</div>
+@section Scripts { <script>var t = document.getElementById('thread'); if (t) t.scrollTop = t.scrollHeight;</script> }

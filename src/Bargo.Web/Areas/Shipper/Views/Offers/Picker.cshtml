@@ -1,0 +1,55 @@
+@model List<ShipperLoadRow>
+@{
+    var mode = ViewBag.Mode as string ?? "price";
+    string CompareHref(int loadId) => $"/Shipper/Offers/Compare/{loadId}" + (mode == "price" ? "" : "?view=" + mode);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-bar-chart-steps"></i> مقایسهٔ پیشنهادها</h1>
+        <p>برای مقایسهٔ قیمت، خودرو، سابقه و امتیاز پیشنهاددهندگان، باری را انتخاب کنید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Shipper/Offers"><i class="bi bi-list-ul"></i> همهٔ پیشنهادها</a>
+        <a class="btn2 pri" href="/Shipper/Loads/Create"><i class="bi bi-plus-lg"></i> ثبت بار جدید</a>
+    </div>
+</div>
+
+<div class="alert2 info">
+    <i class="bi bi-hourglass-split"></i>
+    <div class="grow">هیچ‌کدام از بارهای باز شما اکنون پیشنهاد در انتظار ندارد. پیشنهادهای تازه با اعلان به شما خبر داده می‌شود.</div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-shop"></i> بارهای باز در بازار <span class="end muted small">@Fa.N(Model.Count) بار</span></div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>بار</th><th>مسیر</th><th>بارگیری</th><th>کرایه</th><th>وضعیت</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var row in Model)
+            {
+                <tr data-href="/Shipper/Loads/Detail/@row.LoadId">
+                    <td><a class="lnk" href="/Shipper/Loads/Detail/@row.LoadId">@(string.IsNullOrWhiteSpace(row.Title) ? "بار " + row.Code : row.Title)</a><span class="sub"><span class="num">@row.Code</span> · @ShipperUi.Ton(row.WeightTon)</span></td>
+                    <td>@Ui.Route(row.From, row.To)</td>
+                    <td class="nowrap">@Fa.Stamp(row.LoadingFrom)</td>
+                    <td class="nowrap">@(row.Price is long price ? Fa.Toman(price) : "بدون مبلغ")<span class="sub">@PriceMode.Label(row.PriceMode)</span></td>
+                    <td>@Ui.LoadPill(row.Status)@if (row.PublishedAt is DateTime pub) { <span class="sub">انتشار @Fa.Ago(pub)</span> }</td>
+                    <td><a class="btn2 soft sm" href="@CompareHref(row.LoadId)"><i class="bi bi-bar-chart-steps"></i> مقایسه</a></td>
+                </tr>
+            }
+            @if (Model.Count == 0)
+            {
+                <tr>
+                    <td colspan="6" class="empty">
+                        <i class="bi bi-box-seam"></i>
+                        باری در بازار ندارید؛ برای دریافت پیشنهاد، ابتدا بار ثبت و منتشر کنید.
+                        <div class="form-actions" style="justify-content:center">
+                            <a class="btn2 pri" href="/Shipper/Loads/Create"><i class="bi bi-plus-lg"></i> ثبت بار جدید</a>
+                            <a class="btn2 ghost" href="/Shipper/Loads?status=waiting"><i class="bi bi-pencil-square"></i> پیش‌نویس‌ها</a>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

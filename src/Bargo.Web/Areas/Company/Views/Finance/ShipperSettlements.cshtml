@@ -1,0 +1,72 @@
+@model ShipperSettlementsVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-building-check"></i> تسویه با صاحبان بار</h1>
+        <p>بارهایی که شرکت ثبت کرده و حمل‌کنندهٔ دیگری (راننده یا شرکت دیگر) می‌برد. اینجا شرکت مثل صاحب بار کرایه را از کیف پولش می‌پردازد؛ پول تا تحویل نزد بارگو امانت می‌ماند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-wallet2"></i> کیف پول</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-wallet2"></i> موجودی کیف پول</div><div class="v">@Fa.Toman(Model.Balance)</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-hourglass-split"></i> کرایهٔ پرداخت‌نشده</div><div class="v">@Fa.Toman(Model.UnpaidTotal)<small>@Fa.N(Model.UnpaidCount) سفر</small></div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-check2-circle"></i> سفرهای پرداخت‌شده</div><div class="v">@Fa.N(Model.PaidCount)</div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-calendar-check"></i> پرداختی این ماه</div><div class="v">@Fa.Toman(Model.PaidThisMonth)</div></div>
+</div>
+
+@if (Model.UnpaidTotal > Model.Balance && Model.UnpaidCount > 0)
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">موجودی کیف پول برای پرداخت همهٔ کرایه‌ها کافی نیست. حمل‌کننده تا پرداخت کرایه، بار را تحویل نمی‌دهد.</div></div>
+}
+
+<div class="tabs">
+    <a asp-action="ShipperSettlements" class="@(Model.Tab == "unpaid" ? "on" : "")"><i class="bi bi-hourglass-split"></i> در انتظار پرداخت <span class="n">@Fa.N(Model.UnpaidCount)</span></a>
+    <a asp-action="ShipperSettlements" asp-route-tab="paid" class="@(Model.Tab == "paid" ? "on" : "")"><i class="bi bi-check2-circle"></i> پرداخت‌شده <span class="n">@Fa.N(Model.PaidCount)</span></a>
+    <a asp-action="ShipperSettlements" asp-route-tab="all" class="@(Model.Tab == "all" ? "on" : "")"><i class="bi bi-list-ul"></i> همه</a>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>حمل‌کننده</th><th>مسیر</th><th>وضعیت</th><th>کرایه</th><th>پرداخت</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Rows.Rows)
+            {
+                var payable = !t.IsPaid && t.Status != TripStatus.Cancelled;
+                <tr>
+                    <td data-label="سفر"><a class="lnk" href="/Company/Trips/Detail/@t.TripId">@Fa.Digits(t.Code)</a><span class="sub">بار @Fa.Digits(t.LoadCode) · @Fa.Date(t.CreatedAt)</span></td>
+                    <td data-label="حمل‌کننده">@t.Party</td>
+                    <td data-label="مسیر">@Ui.Route(t.Origin, t.Dest)<span class="sub">@t.CargoTitle</span></td>
+                    <td data-label="وضعیت">@Ui.TripPill(t.Status)</td>
+                    <td data-label="کرایه" class="nowrap"><b>@Fa.Toman(t.Fare)</b></td>
+                    <td data-label="پرداخت">
+                        @if (t.IsPaid) { @Ui.Pill(t.Status == TripStatus.Settled ? "تسویه‌شده" : "پرداخت‌شده — امانت نزد بارگو", "ok") }
+                        else if (t.Status == TripStatus.Cancelled) { @Ui.Pill("لغو — بدون پرداخت", "mut") }
+                        else { @Ui.Pill("پرداخت‌نشده", "wait") }
+                    </td>
+                    <td>
+                        @if (payable)
+                        {
+                            <form method="post" asp-action="PayFare" asp-route-tripId="@t.TripId" class="inline" data-confirm="کرایهٔ سفر @Fa.Digits(t.Code) به مبلغ @Fa.Toman(t.Fare) از کیف پول شرکت پرداخت شود؟">
+                                <button class="btn2 pri sm" disabled="@(t.Fare > Model.Balance)"><i class="bi bi-credit-card"></i> پرداخت کرایه</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Rows.Total == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-boxes"></i>@(Model.Tab switch
+                {
+                    "paid" => "هنوز کرایه‌ای برای بارهای شرکت پرداخت نشده است.",
+                    "all" => "هنوز هیچ‌یک از بارهای شرکت به حمل‌کنندهٔ دیگری سپرده نشده است.",
+                    _ => "کرایهٔ پرداخت‌نشده‌ای نیست."
+                })</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Rows.Pager" />
+</div>

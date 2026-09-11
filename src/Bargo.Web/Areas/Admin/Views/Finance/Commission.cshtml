@@ -1,0 +1,54 @@
+@model CommissionVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-percent"></i> کمیسیون بارگو</h1>
+        <p>کمیسیون هر سفر هنگام تسویه به کیف پول بارگو می‌نشیند. نرخ هر سفر هنگام ساخت آن قفل شده است.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Admin/Pricing"><i class="bi bi-sliders"></i> تنظیم نرخ کمیسیون</a>
+        <a class="btn2 ghost" asp-action="Revenue"><i class="bi bi-graph-up-arrow"></i> گزارش درآمد</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-safe2"></i> موجودی کیف پول بارگو</div><div class="v">@Fa.Toman(Model.PlatformBalance)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-calendar-day"></i> کمیسیون امروز</div><div class="v">@Fa.Toman(Model.TodaySum)</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-calendar3"></i> کمیسیون این ماه</div><div class="v">@Fa.Toman(Model.MonthSum)<small>@Fa.N(Model.MonthCount) سفر</small></div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-infinity"></i> کمیسیون از ابتدا</div><div class="v">@Fa.Toman(Model.AllSum)</div></div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-list-ul"></i> تراکنش‌های کمیسیون <span class="end muted small">@Fa.N(Model.Page.Total) ردیف</span></div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>زمان</th><th>سفر</th><th>کرایه</th><th>نرخ قفل‌شده</th><th>کمیسیون</th><th>شرح</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Page.Rows)
+            {
+                <tr>
+                    <td class="nowrap">@Fa.Stamp(r.CreatedAt)</td>
+                    <td>
+                        @if (r.TripId is int tid)
+                        {
+                            <a class="lnk num" href="/Admin/Trips/Case/@tid">@(r.TripCode ?? "#" + tid)</a>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td class="nowrap">@Fa.Toman(r.Fare)</td>
+                    <td>@(r.Percent is decimal p ? Fa.N(p, 1) + "٪" : "—")</td>
+                    <td class="nowrap"><b>@Fa.Toman(r.Amount)</b></td>
+                    <td class="small muted">@r.Note</td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="6" class="empty"><i class="bi bi-percent"></i>هنوز سفری تسویه نشده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

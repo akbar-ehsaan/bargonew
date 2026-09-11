@@ -1,0 +1,36 @@
+@model Trip
+@{
+    Layout = "_PublicLayout";
+    var l = Model.Load!;
+    var markers = new List<object>();
+    if (l.OriginLat is not null) markers.Add(new { lat = l.OriginLat, lng = l.OriginLng, kind = "origin", label = "مبدا: " + l.OriginCity?.Name });
+    if (l.DestLat is not null) markers.Add(new { lat = l.DestLat, lng = l.DestLng, kind = "dest", label = "مقصد: " + l.DestCity?.Name });
+    if (Model.LastLat is not null && TripStatus.Live.Contains(Model.Status)) markers.Add(new { lat = Model.LastLat, lng = Model.LastLng, kind = "truck", label = "آخرین موقعیت · " + Fa.Ago(Model.LastPointAt ?? DateTime.UtcNow) });
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-geo-alt"></i> رهگیری سفر <span class="num">@Model.Code</span></h1>
+        <p>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name) · @l.Title</p>
+    </div>
+    @Ui.TripPill(Model.Status)
+</div>
+
+<div class="card2"><div class="bd"><partial name="_TripSteps" model="Model" /></div></div>
+
+<div class="grid-side" style="margin-top:18px">
+    <div class="map" data-map="@Json.Serialize(new { markers, fit = true })"></div>
+    <div class="card2">
+        <div class="hd"><i class="bi bi-info-circle"></i> وضعیت</div>
+        <div class="bd">
+            <dl class="kv">
+                <dt>وضعیت</dt><dd>@TripStatus.Label(Model.Status)</dd>
+                <dt>زمان تقریبی رسیدن</dt><dd>@(Model.EtaAt is null ? "—" : Fa.Stamp(Model.EtaAt))</dd>
+                <dt>آخرین موقعیت</dt><dd>@(Model.LastPointAt is null ? "—" : Fa.Ago(Model.LastPointAt.Value))</dd>
+                <dt>راننده</dt><dd>@(Model.Driver?.FirstName ?? "—")</dd>
+                <dt>خودرو</dt><dd>@if (Model.Vehicle is not null) { <span class="plate">@Model.Vehicle.PlateNo</span> } else { <text>—</text> }</dd>
+            </dl>
+            <p class="muted small" style="margin-top:12px">پس از تحویل کامل بار، کد تحویلی را که برایتان پیامک شده به راننده بدهید.</p>
+        </div>
+    </div>
+</div>
+@section Scripts { <partial name="_MapAssets" /> }

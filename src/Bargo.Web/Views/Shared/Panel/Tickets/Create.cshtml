@@ -1,0 +1,36 @@
+@{
+    var category = (string)ViewBag.Category;
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-plus-square"></i> @ViewData["Title"]</h1><p>اگر مشکل به یک سفر مربوط است، کد سفر را وارد کنید تا پشتیبانی پرونده را کامل ببیند.</p></div>
+    <div class="actions"><a class="btn2 ghost" asp-action="Index"><i class="bi bi-inbox"></i> تیکت‌های من</a></div>
+</div>
+<div class="card2" style="max-width:760px">
+    <div class="bd">
+        <form method="post" asp-action="Create">
+            <div class="form-grid">
+                <div class="fld">
+                    <label>دسته</label>
+                    <select name="category">
+                        @foreach (var c in TicketCategory.All.Where(c => c != TicketCategory.Complaint))
+                        {
+                            <option value="@c" selected="@(c == category)">@TicketCategory.Label(c)</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>اولویت</label>
+                    <select name="priority">
+                        <option value="normal">عادی</option>
+                        <option value="high">زیاد</option>
+                        <option value="urgent">فوری — بار در مسیر مشکل دارد</option>
+                    </select>
+                </div>
+                <div class="fld full"><label>موضوع <span class="req">*</span></label><input name="subject" maxlength="200" required /></div>
+                <div class="fld full"><label>کد سفر (اختیاری)</label><input name="tripCode" dir="ltr" placeholder="T-050621-0042" /></div>
+                <div class="fld full"><label>شرح <span class="req">*</span></label><textarea name="body" rows="6" required></textarea></div>
+            </div>
+            <div class="form-actions"><button class="btn2 pri"><i class="bi bi-send"></i> ثبت تیکت</button></div>
+        </form>
+    </div>
+</div>

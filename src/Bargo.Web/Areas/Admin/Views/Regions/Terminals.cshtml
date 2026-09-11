@@ -1,0 +1,89 @@
+@model TerminalsVm
+@{
+    var e = Model.Edit;
+    var byProvince = Model.Cities.GroupBy(c => c.Province).ToList();
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-sign-stop"></i> پایانه‌ها</h1>
+        <p>پایانه‌های بار هر شهر — برای انتخاب مبدا/مقصد دقیق و محدوده‌های جغرافیایی.</p>
+    </div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-list-ul"></i> پایانه‌ها <span class="end muted small">@Fa.N(Model.Rows.Count) مورد</span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>نام</th><th>شهر</th><th>نشانی</th><th>مختصات</th><th>وضعیت</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var t in Model.Rows)
+                {
+                    <tr>
+                        <td><b>@t.Name</b></td>
+                        <td>@t.City<span class="sub">@t.Province</span></td>
+                        <td class="small">@(string.IsNullOrEmpty(t.Address) ? "—" : t.Address)</td>
+                        <td class="small num">@(t.Lat is double la && t.Lng is double ln ? $"{BackofficeLookup.Invariant(la)}, {BackofficeLookup.Invariant(ln)}" : "—")</td>
+                        <td>@(t.IsActive ? Ui.Pill("فعال", "ok") : Ui.Pill("غیرفعال", "mut"))</td>
+                        <td>
+                            <div class="row-actions">
+                                <a class="btn2 sm soft" asp-action="Terminals" asp-route-edit="@t.Id"><i class="bi bi-pencil"></i></a>
+                                <form method="post" asp-action="DeleteTerminal" asp-route-id="@t.Id" data-confirm="پایانهٔ «@t.Name» حذف شود؟">
+                                    <button class="btn2 sm ghost"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Rows.Count == 0)
+                {
+                    <tr><td colspan="6" class="empty"><i class="bi bi-sign-stop"></i>هنوز پایانه‌ای تعریف نشده است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi @(e is null ? "bi-plus-circle" : "bi-pencil-square")"></i> @(e is null ? "پایانهٔ تازه" : "ویرایش پایانه")</div>
+        <div class="bd">
+            <form method="post" asp-action="SaveTerminal">
+                @if (e is not null)
+                {
+                    <input type="hidden" name="id" value="@e.TerminalId" />
+                }
+                <div class="stack" style="gap:12px">
+                    <div class="fld"><label>نام پایانه <span class="req">*</span></label><input name="name" value="@e?.Name" maxlength="100" required placeholder="پایانه بار غرب" /></div>
+                    <div class="fld">
+                        <label>شهر <span class="req">*</span></label>
+                        <select name="cityId" required>
+                            <option value="">انتخاب کنید…</option>
+                            @foreach (var g in byProvince)
+                            {
+                                <optgroup label="@g.Key">
+                                    @foreach (var c in g)
+                                    {
+                                        <option value="@c.Id" selected="@(e?.CityId == c.Id)">@c.Name</option>
+                                    }
+                                </optgroup>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld"><label>نشانی</label><textarea name="address" rows="2" maxlength="500">@e?.Address</textarea></div>
+                    <div class="form-grid">
+                        <div class="fld"><label>عرض جغرافیایی</label><input name="lat" value="@BackofficeLookup.Invariant(e?.Lat)" dir="ltr" inputmode="decimal" placeholder="35.6892" /></div>
+                        <div class="fld"><label>طول جغرافیایی</label><input name="lng" value="@BackofficeLookup.Invariant(e?.Lng)" dir="ltr" inputmode="decimal" placeholder="51.3890" /></div>
+                    </div>
+                    <label class="check"><input type="checkbox" name="isActive" value="true" checked="@(e?.IsActive ?? true)" /><input type="hidden" name="isActive" value="false" /> فعال</label>
+                </div>
+                <div class="form-actions">
+                    <button class="btn2 pri"><i class="bi bi-check2"></i> ذخیره</button>
+                    @if (e is not null)
+                    {
+                        <a class="btn2 ghost" asp-action="Terminals">انصراف</a>
+                    }
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

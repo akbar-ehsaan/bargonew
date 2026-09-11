@@ -1,0 +1,29 @@
+@model PageVm<Complaint>
+<div class="page-head">
+    <div><h1><i class="bi bi-exclamation-octagon"></i> شکایت‌های من</h1></div>
+    <div class="actions"><a class="btn2 pri" asp-action="Create"><i class="bi bi-plus-lg"></i> ثبت شکایت</a></div>
+</div>
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>کد</th><th>عنوان</th><th>نوع</th><th>وضعیت</th><th>ثبت</th></tr></thead>
+            <tbody>
+            @foreach (var c in Model.Rows)
+            {
+                <tr data-href="@Url.Action("Detail", new { id = c.ComplaintId })">
+                    <td class="num">@c.Code</td>
+                    <td><b>@c.Title</b></td>
+                    <td>@ComplaintKind.Label(c.Kind)</td>
+                    <td>@Ui.ComplaintPill(c.Status)</td>
+                    <td>@Fa.Date(c.CreatedAt)</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="5" class="empty"><i class="bi bi-emoji-smile"></i>شکایتی ثبت نکرده‌اید.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

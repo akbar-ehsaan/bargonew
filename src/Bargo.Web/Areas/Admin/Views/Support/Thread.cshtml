@@ -1,0 +1,137 @@
+@model TicketThreadVm
+@inject CurrentUser Me
+@{
+    var t = Model.T;
+    var closed = t.Status == TicketStatus.Closed;
+    var ownerLink = ViewBag.OwnerLink as string ?? "#";
+    string[] priorities = [TicketPriority.Urgent, TicketPriority.High, TicketPriority.Normal, TicketPriority.Low];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-chat-left-text"></i> @t.Subject</h1>
+        <p>تیکت #@Fa.N(t.TicketId) · <span class="chip">@TicketCategory.Label(t.Category)</span> · @Ui.Pill(TicketPriority.Label(t.Priority), TicketPriority.Tone(t.Priority)) · ثبت @Fa.Stamp(t.CreatedAt) · @Ui.TicketPill(t.Status)</p>
+    </div>
+    <div class="actions">
+        @if (!Model.AssignedToMe && !closed)
+        {
+            <form method="post" asp-action="Assign" asp-route-id="@t.TicketId">
+                <button class="btn2 soft"><i class="bi bi-person-check"></i> تخصیص به من</button>
+            </form>
+        }
+        @if (!closed)
+        {
+            <form method="post" asp-action="Close" asp-route-id="@t.TicketId" data-confirm="تیکت بسته شود؟ کاربر اعلان می‌گیرد.">
+                <button class="btn2 ghost"><i class="bi bi-check2-square"></i> بستن تیکت</button>
+            </form>
+        }
+        else
+        {
+            <form method="post" asp-action="Reopen" asp-route-id="@t.TicketId">
+                <button class="btn2 ghost"><i class="bi bi-arrow-counterclockwise"></i> بازکردن دوباره</button>
+            </form>
+        }
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-arrow-right"></i> صف تیکت‌ها</a>
+    </div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="thread">
+            @foreach (var m in t.Messages.OrderBy(x => x.TicketMessageId))
+            {
+                var mine = m.SenderKind == Roles.Admin;
+                <div class="bubble @(mine ? "me" : "them")">
+                    <div class="who">@(mine ? "پشتیبانی بارگو" : OwnerKind.Label(m.SenderKind)) · @m.SenderName</div>
+                    <div style="white-space:pre-line">@m.Body</div>
+                    @if (!string.IsNullOrEmpty(m.AttachmentPath))
+                    {
+                        <div><a class="lnk small" href="@m.AttachmentPath" target="_blank"><i class="bi bi-paperclip"></i> پیوست</a></div>
+                    }
+                    <div class="when">@Fa.Stamp(m.CreatedAt)</div>
+                </div>
+            }
+            @if (t.Messages.Count == 0)
+            {
+                <div class="empty-state"><i class="bi bi-chat"></i>این تیکت پیامی ندارد.</div>
+            }
+        </div>
+        <div class="bd">
+            @if (!closed)
+            {
+                <form method="post" asp-action="Reply" asp-route-id="@t.TicketId">
+                    <div class="fld">
+                        <label>پاسخ پشتیبانی</label>
+                        <textarea name="body" rows="4" required maxlength="4000" placeholder="پاسخ با نام «پشتیبانی بارگو · @Me.Name» ثبت و برای کاربر اعلان می‌شود."></textarea>
+                        @if (!Model.AssignedToMe && t.AssignedAdminId is null)
+                        {
+                            <span class="hint">این تیکت اپراتور ندارد؛ با ارسال پاسخ، به شما تخصیص می‌یابد.</span>
+                        }
+                    </div>
+                    <div class="form-actions"><button class="btn2 pri"><i class="bi bi-send"></i> ارسال پاسخ</button></div>
+                </form>
+            }
+            else
+            {
+                <div class="alert2 warn" style="margin:0"><i class="bi bi-lock"></i><div class="grow">این تیکت بسته است. برای ادامهٔ گفتگو «بازکردن دوباره» را بزنید.</div></div>
+            }
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-person"></i> کاربر</div>
+            <div class="bd">
+                <div class="kvrow"><span>نام</span><b><a class="lnk" href="@ownerLink">@t.OwnerName</a></b></div>
+                <div class="kvrow"><span>نقش</span><b>@OwnerKind.Label(t.OwnerKind)</b></div>
+                <div class="kvrow"><span>موبایل</span><b class="num">@(Model.OwnerMobile.Length > 0 ? Model.OwnerMobile : "—")</b></div>
+                @if (t.TripId is int tid)
+                {
+                    <div class="kvrow"><span>سفر</span><b><a class="lnk num" href="/Admin/Trips/Case/@tid">@(Model.TripCode ?? "#" + tid)</a></b></div>
+                }
+                <div class="kvrow"><span>اپراتور</span><b>@(Model.AssignedName ?? "—")@(Model.AssignedToMe ? " (شما)" : "")</b></div>
+                <div class="kvrow"><span>آخرین به‌روزرسانی</span><b>@Fa.Stamp(t.UpdatedAt)</b></div>
+            </div>
+        </div>
+
+        @if (!closed)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-flag"></i> اولویت</div>
+                <div class="bd">
+                    <form method="post" asp-action="SetPriority" asp-route-id="@t.TicketId" class="row-actions">
+                        <div class="fld" style="flex:1">
+                            <select name="priority">
+                                @foreach (var p in priorities)
+                                {
+                                    <option value="@p" selected="@(t.Priority == p)">@TicketPriority.Label(p)</option>
+                                }
+                            </select>
+                        </div>
+                        <button class="btn2 soft"><i class="bi bi-check2"></i> ثبت</button>
+                    </form>
+                </div>
+            </div>
+        }
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-inbox"></i> تیکت‌های دیگر این کاربر</div>
+            <div class="bd" style="padding:0">
+                <table class="tbl">
+                    <tbody>
+                    @foreach (var o in Model.OtherTickets)
+                    {
+                        <tr>
+                            <td><a class="lnk" asp-action="Thread" asp-route-id="@o.TicketId">@o.Subject</a><span class="sub">@TicketCategory.Label(o.Category) · @Fa.Ago(o.UpdatedAt)</span></td>
+                            <td>@Ui.TicketPill(o.Status)</td>
+                        </tr>
+                    }
+                    @if (Model.OtherTickets.Count == 0)
+                    {
+                        <tr><td colspan="2" class="empty" style="padding:22px"><i class="bi bi-inbox"></i>اولین تیکت این کاربر است.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

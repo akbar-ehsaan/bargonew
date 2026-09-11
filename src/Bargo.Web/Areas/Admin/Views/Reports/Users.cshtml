@@ -1,0 +1,73 @@
+@model ReportUsersVm
+@{
+    int C(Dictionary<string, int> d, string k) => d.GetValueOrDefault(k);
+    var driversAll = Model.DriverStatus.Values.Sum();
+    var companiesAll = Model.CompanyStatus.Values.Sum();
+    var shippersAll = Model.ShipperVerify.Values.Sum();
+    string VerifyLabel(string k) => k switch { "none" => "بدون درخواست", AccountStatus.Pending => "در انتظار بررسی", AccountStatus.Approved => "احراز‌شده", AccountStatus.Rejected => "ردشده", _ => k };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-people"></i> گزارش کاربران</h1>
+        <p>ثبت‌نام‌های تازه در بازه، و وضعیت فعلی همهٔ حساب‌ها (تأییدشده در برابر در انتظار).</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Admin/Users/Drivers?status=pending"><i class="bi bi-person-check"></i> رانندگان در انتظار</a>
+        <a class="btn2 ghost" href="/Admin/Users/Companies?status=pending"><i class="bi bi-building-check"></i> شرکت‌های در انتظار</a>
+    </div>
+</div>
+
+<partial name="_Range" model="Model.Range" />
+
+<div class="stats cols3" style="margin-top:18px">
+    <div class="stat p"><div class="l"><i class="bi bi-person-badge"></i> رانندهٔ تازه</div><div class="v">@Fa.N(Model.NewDrivers)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-person-workspace"></i> صاحب بار تازه</div><div class="v">@Fa.N(Model.NewShippers)</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-buildings"></i> شرکت تازه</div><div class="v">@Fa.N(Model.NewCompanies)</div></div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-bar-chart"></i> ثبت‌نام در بازه</div>
+    <partial name="_Series" model="Model.Series" />
+</div>
+
+<div class="grid3" style="margin-top:18px">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-person-badge"></i> رانندگان <span class="end muted small">@Fa.N(driversAll) حساب</span></div>
+        <div class="bd">
+            @foreach (var s in new[] { AccountStatus.Approved, AccountStatus.Pending, AccountStatus.Rejected, AccountStatus.Suspended })
+            {
+                <div class="kvrow"><span>@Ui.AccountPill(s)</span><b>@Fa.N(C(Model.DriverStatus, s))</b></div>
+            }
+            @if (driversAll == 0)
+            {
+                <p class="muted small" style="margin:6px 0 0">هنوز راننده‌ای ثبت‌نام نکرده است.</p>
+            }
+        </div>
+    </div>
+    <div class="card2">
+        <div class="hd"><i class="bi bi-buildings"></i> شرکت‌ها <span class="end muted small">@Fa.N(companiesAll) حساب</span></div>
+        <div class="bd">
+            @foreach (var s in new[] { AccountStatus.Approved, AccountStatus.Pending, AccountStatus.Rejected, AccountStatus.Suspended })
+            {
+                <div class="kvrow"><span>@Ui.AccountPill(s)</span><b>@Fa.N(C(Model.CompanyStatus, s))</b></div>
+            }
+            @if (companiesAll == 0)
+            {
+                <p class="muted small" style="margin:6px 0 0">هنوز شرکتی ثبت‌نام نکرده است.</p>
+            }
+        </div>
+    </div>
+    <div class="card2">
+        <div class="hd"><i class="bi bi-person-workspace"></i> احراز هویت صاحبان بار <span class="end muted small">@Fa.N(shippersAll) حساب</span></div>
+        <div class="bd">
+            @foreach (var k in new[] { AccountStatus.Approved, AccountStatus.Pending, AccountStatus.Rejected, "none" })
+            {
+                <div class="kvrow"><span>@VerifyLabel(k)</span><b>@Fa.N(C(Model.ShipperVerify, k))</b></div>
+            }
+            @if (shippersAll == 0)
+            {
+                <p class="muted small" style="margin:6px 0 0">هنوز صاحب باری ثبت‌نام نکرده است.</p>
+            }
+        </div>
+    </div>
+</div>

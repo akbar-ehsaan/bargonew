@@ -1,0 +1,95 @@
+@model VehicleTypesVm
+@{
+    var e = Model.Edit;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-diagram-2"></i> انواع خودرو</h1>
+        <p>دادهٔ پایهٔ نوع خودرو — در ثبت خودرو، ثبت بار و فیلتر بازار استفاده می‌شود. نوعِ استفاده‌شده حذف نمی‌شود؛ «غیرفعال» از فرم‌ها پنهان می‌ماند و خودروهای موجود سر جایشان می‌مانند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-truck-front"></i> همهٔ خودروها</a>
+    </div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-list-ul"></i> انواع تعریف‌شده <span class="end muted small">@Fa.N(Model.Items.Count) مورد</span></div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>#</th><th>نام</th><th>بارگیر</th><th>ظرفیت</th><th>خودروها</th><th>بارها</th><th>وضعیت</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var t in Model.Items)
+                {
+                    <tr>
+                        <td class="num muted">@Fa.N(t.SortOrder)</td>
+                        <td><b>@t.Name</b></td>
+                        <td>@(t.BodyKind ?? "—")</td>
+                        <td class="nowrap">@Fa.N(t.CapacityTon, 1) تن</td>
+                        <td class="num">
+                            @if (Model.Vehicles.GetValueOrDefault(t.VehicleTypeId) is int vn && vn > 0)
+                            {
+                                <a class="lnk" asp-action="Index" asp-route-type="@t.VehicleTypeId">@Fa.N(vn)</a>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
+                        <td class="num">@(Model.Loads.GetValueOrDefault(t.VehicleTypeId) is int ln && ln > 0 ? Fa.N(ln) : "—")</td>
+                        <td>@(t.IsActive ? Ui.Pill("فعال", "ok") : Ui.Pill("غیرفعال", "mut"))</td>
+                        <td><a class="btn2 sm soft" asp-action="Types" asp-route-edit="@t.VehicleTypeId"><i class="bi bi-pencil"></i> ویرایش</a></td>
+                    </tr>
+                }
+                @if (Model.Items.Count == 0)
+                {
+                    <tr><td colspan="8" class="empty"><i class="bi bi-diagram-2"></i>هنوز نوع خودرویی تعریف نشده است؛ از فرم کنار صفحه شروع کنید.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi @(e is null ? "bi-plus-circle" : "bi-pencil-square")"></i> @(e is null ? "نوع خودروی تازه" : "ویرایش نوع خودرو")</div>
+        <div class="bd">
+            <form method="post" asp-action="SaveType">
+                @if (e is not null)
+                {
+                    <input type="hidden" name="id" value="@e.VehicleTypeId" />
+                }
+                <div class="stack" style="gap:12px">
+                    <div class="fld">
+                        <label>نام <span class="req">*</span></label>
+                        <input name="name" value="@e?.Name" maxlength="80" required placeholder="مثلاً: تریلی چادری" />
+                        <span class="hint">همان چیزی که راننده و صاحب بار در فهرست‌ها می‌بینند.</span>
+                    </div>
+                    <div class="fld">
+                        <label>نوع بارگیر</label>
+                        <select name="bodyKind">
+                            <option value="">—</option>
+                            @foreach (var b in VehicleTypesVm.BodyKinds)
+                            {
+                                <option value="@b" selected="@(e?.BodyKind == b)">@b</option>
+                            }
+                            @if (e?.BodyKind is string other && !VehicleTypesVm.BodyKinds.Contains(other))
+                            {
+                                <option value="@other" selected>@other</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld"><label>ظرفیت (تن) <span class="req">*</span></label><input name="capacityTon" value="@(e is null ? "" : e.CapacityTon.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture))" inputmode="decimal" dir="ltr" required placeholder="24" /></div>
+                    <div class="fld"><label>ترتیب نمایش</label><input name="sortOrder" value="@(e?.SortOrder.ToString() ?? "")" inputmode="numeric" dir="ltr" placeholder="خالی = انتهای فهرست" /></div>
+                    <label class="check"><input type="checkbox" name="isActive" value="true" checked="@(e?.IsActive ?? true)" /><input type="hidden" name="isActive" value="false" /> فعال (در فرم‌های ثبت خودرو و بار دیده شود)</label>
+                </div>
+                <div class="form-actions">
+                    <button class="btn2 pri"><i class="bi bi-check2"></i> ذخیره</button>
+                    @if (e is not null)
+                    {
+                        <a class="btn2 ghost" asp-action="Types">انصراف</a>
+                    }
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

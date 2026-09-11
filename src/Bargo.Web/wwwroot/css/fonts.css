@@ -1,0 +1,5 @@
+/* وزیرمتن — میزبانی محلی. CDNها از داخل ایران و داخل WebView اپ قابل اتکا نیستند. */
+@font-face { font-family: 'Vazirmatn'; font-style: normal; font-weight: 400; font-display: swap; src: url('../fonts/Vazirmatn-400.woff2') format('woff2'); }
+@font-face { font-family: 'Vazirmatn'; font-style: normal; font-weight: 500; font-display: swap; src: url('../fonts/Vazirmatn-500.woff2') format('woff2'); }
+@font-face { font-family: 'Vazirmatn'; font-style: normal; font-weight: 700; font-display: swap; src: url('../fonts/Vazirmatn-700.woff2') format('woff2'); }
+@font-face { font-family: 'Vazirmatn'; font-style: normal; font-weight: 800; font-display: swap; src: url('../fonts/Vazirmatn-800.woff2') format('woff2'); }

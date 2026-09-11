@@ -1,0 +1,125 @@
+@model PageVm<ShipperVerifyVm>
+@{
+    var q = ViewBag.Q as string;
+    var warnDays = (int)ViewBag.WarnDays;
+    var ret = Context.Request.Path + Context.Request.QueryString;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-patch-check"></i> احراز هویت صاحبان بار</h1>
+        <p>صاحب بار بی‌درنگ فعال است؛ احراز هویت فقط سقف‌های حساب را باز می‌کند. قدیمی‌ترین مدرکِ بارگذاری‌شده اول. تأیید یا رد، مدارکِ در انتظارِ همین پرونده را هم می‌بندد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Shippers"><i class="bi bi-person-workspace"></i> همهٔ صاحبان بار</a>
+        <a class="btn2 ghost" href="/Admin/Documents"><i class="bi bi-folder2-open"></i> صف مدارک</a>
+    </div>
+</div>
+
+<div class="card2">
+    <form method="get" class="filters">
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="نام، نام کسب‌وکار یا موبایل" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Verifications">پاک کردن</a>
+        }
+        <span class="muted small" style="margin-inline-start:auto">@Fa.N(Model.Total) پرونده در انتظار</span>
+    </form>
+
+    @if (Model.Total == 0)
+    {
+        <div class="empty-state"><i class="bi bi-check2-all"></i><b>صف احراز هویت خالی است</b>@(string.IsNullOrEmpty(q) ? "هیچ صاحب باری در انتظار بررسی نیست." : "پرونده‌ای با این مشخصات در صف نیست.")</div>
+    }
+    else
+    {
+        <div class="bd stack">
+            @foreach (var row in Model.Rows)
+            {
+                var s = row.Shipper;
+                var valid = row.Documents.Count(d => d.Status != AccountStatus.Rejected);
+                <div class="card2">
+                    <div class="hd">
+                        <i class="bi @(s.Kind == "business" ? "bi-building" : "bi-person")"></i>
+                        <a class="lnk" href="/Admin/Users/Shipper/@s.ShipperId">@s.DisplayName</a>
+                        <span class="chip">@(s.Kind == "business" ? "کسب‌وکار" : "شخص حقیقی")</span>
+                        <span class="end">
+                            @Ui.AccountPill(s.Status)
+                            <span class="muted small">عضویت @Fa.Date(s.CreatedAt)</span>
+                        </span>
+                    </div>
+                    <div class="bd">
+                        <div class="grid-side">
+                            <div>
+                                <dl class="kv">
+                                    <dt>موبایل</dt><dd class="num">@s.Mobile</dd>
+                                    @if (s.Kind == "business")
+                                    {
+                                        <dt>نمایندهٔ حقوقی</dt><dd>@s.FullName</dd>
+                                        <dt>شناسهٔ ملی</dt><dd class="num">@(s.NationalId ?? "—")</dd>
+                                        <dt>کد اقتصادی</dt><dd class="num">@(s.EconomicCode ?? "—")</dd>
+                                    }
+                                    else
+                                    {
+                                        <dt>کد ملی</dt><dd class="num">@(s.NationalCode ?? "—")</dd>
+                                    }
+                                    <dt>شهر</dt><dd>@(s.City?.Name ?? "—")</dd>
+                                    @if (!string.IsNullOrEmpty(s.Address))
+                                    {
+                                        <dt>نشانی</dt><dd>@s.Address</dd>
+                                    }
+                                </dl>
+                                <div class="tbl-wrap" style="margin-top:12px">
+                                    <table class="tbl">
+                                        <thead><tr><th>مدرک</th><th>شماره</th><th>انقضا</th><th>وضعیت</th><th>بارگذاری</th><th>فایل</th></tr></thead>
+                                        <tbody>
+                                        @foreach (var d in row.Documents)
+                                        {
+                                            <tr>
+                                                <td><b>@DocumentKind.Label(d.Kind)</b></td>
+                                                <td class="num">@(d.Number ?? "—")</td>
+                                                <td>@Ui.Expiry(d.ExpiresAt, warnDays)</td>
+                                                <td>
+                                                    @Ui.AccountPill(d.Status)
+                                                    @if (!string.IsNullOrEmpty(d.ReviewNote))
+                                                    {
+                                                        <span class="sub">@d.ReviewNote</span>
+                                                    }
+                                                </td>
+                                                <td class="nowrap">@Fa.Stamp(d.UploadedAt)</td>
+                                                <td>@OpsUi.File(d.FilePath, large: true)</td>
+                                            </tr>
+                                        }
+                                        @if (row.Documents.Count == 0)
+                                        {
+                                            <tr><td colspan="6" class="empty"><i class="bi bi-file-earmark-x"></i>مدرکی بارگذاری نشده است؛ تأیید بدون مدرک ممکن نیست.</td></tr>
+                                        }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div>
+                                <form method="post" asp-action="VerifyShipper" data-confirm="تصمیم احراز هویت «@s.DisplayName» ثبت شود؟">
+                                    <input type="hidden" name="id" value="@s.ShipperId" />
+                                    <input type="hidden" name="returnUrl" value="@ret" />
+                                    <div class="fld">
+                                        <label>یادداشت <span class="muted small">(برای رد الزامی؛ برای صاحب بار ارسال می‌شود)</span></label>
+                                        <textarea name="note" rows="3" maxlength="1000" placeholder="مثلاً: تصویر کارت ملی ناخوانا است"></textarea>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="btn2 grn" name="decision" value="@AccountStatus.Approved" @(valid == 0 ? "disabled" : "")><i class="bi bi-check2-circle"></i> تأیید احراز هویت</button>
+                                        <button class="btn2 red" name="decision" value="@AccountStatus.Rejected"><i class="bi bi-x-circle"></i> رد</button>
+                                    </div>
+                                    @if (valid == 0)
+                                    {
+                                        <p class="muted small">تا مدرک معتبری بارگذاری نشود، دکمهٔ تأیید فعال نمی‌شود.</p>
+                                    }
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    <partial name="_Pager" model="Model.Pager" />
+</div>

@@ -1,0 +1,139 @@
+@model OpsVehicleForm
+@{
+    var v = (Vehicle)ViewBag.Vehicle;
+    var errors = ViewBag.Errors as List<string>;
+    var busy = ViewBag.Busy as OpsBusy;
+    var docs = (List<Document>)ViewBag.Documents;
+    var warnDays = (int)ViewBag.WarnDays;
+    var latest = DocumentKind.ForVehicle.Select(k => (Kind: k, Doc: docs.Where(x => x.Kind == k && x.Status != AccountStatus.Rejected).OrderByDescending(x => x.UploadedAt).FirstOrDefault())).ToList();
+    var canSet = v.Status != VehicleStatus.Suspended;
+    (string Key, string Label, string Icon, string Btn)[] statuses =
+    [
+        (VehicleStatus.Active, "فعال", "bi-play-circle", "grn"),
+        (VehicleStatus.Maintenance, "در تعمیر", "bi-tools", "ghost"),
+        (VehicleStatus.Inactive, "غیرفعال", "bi-pause-circle", "ghost")
+    ];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-truck-front"></i> <span class="plate">@v.PlateNo</span> @Ui.VehiclePill(v.Status) @Ui.Pill("تأیید: " + AccountStatus.Label(v.VerifyStatus), AccountStatus.Tone(v.VerifyStatus))</h1>
+        <p>@v.VehicleType?.Name · @OpsLabels.Ton(v.CapacityTon) تن@(string.IsNullOrEmpty(v.Brand) ? "" : " · " + v.Brand)@(string.IsNullOrEmpty(v.Model) ? "" : " " + v.Model) · ثبت @Fa.Date(v.CreatedAt)</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-arrow-right"></i> خودروهای شرکت</a>
+        <a class="btn2 pri" asp-action="Documents" asp-route-vehicleId="@v.VehicleId"><i class="bi bi-folder2-open"></i> مدارک</a>
+    </div>
+</div>
+
+@if (errors is { Count: > 0 })
+{
+    <div class="alert2 err" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            @foreach (var e in errors)
+            {
+                <div>@e</div>
+            }
+        </div>
+    </div>
+}
+@if (v.VerifyStatus != AccountStatus.Approved)
+{
+    <div class="alert2 @(v.VerifyStatus == AccountStatus.Pending ? "warn" : "err")">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            @(v.VerifyStatus == AccountStatus.Pending
+                ? "مدارک این خودرو هنوز توسط مدیر بارگو تأیید نشده و در تخصیص انتخاب‌پذیر نیست. کارت خودرو، بیمه‌نامه و معاینه فنی را بارگذاری کنید."
+                : "مدارک این خودرو رد شده است؛ با بارگذاری مدرک تازه دوباره به صف بررسی می‌رود.")
+        </div>
+    </div>
+}
+@if (busy is not null)
+{
+    <div class="alert2 info">
+        <i class="bi bi-truck"></i>
+        <div class="grow">این خودرو در سفر <a class="lnk num" href="/Company/Trips/Detail/@busy.TripId">@busy.Code</a> (@TripStatus.Label(busy.Status))@(busy.Driver is null ? "" : " با رانندگی " + busy.Driver) است.</div>
+    </div>
+}
+
+<div class="grid-side">
+    <form method="post" asp-action="Edit" asp-route-id="@v.VehicleId" class="card2">
+        <div class="bd">
+            <partial name="_VehicleForm" model="Model" />
+            <div class="form-actions">
+                <button type="submit" class="btn2 pri lg"><i class="bi bi-check2-circle"></i> ذخیرهٔ تغییرات</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-toggles"></i> وضعیت عملیاتی</div>
+            <div class="bd">
+                <div class="kvrow"><span>اکنون</span>@Ui.VehiclePill(v.Status)</div>
+                @if (canSet)
+                {
+                    <div class="row-actions" style="margin-top:10px">
+                        @foreach (var s in statuses)
+                        {
+                            <form method="post" asp-action="SetStatus" class="inline">
+                                <input type="hidden" name="id" value="@v.VehicleId" />
+                                <input type="hidden" name="status" value="@s.Key" />
+                                <input type="hidden" name="back" value="edit" />
+                                <button class="btn2 @s.Btn sm" disabled="@(v.Status == s.Key)"><i class="bi @s.Icon"></i> @s.Label</button>
+                            </form>
+                        }
+                    </div>
+                    <p class="muted small" style="margin:10px 0 0">فقط خودروی «فعال» و تأییدشده در تخصیص پیشنهاد می‌شود. خودروی در سفر را نمی‌توان غیرفعال کرد.</p>
+                }
+                else
+                {
+                    <p class="muted small" style="margin:10px 0 0">این خودرو توسط مدیر بارگو تعلیق شده است؛ برای پیگیری تیکت ثبت کنید.</p>
+                }
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-folder2-open"></i> مدارک</div>
+            <div class="bd">
+                @foreach (var (kind, doc) in latest)
+                {
+                    <div class="kvrow">
+                        <span>@DocumentKind.Label(kind)</span>
+                        @if (doc is null)
+                        {
+                            <a class="lnk small" asp-action="Documents" asp-route-vehicleId="@v.VehicleId" asp-route-kind="@kind">بارگذاری نشده</a>
+                        }
+                        else
+                        {
+                            <span class="row-actions">
+                                @Ui.AccountPill(doc.Status)
+                                @if (DocumentKind.Expiring.Contains(kind))
+                                {
+                                    @Ui.Expiry(doc.ExpiresAt, warnDays)
+                                }
+                                @if (doc.FilePath is not null)
+                                {
+                                    <a class="btn2 ghost sm" href="@DocumentStorage.Url(doc.FilePath)" target="_blank" title="مشاهده"><i class="bi bi-eye"></i></a>
+                                }
+                            </span>
+                        }
+                    </div>
+                }
+                <div class="kvrow"><span>بیمه‌نامه (ثبت‌شده)</span>@Ui.Expiry(v.InsuranceExpiresAt, warnDays)</div>
+                <div class="kvrow"><span>معاینه فنی (ثبت‌شده)</span>@Ui.Expiry(v.InspectionExpiresAt, warnDays)</div>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-geo-alt"></i> رهگیری</div>
+            <div class="bd">
+                <div class="kvrow"><span>آخرین موقعیت</span><b>@(v.LastSeenAt is DateTime seen ? Fa.Ago(seen) : "ثبت نشده")</b></div>
+                <div class="kvrow"><span>مسافت پیموده‌شده</span><b>@Fa.N(v.TrackedKm) کیلومتر</b></div>
+                <div class="form-actions">
+                    <a class="btn2 ghost block" href="/Company/Monitoring/History?vehicleId=@v.VehicleId"><i class="bi bi-clock-history"></i> سوابق مسیر</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

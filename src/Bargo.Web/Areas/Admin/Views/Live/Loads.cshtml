@@ -1,0 +1,59 @@
+@model PageVm<LoadRow>
+@{
+    var trips = (Dictionary<int, TripRow>)ViewBag.Trips;
+    var markers = (List<MapMarker>)ViewBag.Markers;
+    var now = DateTime.UtcNow;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-boxes"></i> بارهای در حال حمل</h1>
+        <p>بارهایی که هم‌اکنون سفر زنده دارند — روی خودرو یا در راه بارگیری.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-map"></i> نقشهٔ کشور</a>
+        <a class="btn2 ghost" href="/Admin/Loads?status=transit"><i class="bi bi-list-ul"></i> در مدیریت بارها</a>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="bd"><div class="map short" data-map="@Json.Serialize(new { markers, fit = markers.Count > 0, poll = "/Admin/Live/Data?trips=1" })"></div></div>
+</div>
+
+<div class="card2" style="margin-top:18px">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>بار</th><th>مسیر</th><th>کالا</th><th>صاحب بار</th><th>سفر</th><th>حمل‌کننده</th><th>آخرین GPS</th><th>رسیدن تقریبی</th></tr></thead>
+            <tbody>
+            @foreach (var l in Model.Rows)
+            {
+                var t = l.TripId is int tid && trips.TryGetValue(tid, out var tr) ? tr : null;
+                <tr data-href="/Admin/Loads/Detail/@l.LoadId">
+                    <td><a class="lnk num" href="/Admin/Loads/Detail/@l.LoadId">@l.Code</a>@if (l.IsReported) { <span class="sub">@Ui.Pill("گزارش‌شده", "no")</span> }</td>
+                    <td>@Ui.Route(l.From, l.To)</td>
+                    <td>@l.Title<span class="sub">@l.CargoType · @OpsLabels.Ton(l.WeightTon) تن</span></td>
+                    <td>
+                        @if (l.ShipperId is int sid) { <a class="lnk" href="/Admin/Users/Shipper/@sid">@l.OwnerName</a> }
+                        else if (l.CompanyId is int cid) { <a class="lnk" href="/Admin/Users/Company/@cid">@l.OwnerName</a> }
+                        else { <span class="muted">—</span> }
+                    </td>
+                    <td>
+                        @if (t is not null) { <a class="lnk num" href="/Admin/Trips/Case/@t.TripId">@t.Code</a><span class="sub">@Ui.TripPill(t.Status)</span> }
+                        else if (l.TripId is int t2) { <a class="lnk num" href="/Admin/Trips/Case/@t2">@l.TripCode</a> }
+                        else { <span class="muted">—</span> }
+                    </td>
+                    <td>@if (t is not null) { @t.CarrierName <span class="sub">@OpsUi.Plate(t.Plate)</span> } else { <span class="muted">—</span> }</td>
+                    <td>@(t is not null ? OpsUi.Gps(t.LastPointAt) : Ui.Pill("—", "mut"))</td>
+                    <td class="nowrap">@if (t?.EtaAt is DateTime eta) { @Ui.Pill(Fa.Stamp(eta), eta < now ? "no" : "inf") } else { <span class="muted">—</span> }</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-boxes"></i>هم‌اکنون هیچ باری در حال حمل نیست.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

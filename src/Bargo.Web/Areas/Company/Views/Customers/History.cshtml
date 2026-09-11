@@ -1,0 +1,307 @@
+@model PageVm<CompanyTripRow>
+@{
+    var customer = ViewBag.Customer as CompanyCustomer;
+    var shipper = ViewBag.Shipper as ShipperInfo;
+    var customerId = ViewData["CustomerId"] as int?;
+    var shipperId = ViewData["ShipperId"] as int?;
+    var shipperOptions = (List<SelectItem>)ViewBag.ShipperOptions;
+    var customerOptions = (List<SelectItem>)ViewBag.CustomerOptions;
+    var contracts = ViewBag.Contracts as List<ContractRow>;
+    var sumTrips = (int)ViewBag.SumTrips;
+    var sumDone = (int)ViewBag.SumDone;
+    var sumCancelled = (int)ViewBag.SumCancelled;
+    var sumFare = (long)ViewBag.SumFare;
+    var sumShare = (long)ViewBag.SumShare;
+    var first = ViewData["First"] as DateTime?;
+    var last = ViewData["Last"] as DateTime?;
+
+    var selected = customer is not null || shipper is not null;
+    var external = customer is not null && customer.ShipperId is null;
+    var partyName = customer?.Name ?? shipper?.Name;
+    var showParty = shipper is null && !external;
+    var cols = showParty ? 6 : 5;
+}
+<div class="page-head">
+    <div>
+        @if (selected)
+        {
+            <h1><i class="bi bi-clock-history"></i> سوابق همکاری با @partyName</h1>
+            <p>
+                @if (customer is not null)
+                {
+                    <text>@CompanyLabels.CustomerKind(customer.Kind) · در دفتر مشتریان از @Fa.Date(customer.CreatedAt)</text>
+                    if (customer.ShipperId is not null)
+                    {
+                        <text> · </text><span class="chip"><i class="bi bi-patch-check"></i> عضو بارگو</span>
+                    }
+                }
+                else
+                {
+                    <text>صاحب بار بارگو · @(shipper!.Kind == "business" ? "کسب‌وکار" : "شخص حقیقی")@(shipper.City is null ? "" : " · " + shipper.City)</text>
+                }
+            </p>
+        }
+        else
+        {
+            <h1><i class="bi bi-clock-history"></i> سوابق همکاری</h1>
+            <p>همهٔ سفرهای شرکت، تازه‌ترین اول. برای دیدن سوابق یک مشتری یا صاحب بار، او را از کادر کنار صفحه انتخاب کنید.</p>
+        }
+    </div>
+    <div class="actions">
+        @if (customer is not null)
+        {
+            <a class="btn2 ghost" asp-action="Index" asp-route-kind="@customer.Kind"><i class="bi bi-arrow-right"></i> @(customer.Kind == CompanyLabels.Corporate ? "مشتریان شرکتی" : "مشتریان حقیقی")</a>
+            <a class="btn2 ghost" asp-action="Contracts" asp-route-customerId="@customer.CompanyCustomerId"><i class="bi bi-file-earmark-medical"></i> قراردادهای مشتری</a>
+        }
+        else
+        {
+            <a class="btn2 ghost" asp-action="Index"><i class="bi bi-arrow-right"></i> صاحبان بار</a>
+            <a class="btn2 ghost" asp-action="Contracts"><i class="bi bi-file-earmark-medical"></i> قراردادها</a>
+        }
+        @if (selected)
+        {
+            <a class="btn2 ghost" asp-action="History"><i class="bi bi-list-ul"></i> همهٔ سفرها</a>
+        }
+    </div>
+</div>
+
+@if (ViewData["ShipperCount"] is not null && ViewData["PersonCount"] is not null && ViewData["CorporateCount"] is not null)
+{
+    <partial name="_Tabs" />
+}
+
+@if (external)
+{
+    <div class="alert2 info">
+        <i class="bi bi-info-circle-fill"></i>
+        <div class="grow">«@(customer!.Name)» عضو بارگو نیست. سفرهای بارهایی که شرکت برای مشتریان بیرونی ثبت می‌کند هنوز به نام مشتری تفکیک نمی‌شود؛ از این رو برای او سفری در این صفحه نمایش داده نمی‌شود. قراردادهای ثبت‌شدهٔ این مشتری در پایین صفحه آمده است.</div>
+    </div>
+}
+
+<div class="stats cols5">
+    <div class="stat t"><div class="l"><i class="bi bi-signpost-split"></i> سفرها</div><div class="v">@Fa.N(sumTrips)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-flag"></i> تحویل‌شده</div><div class="v">@Fa.N(sumDone)</div></div>
+    <div class="stat r"><div class="l"><i class="bi bi-x-octagon"></i> لغوشده</div><div class="v">@Fa.N(sumCancelled)</div></div>
+    <div class="stat p"><div class="l"><i class="bi bi-cash-stack"></i> جمع کرایه (بدون لغوشده‌ها)</div><div class="v">@Fa.Toman(sumFare)</div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-wallet2"></i> سهم شرکت از سفرهای تحویل‌شده</div><div class="v">@Fa.Toman(sumShare)</div></div>
+</div>
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd">
+                <i class="bi bi-truck"></i> @(selected ? "سفرها" : "همهٔ سفرهای شرکت")
+                @if (first is not null)
+                {
+                    <span class="end small muted">از @Fa.Date(first) تا @Fa.Date(last)</span>
+                }
+            </div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead>
+                    <tr>
+                        <th>سفر</th>
+                        @if (showParty)
+                        {
+                            <th>صاحب بار</th>
+                        }
+                        <th>مسیر</th>
+                        <th>تاریخ</th>
+                        <th>کرایه</th>
+                        <th>وضعیت</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var t in Model.Rows)
+                    {
+                        <tr data-href="/Company/Trips/Detail/@t.TripId">
+                            <td>
+                                <a class="lnk num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a>
+                                <span class="sub">@t.CargoTitle</span>
+                            </td>
+                            @if (showParty)
+                            {
+                                <td>@t.Party</td>
+                            }
+                            <td>@Ui.Route(t.Origin, t.Dest)</td>
+                            <td class="nowrap">
+                                @Fa.Date(t.CreatedAt)
+                                @if (t.DeliveredAt is DateTime dv)
+                                {
+                                    <span class="sub">تحویل @Fa.Date(dv)</span>
+                                }
+                            </td>
+                            <td class="nowrap">
+                                @Fa.Toman(t.Fare)
+                                @if (t.IsPaid)
+                                {
+                                    <span class="sub">پرداخت‌شده</span>
+                                }
+                            </td>
+                            <td>@Ui.TripPill(t.Status)</td>
+                        </tr>
+                    }
+                    @if (Model.Total == 0)
+                    {
+                        <tr>
+                            <td colspan="@cols" class="empty">
+                                <i class="bi bi-clock-history"></i>
+                                @(external
+                                    ? "برای مشتریِ بیرونی سوابق سفر قابل تفکیک نیست."
+                                    : selected
+                                        ? $"شرکت هنوز سفری برای «{partyName}» انجام نداده است."
+                                        : "شرکت هنوز سفری نداشته است.")
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <partial name="_Pager" model="Model.Pager" />
+        </div>
+
+        @if (customer is not null && contracts is not null)
+        {
+            <div class="card2">
+                <div class="hd">
+                    <i class="bi bi-file-earmark-medical"></i> قراردادهای مشتری
+                    <span class="end"><a class="btn2 soft sm" asp-action="Contracts" asp-route-customerId="@customer.CompanyCustomerId"><i class="bi bi-plus-lg"></i> مدیریت قراردادها</a></span>
+                </div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>قرارداد</th><th>دوره</th><th>مبلغ</th><th>وضعیت</th><th>فایل</th></tr></thead>
+                        <tbody>
+                        @foreach (var k in contracts)
+                        {
+                            <tr>
+                                <td>
+                                    <b>@k.Title</b>
+                                    @if (!string.IsNullOrEmpty(k.Note))
+                                    {
+                                        <span class="sub">@k.Note</span>
+                                    }
+                                </td>
+                                <td class="nowrap">
+                                    @Fa.Date(k.StartsAt) تا @(k.EndsAt is null ? "بدون تاریخ پایان" : Fa.Date(k.EndsAt))
+                                    @if (k.Overdue)
+                                    {
+                                        <span class="sub">تاریخ پایان گذشته است</span>
+                                    }
+                                </td>
+                                <td class="nowrap">@Fa.Toman(k.Amount)</td>
+                                <td>@Ui.Pill(CompanyLabels.ContractStatus(k.Status), CompanyLabels.ContractTone(k.Status))</td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(k.FilePath))
+                                    {
+                                        <a class="btn2 ghost sm" href="@DocumentStorage.Url(k.FilePath)" target="_blank" rel="noopener"><i class="bi bi-file-earmark"></i> مشاهده</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (contracts.Count == 0)
+                        {
+                            <tr><td colspan="5" class="empty"><i class="bi bi-file-earmark-medical"></i>برای این مشتری هنوز قراردادی ثبت نشده است.</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="stack">
+        @if (selected)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-person-vcard"></i> مشخصات</div>
+                <div class="bd">
+                    <dl class="kv">
+                        @if (customer is not null)
+                        {
+                            <dt>نام</dt><dd>@customer.Name</dd>
+                            <dt>نوع</dt><dd>@CompanyLabels.CustomerKind(customer.Kind)</dd>
+                            <dt>موبایل</dt><dd class="num">@(string.IsNullOrEmpty(customer.Mobile) ? "—" : Fa.Digits(customer.Mobile))</dd>
+                            <dt>@(customer.Kind == CompanyLabels.Corporate ? "شناسهٔ ملی" : "کد ملی")</dt><dd class="num">@(string.IsNullOrEmpty(customer.NationalId) ? "—" : Fa.Digits(customer.NationalId))</dd>
+                            <dt>ثبت در دفتر</dt><dd>@Fa.Date(customer.CreatedAt)</dd>
+                            @if (!string.IsNullOrEmpty(customer.Note))
+                            {
+                                <dt>یادداشت</dt><dd>@customer.Note</dd>
+                            }
+                        }
+                        else
+                        {
+                            <dt>نام</dt><dd>@(shipper!.Name)</dd>
+                            <dt>نوع</dt><dd>@(shipper.Kind == "business" ? "کسب‌وکار" : "شخص حقیقی")</dd>
+                            <dt>موبایل</dt><dd class="num">@Fa.Digits(shipper.Mobile)</dd>
+                        }
+                        @if (shipper is not null)
+                        {
+                            if (customer is not null)
+                            {
+                                <dt>حساب بارگو</dt><dd>@shipper.Name</dd>
+                            }
+                            <dt>شهر</dt><dd>@(shipper.City ?? "—")</dd>
+                            <dt>امتیاز</dt><dd>@Ui.Stars(shipper.RatingAvg, shipper.RatingCount)</dd>
+                        }
+                        <dt>نخستین سفر</dt><dd>@Fa.Date(first)</dd>
+                        <dt>آخرین سفر</dt><dd>@Fa.Date(last)@(last is DateTime l ? " · " + Fa.Ago(l) : "")</dd>
+                    </dl>
+                </div>
+            </div>
+        }
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-search"></i> انتخاب طرف همکاری</div>
+            <div class="bd">
+                @if (customerOptions.Count > 0)
+                {
+                    <form method="get" asp-action="History">
+                        <div class="fld">
+                            <label>مشتری دفتر شرکت</label>
+                            <select name="customerId" required>
+                                <option value="">انتخاب کنید</option>
+                                @foreach (var o in customerOptions)
+                                {
+                                    <option value="@o.Id" selected="@(customerId == o.Id)">@o.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-actions"><button class="btn2 soft block"><i class="bi bi-person-vcard"></i> سوابق مشتری</button></div>
+                    </form>
+                }
+                else
+                {
+                    <p class="small muted">هنوز مشتری‌ای در دفتر مشتریان شرکت ثبت نشده است.</p>
+                }
+
+                <div class="sec-title"><i class="bi bi-person-lines-fill"></i> صاحبان بار بارگو</div>
+
+                @if (shipperOptions.Count > 0)
+                {
+                    <form method="get" asp-action="History">
+                        <div class="fld">
+                            <label>صاحب بار</label>
+                            <select name="shipperId" required>
+                                <option value="">انتخاب کنید</option>
+                                @foreach (var o in shipperOptions)
+                                {
+                                    <option value="@o.Id" selected="@(customer is null && shipperId == o.Id)">@o.Text</option>
+                                }
+                            </select>
+                            <span class="hint">فقط صاحبان باری که شرکت برایشان حمل کرده است.</span>
+                        </div>
+                        <div class="form-actions"><button class="btn2 soft block"><i class="bi bi-clock-history"></i> سوابق صاحب بار</button></div>
+                    </form>
+                }
+                else
+                {
+                    <p class="small muted">شرکت هنوز برای هیچ صاحب باری در بارگو حمل نکرده است.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,80 @@
+@model TripHistoryVm
+@{
+    var filtered = Model.From is not null || Model.To is not null;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-clock-history"></i> @ViewData["Title"]</h1>
+        <p>همهٔ سفرهای شما با هر وضعیت، به ترتیب زمان بارگیری. جمع‌بندی بالای صفحه فقط برای بازهٔ انتخاب‌شده است.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-signpost-split"></i> سفرهای من</a>
+        <a class="btn2 ghost" href="/Driver/Ratings/Performance"><i class="bi bi-bar-chart"></i> سوابق عملکرد</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat t"><div class="l"><i class="bi bi-list-ol"></i> کل سفرها</div><div class="v">@Fa.N(Model.TotalTrips)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-flag"></i> تحویل‌شده</div><div class="v">@Fa.N(Model.DoneTrips)<small>از @Fa.N(Model.TotalTrips)</small></div></div>
+    <div class="stat p"><div class="l"><i class="bi bi-signpost-2"></i> کیلومتر طی‌شده</div><div class="v">@Fa.N(Model.TotalKm)<small>کیلومتر</small></div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-cash-coin"></i> درآمد سفرهای تحویل‌شده</div><div class="v">@Fa.Toman(Model.TotalIncome)</div></div>
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="History" class="filters">
+        <div class="fld narrow">
+            <label>از تاریخ</label>
+            <input name="from" type="text" data-jdate value="@Fa.DateBox(Model.From)" />
+        </div>
+        <div class="fld narrow">
+            <label>تا تاریخ</label>
+            <input name="to" type="text" data-jdate value="@Fa.DateBox(Model.To)" />
+        </div>
+        <div class="row-actions">
+            <button type="submit" class="btn2 pri"><i class="bi bi-funnel"></i> اعمال بازه</button>
+            @if (filtered)
+            {
+                <a class="btn2 ghost" asp-action="History">همهٔ زمان‌ها</a>
+            }
+        </div>
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>مسیر</th><th>زمان بارگیری</th><th>حمل‌کننده</th><th>مسافت</th><th>سهم شما</th><th>وضعیت</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Page.Rows)
+            {
+                <tr data-href="@Url.Action("Detail", new { id = t.TripId })">
+                    <td><a class="lnk num" asp-action="Detail" asp-route-id="@t.TripId">@t.Code</a><span class="sub">@t.Title</span></td>
+                    <td>@Ui.Route(t.From, t.To)</td>
+                    <td class="nowrap">@Fa.Date(t.ScheduledDepartureAt ?? t.CreatedAt)</td>
+                    <td>@(t.CarrierKind == CarrierKind.Company ? "شرکت " + t.CompanyName : "مستقل")</td>
+                    <td class="nowrap">@(t.TravelledKm > 0 ? Fa.N(t.TravelledKm) : t.PlannedKm is double pk ? Fa.N(pk) : "—") کیلومتر</td>
+                    <td class="nowrap"><b>@Fa.Toman(t.MyShare)</b></td>
+                    <td>
+                        @Ui.TripPill(t.Status)
+                        <span class="sub">
+                            @(t.Status switch
+                            {
+                                TripStatus.Delivered or TripStatus.Settled => "تحویل " + Fa.Date(t.DeliveredAt),
+                                TripStatus.Cancelled => "لغو " + Fa.Date(t.CancelledAt),
+                                _ => ""
+                            })
+                        </span>
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr>
+                    <td colspan="7" class="empty">
+                        <i class="bi bi-clock-history"></i>
+                        @(filtered ? "در این بازه سفری ثبت نشده است؛ بازه را تغییر دهید." : "هنوز سفری ثبت نشده است. اولین سفر شما پس از پذیرش پیشنهادتان ساخته می‌شود.")
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

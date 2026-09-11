@@ -1,0 +1,77 @@
+@model OpsWaybillIssueVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-file-earmark-plus"></i> صدور/ثبت بارنامه</h1>
+        <p>شمارهٔ بارنامهٔ صادرشده (پایانه یا سامانهٔ بارنامهٔ برخط) را برای سفرهایی که به مبدا رسیده‌اند ثبت کنید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-files"></i> بارنامه‌های شرکت <span class="chip">@Fa.N(Model.Registered)</span></a>
+        <a class="btn2 ghost" asp-action="Documents"><i class="bi bi-folder2-open"></i> اسناد بار</a>
+    </div>
+</div>
+
+@if (Model.RequireWaybill)
+{
+    <div class="alert2 info"><i class="bi bi-info-circle-fill"></i><div class="grow">طبق تنظیمات سامانه، «شروع سفر» بدون شمارهٔ بارنامه ممکن نیست. راننده هم می‌تواند شماره را از اپ ثبت کند.</div></div>
+}
+
+@if (Model.Trips.Count == 0)
+{
+    <div class="card2">
+        <div class="empty-state">
+            <i class="bi bi-file-earmark-check"></i>
+            <b>سفری منتظر بارنامه نیست</b>
+            سفرهایی که به مبدا رسیده یا بارگیری شده‌اند و هنوز بارنامه ندارند، این‌جا فهرست می‌شوند.
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack">
+        @foreach (var t in Model.Trips)
+        {
+            var l = t.Load!;
+            <div class="card2">
+                <div class="hd">
+                    <i class="bi bi-signpost-split"></i>
+                    <a class="num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a>
+                    @Ui.TripPill(t.Status)
+                    @if (t.Status == TripStatus.InTransit)
+                    {
+                        @Ui.Pill("در راه بدون بارنامه", "no")
+                    }
+                    <span class="end">@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</span>
+                </div>
+                <div class="bd">
+                    <div class="grid-side">
+                        <dl class="kv">
+                            <dt>بار</dt><dd>@l.Title — @l.CargoType · @OpsLabels.Ton(l.WeightTon) تن</dd>
+                            <dt>صاحب بار</dt><dd>@(l.Shipper?.DisplayName ?? "مشتری شرکت")</dd>
+                            <dt>گیرنده</dt><dd>@(l.ReceiverName ?? "—") <span class="num">@Fa.Digits(l.ReceiverMobile)</span></dd>
+                            <dt>راننده</dt><dd>@(t.Driver?.FullName ?? "—")@if (t.Vehicle is not null) { <text> · </text><span class="plate">@t.Vehicle.PlateNo</span> }</dd>
+                            <dt>بارگیری</dt><dd>@Fa.Stamp(t.LoadedAt ?? l.LoadingFrom)</dd>
+                            <dt>کرایه</dt><dd class="num">@Fa.Toman(t.Fare)</dd>
+                            @if (l.DeclaredValue is long dv)
+                            {
+                                <dt>ارزش اعلامی</dt><dd class="num">@Fa.Toman(dv)@(l.InsuranceRequested ? " · نیازمند بیمه" : "")</dd>
+                            }
+                        </dl>
+                        <form method="post" asp-action="Issue" enctype="multipart/form-data">
+                            <input type="hidden" name="tripId" value="@t.TripId" />
+                            <div class="fld">
+                                <label>شمارهٔ بارنامه <span class="req">*</span></label>
+                                <input name="number" maxlength="40" required dir="ltr" placeholder="مثلاً 1405-000123" />
+                            </div>
+                            <div class="fld" style="margin-top:8px">
+                                <label>تصویر بارنامه</label>
+                                <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" />
+                                <span class="hint">اختیاری — تصویر یا PDF، حداکثر ۸ مگابایت</span>
+                            </div>
+                            <div class="form-actions"><button type="submit" class="btn2 pri block"><i class="bi bi-file-earmark-check"></i> ثبت بارنامه</button></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

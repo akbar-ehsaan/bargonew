@@ -1,0 +1,75 @@
+@model TripTrackVm
+@{
+    var t = Model.Trip;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-geo-alt"></i> رهگیری سفر</h1>
+        <p>کد سفر (T-…)، کد بار (L-…) یا شمارهٔ بارنامه را وارد کنید تا موقعیت خودرو، مسیر طی‌شده و مرحلهٔ فعلی را ببینید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-signpost-split"></i> سفرهای جاری</a>
+        <a class="btn2 ghost" href="/Admin/Live"><i class="bi bi-map"></i> نقشهٔ کشور</a>
+    </div>
+</div>
+
+<div class="card2">
+    <form method="get" class="filters">
+        <div class="fld"><label for="code">کد</label><input id="code" name="code" value="@Model.Code" placeholder="مثلاً T-050621-0042" dir="ltr" autofocus /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> رهگیری</button>
+    </form>
+
+    @if (Model.Code.Length == 0)
+    {
+        <div class="empty-state"><i class="bi bi-geo-alt"></i><b>کدی وارد نشده است</b>کد را از پروندهٔ سفر، بار یا بارنامه کپی کنید.</div>
+    }
+    else if (Model.NotFound is not null)
+    {
+        <div class="empty-state"><i class="bi bi-search"></i><b>پیدا نشد</b>@Model.NotFound</div>
+    }
+    else if (t is null)
+    {
+        <div class="empty-state"><i class="bi bi-lock"></i><b>دسترسی نیست</b>این سفر برای شما قابل نمایش نیست.</div>
+    }
+    else
+    {
+        var live = TripStatus.Live.Contains(t.Status);
+        <div class="bd">
+            <div class="page-head" style="margin-bottom:12px">
+                <div>
+                    <h1 style="font-size:17px"><span class="num">@t.Code</span> @Ui.TripPill(t.Status) @if (t.IsProblem) { @Ui.Pill("مشکل‌دار", "no") }</h1>
+                    <p>@Ui.Route(t.Load?.OriginCity?.Name, t.Load?.DestCity?.Name) · بار <a class="lnk num" href="/Admin/Loads/Detail/@t.LoadId">@t.Load?.Code</a> · @t.Load?.Title</p>
+                </div>
+                <div class="actions"><a class="btn2 pri" asp-action="Case" asp-route-id="@t.TripId"><i class="bi bi-folder2-open"></i> پروندهٔ کامل سفر</a></div>
+            </div>
+
+            <partial name="_TripSteps" model="t" />
+
+            <div class="grid-side" style="margin-top:14px">
+                <div class="map" data-map='@Json.Serialize(new { markers = Model.Markers, line = Model.Line, fit = true })'></div>
+                <div class="stack">
+                    <div class="card2">
+                        <div class="hd"><i class="bi bi-truck"></i> خودرو و راننده</div>
+                        <div class="bd">
+                            <div class="kvrow"><span>راننده</span><b>@if (t.DriverId is int did) { <a class="lnk" href="/Admin/Users/Driver/@did">@t.Driver?.FullName</a> } else { <text>تعیین نشده</text> }</b></div>
+                            @if (t.Driver is not null) { <div class="kvrow"><span>موبایل</span><b class="num">@t.Driver.Mobile</b></div> }
+                            @if (t.CompanyId is int cid) { <div class="kvrow"><span>شرکت</span><b><a class="lnk" href="/Admin/Users/Company/@cid">@t.Company?.Name</a></b></div> }
+                            <div class="kvrow"><span>خودرو</span><b>@OpsUi.Plate(t.Vehicle?.PlateNo) @(t.Vehicle?.VehicleType?.Name ?? "")</b></div>
+                            <div class="kvrow"><span>آخرین GPS</span>@(live ? OpsUi.Gps(t.LastPointAt) : Ui.Pill(t.LastPointAt is DateTime lp ? Fa.Stamp(lp) : "—", "mut"))</div>
+                            <div class="kvrow"><span>نقاط ثبت‌شده</span><b class="num">@Fa.N(Model.PointCount)</b></div>
+                            <div class="kvrow"><span>مسافت طی‌شده</span><b class="num">@Fa.N(t.TravelledKm) کیلومتر@(t.PlannedKm is double pk ? $" از {Fa.N(pk)}" : "")</b></div>
+                            @if (t.EtaAt is DateTime eta) { <div class="kvrow"><span>رسیدن تقریبی</span><b>@Fa.Stamp(eta)@(eta < DateTime.UtcNow && live ? " (گذشته)" : "")</b></div> }
+                            @if (t.Waybill is not null) { <div class="kvrow"><span>بارنامه</span><b class="num">@t.Waybill.Number</b></div> }
+                        </div>
+                    </div>
+                    <div class="card2">
+                        <div class="hd"><i class="bi bi-clock-history"></i> رویدادها</div>
+                        <div class="bd"><partial name="_TripEvents" model="Model.Events" /></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts { <partial name="_MapAssets" /> }

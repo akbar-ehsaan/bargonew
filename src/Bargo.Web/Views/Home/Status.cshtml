@@ -1,0 +1,17 @@
+@model int
+@{
+    Layout = "_PublicLayout";
+    ViewData["Title"] = "بارگو";
+    var (title, text) = Model switch
+    {
+        404 => ("صفحه پیدا نشد", "نشانی را بررسی کنید یا به صفحهٔ اصلی برگردید."),
+        403 => ("دسترسی ندارید", "این بخش برای حساب شما فعال نیست."),
+        _ => ("خطایی رخ داد", "مشکل ثبت شد. چند دقیقه بعد دوباره تلاش کنید.")
+    };
+}
+<div class="card2"><div class="bd empty-state">
+    <i class="bi bi-sign-stop"></i>
+    <b>@title</b>
+    <p>@text</p>
+    <a class="btn2 pri" href="/">صفحهٔ اصلی</a>
+</div></div>

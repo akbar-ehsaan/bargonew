@@ -1,0 +1,103 @@
+@model PageVm<TripRow>
+@{
+    var q = ViewBag.Q as string;
+    var tab = (string)ViewBag.Tab;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    var problems = (int)ViewBag.Problems;
+    int C(string k) => counts.TryGetValue(k, out var n) ? n : 0;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-signpost-split"></i> @ViewData["Title"]</h1>
+        <p>«جاری» یعنی هنوز تحویل نشده: از انتظار تخصیص تا تخلیه. برای پروندهٔ کامل (مالی، تحویل، GPS، گفتگو، شکایت) روی ردیف بزنید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 @(problems > 0 ? "red" : "ghost")" asp-action="Problems"><i class="bi bi-exclamation-triangle"></i> سفرهای مشکل‌دار @if (problems > 0) { <span>(@Fa.N(problems))</span> }</a>
+        <a class="btn2 ghost" asp-action="Track"><i class="bi bi-geo-alt"></i> رهگیری با کد</a>
+        <a class="btn2 ghost" href="/Admin/Live"><i class="bi bi-map"></i> نقشهٔ کشور</a>
+    </div>
+</div>
+
+<div class="tabs">
+    @foreach (var t in Bargo.Web.Areas.AdminPanel.Controllers.TripsController.Tabs)
+    {
+        <a asp-action="Index" asp-route-tab="@t.Key" asp-route-q="@q" class="@(tab == t.Key ? "on" : "")"><i class="bi @t.Icon"></i> @t.Label <span class="n">@Fa.N(C(t.Key))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" class="filters">
+        <input type="hidden" name="tab" value="@tab" />
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="کد سفر، کد بار، پلاک، نام یا موبایل راننده، نام شرکت، شهر" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Index" asp-route-tab="@tab">پاک کردن</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>مسیر</th><th>بار</th><th>حمل‌کننده</th><th>خودرو</th><th>کرایه</th><th>وضعیت</th><th>@(tab == "current" ? "آخرین GPS" : tab == "done" ? "تحویل" : tab == "cancelled" ? "لغو" : "پایان")</th><th>ثبت</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Rows)
+            {
+                <tr data-href="/Admin/Trips/Case/@t.TripId">
+                    <td><a class="lnk num" href="/Admin/Trips/Case/@t.TripId">@t.Code</a></td>
+                    <td>@Ui.Route(t.From, t.To)@if (t.PlannedKm is double pk) { <span class="sub">@Fa.N(pk) کیلومتر</span> }</td>
+                    <td><a class="lnk num" href="/Admin/Loads/Detail/@t.LoadId">@t.LoadCode</a><span class="sub">@t.LoadTitle · @OpsLabels.Ton(t.WeightTon) تن</span></td>
+                    <td>
+                        @if (t.CompanyId is int cid)
+                        {
+                            <a class="lnk" href="/Admin/Users/Company/@cid">@t.CompanyName</a>
+                            <span class="sub">
+                                @if (t.DriverId is int did) { <a class="lnk" href="/Admin/Users/Driver/@did">@t.DriverName</a> <span class="num">@t.DriverMobile</span> }
+                                else { <text>راننده تعیین نشده</text> }
+                            </span>
+                        }
+                        else if (t.DriverId is int did2)
+                        {
+                            <a class="lnk" href="/Admin/Users/Driver/@did2">@t.DriverName</a><span class="sub num">@t.DriverMobile</span>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td>@OpsUi.Plate(t.Plate)</td>
+                    <td class="nowrap">@Fa.Toman(t.Fare)<span class="sub">@(t.IsPaid ? "پرداخت‌شده" : "پرداخت‌نشده")</span></td>
+                    <td>
+                        @Ui.TripPill(t.Status)
+                        @if (t.IsProblem) { @Ui.Pill("مشکل‌دار", "no") }
+                        @if (t.Status == TripStatus.Cancelled && !string.IsNullOrEmpty(t.CancelReason)) { <span class="sub">@t.CancelReason</span> }
+                    </td>
+                    <td class="nowrap">
+                        @if (tab == "current" && TripStatus.Live.Contains(t.Status))
+                        {
+                            @OpsUi.Gps(t.LastPointAt)
+                            <span class="sub">@(t.EtaAt is DateTime eta ? "رسیدن تقریبی " + Fa.Stamp(eta) : "")</span>
+                        }
+                        else if (tab == "current")
+                        {
+                            <span class="muted">حرکت @(t.ScheduledDepartureAt is DateTime sd ? Fa.Date(sd) : "—")</span>
+                        }
+                        else if (t.Status == TripStatus.Cancelled)
+                        {
+                            @Fa.Stamp(t.CancelledAt)
+                        }
+                        else
+                        {
+                            @Fa.Stamp(t.DeliveredAt)
+                        }
+                    </td>
+                    <td class="nowrap">@Fa.Ago(t.CreatedAt)</td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="9" class="empty"><i class="bi bi-signpost-split"></i>@(string.IsNullOrEmpty(q) ? (tab == "current" ? "هیچ سفر جاری‌ای نیست." : "سفری در این بخش نیست.") : "سفری با این مشخصات پیدا نشد.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

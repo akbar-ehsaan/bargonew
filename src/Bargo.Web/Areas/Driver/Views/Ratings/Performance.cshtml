@@ -1,0 +1,49 @@
+@model PerformanceVm
+@{
+    var total = Model.Done + Model.Cancelled;
+    var cancelPct = total == 0 ? 0 : (int)Math.Round(Model.Cancelled * 100.0 / total);
+    var acceptPct = Model.OffersTotal == 0 ? 0 : (int)Math.Round(Model.OffersAccepted * 100.0 / Model.OffersTotal);
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-bar-chart"></i> سوابق عملکرد</h1><p>کارنامهٔ شما در بارگو — همان چیزی که صاحبان بار و شرکت‌ها هنگام مقایسهٔ پیشنهادها می‌بینند.</p></div>
+    <div class="actions">@if (Model.MemberSince is DateTime ms) { <span class="chip"><i class="bi bi-calendar-event"></i> عضو از @Fa.LongDate(ms)</span> }</div>
+</div>
+
+<div class="stats">
+    <a class="stat s" href="/Driver/Trips?tab=done"><div class="l"><i class="bi bi-check2-all"></i> سفرهای تحویل‌شده</div><div class="v">@Fa.N(Model.Done) <small>سفر</small></div></a>
+    <a class="stat @(Model.Cancelled > 0 ? "r" : "i")" href="/Driver/Trips?tab=cancelled"><div class="l"><i class="bi bi-slash-circle"></i> لغوشده</div><div class="v">@Fa.N(Model.Cancelled) <small>@Fa.N(cancelPct)٪</small></div></a>
+    <div class="stat t"><div class="l"><i class="bi bi-signpost-2"></i> مسافت طی‌شده</div><div class="v">@Fa.N(Model.Km) <small>کیلومتر</small></div></div>
+    <a class="stat p" href="/Driver/Finance/Earnings"><div class="l"><i class="bi bi-cash-stack"></i> کل درآمد</div><div class="v">@Fa.N(Model.Income / 10) <small>تومان</small></div></a>
+</div>
+<div class="stats">
+    <a class="stat p" href="/Driver/Ratings"><div class="l"><i class="bi bi-star-fill"></i> امتیاز</div><div class="v">@(Model.RatingCount == 0 ? "—" : Fa.N(Model.RatingAvg, 1)) <small>از @Fa.N(Model.RatingCount) نظر</small></div></a>
+    <a class="stat i" href="/Driver/Offers"><div class="l"><i class="bi bi-tags"></i> پیشنهادهای پذیرفته‌شده</div><div class="v">@Fa.N(Model.OffersAccepted) <small>از @Fa.N(Model.OffersTotal) (@Fa.N(acceptPct)٪)</small></div></a>
+    <div class="stat @(Model.Live > 0 ? "w" : "i")"><div class="l"><i class="bi bi-truck"></i> در حال انجام</div><div class="v">@Fa.N(Model.Live) <small>سفر</small></div></div>
+    <a class="stat @(Model.Complaints > 0 ? "r" : "s")" href="/Driver/Complaints"><div class="l"><i class="bi bi-exclamation-octagon"></i> شکایت علیه شما</div><div class="v">@Fa.N(Model.Complaints)</div></a>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-calendar3"></i> شش ماه اخیر</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>ماه</th><th>تحویل‌شده</th><th>لغوشده</th><th>مسافت</th><th>درآمد</th><th>امتیاز</th></tr></thead>
+            <tbody>
+            @foreach (var m in Model.Months)
+            {
+                <tr>
+                    <td><b>@m.Label</b></td>
+                    <td class="num">@Fa.N(m.Delivered)</td>
+                    <td class="num">@(m.Cancelled == 0 ? "—" : Fa.N(m.Cancelled))</td>
+                    <td class="num">@(m.Km == 0 ? "—" : $"{Fa.N(m.Km)} km")</td>
+                    <td class="num">@(m.Income == 0 ? "—" : Fa.Toman(m.Income))</td>
+                    <td>@if (m.RatingAvg is double avg) { <span class="stars"><i class="bi bi-star-fill"></i> @Fa.N(avg, 1) <small>(@Fa.N(m.Ratings))</small></span> } else { <span class="muted">—</span> }</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    @if (total == 0)
+    {
+        <div class="bd muted small">هنوز سفری تمام نکرده‌اید؛ با تحویل اولین بار، کارنامهٔ ماهانه پر می‌شود.</div>
+    }
+</div>

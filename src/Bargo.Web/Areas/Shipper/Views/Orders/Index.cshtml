@@ -1,0 +1,132 @@
+@model PageVm<ShipperTripRow>
+@{
+    var tab = ViewBag.Tab as string ?? "current";
+    var counts = ViewBag.Counts as Dictionary<string, int> ?? new Dictionary<string, int>();
+    string TabIcon(string key) => key switch
+    {
+        "done" => "bi-check-circle",
+        "cancelled" => "bi-x-circle",
+        _ => "bi-lightning"
+    };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-receipt"></i> @ViewData["Title"]</h1>
+        <p>هر سفارش سفری است که با پذیرش پیشنهاد یک راننده یا شرکت برای بار شما ساخته شده؛ پرداخت کرایه، رهگیری، اسناد و امتیاز از پروندهٔ همان سفارش انجام می‌شود.</p>
+    </div>
+    <div class="actions">
+        @if (tab == "current")
+        {
+            <a class="btn2 pri" href="/Shipper/Tracking"><i class="bi bi-geo-alt"></i> رهگیری بار</a>
+            <a class="btn2 ghost" href="/Shipper/Finance/Pay"><i class="bi bi-credit-card"></i> پرداخت کرایه</a>
+        }
+        else if (tab == "done")
+        {
+            <a class="btn2 ghost" href="/Shipper/Drivers/Rate"><i class="bi bi-star"></i> امتیازدهی</a>
+            <a class="btn2 ghost" href="/Shipper/Documents/Download"><i class="bi bi-download"></i> دانلود اسناد</a>
+        }
+        <a class="btn2 ghost" href="/Shipper/Loads/Create"><i class="bi bi-plus-square"></i> ثبت بار جدید</a>
+    </div>
+</div>
+
+<div class="tabs">
+    @foreach (var tb in Bargo.Web.Areas.ShipperPanel.Controllers.OrdersController.Tabs)
+    {
+        <a asp-action="Index" asp-route-tab="@tb.Key" class="@(tab == tb.Key ? "on" : "")"><i class="bi @TabIcon(tb.Key)"></i> @tb.Label <span class="n">@Fa.N(counts.GetValueOrDefault(tb.Key))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead>
+            <tr>
+                <th>سفارش</th><th>بار</th><th>مسیر</th><th>حمل‌کننده</th>
+                <th>@(tab switch { "done" => "تحویل", "cancelled" => "لغو", _ => "زمان" })</th>
+                <th>کرایه</th><th>وضعیت</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr data-href="/Shipper/Orders/Detail/@r.TripId">
+                    <td data-label="سفارش">
+                        <a class="num" href="/Shipper/Orders/Detail/@r.TripId">@r.Code</a>
+                        <span class="sub">ثبت @Fa.Date(r.CreatedAt)</span>
+                    </td>
+                    <td data-label="بار"><b>@r.LoadTitle</b><span class="sub"><a class="num" href="/Shipper/Loads/Detail/@r.LoadId">@r.LoadCode</a></span></td>
+                    <td data-label="مسیر">@Ui.Route(r.From, r.To)</td>
+                    <td data-label="حمل‌کننده">
+                        <span>@r.Carrier</span>
+                        @if (!string.IsNullOrEmpty(r.PlateNo))
+                        {
+                            <span class="sub"><span class="plate">@r.PlateNo</span></span>
+                        }
+                        else if (r.DriverId is null && r.Status != TripStatus.Cancelled)
+                        {
+                            <span class="sub">راننده هنوز تعیین نشده</span>
+                        }
+                    </td>
+                    <td class="nowrap" data-label="@(tab switch { "done" => "تحویل", "cancelled" => "لغو", _ => "زمان" })">
+                        @switch (tab)
+                        {
+                            case "done":
+                                <span>@Fa.Stamp(r.DeliveredAt)</span>
+                                break;
+                            case "cancelled":
+                                <span>@Fa.Stamp(r.CancelledAt)</span>
+                                if (!string.IsNullOrEmpty(r.CancelReason)) { <span class="sub">@r.CancelReason</span> }
+                                break;
+                            default:
+                                if (TripStatus.Live.Contains(r.Status))
+                                {
+                                    <span>@(r.LastPointAt is DateTime lp ? "موقعیت " + Fa.Ago(lp) : "بدون موقعیت")</span>
+                                    if (r.Status == TripStatus.InTransit && r.EtaAt is DateTime eta) { <span class="sub">رسیدن تقریبی @Fa.Stamp(eta)</span> }
+                                }
+                                else
+                                {
+                                    <span>@Fa.Stamp(r.ScheduledDepartureAt)</span>
+                                    <span class="sub">زمان حرکت</span>
+                                }
+                                break;
+                        }
+                    </td>
+                    <td class="num" data-label="کرایه">
+                        @Fa.Toman(r.Fare)
+                        @if (r.Status != TripStatus.Cancelled)
+                        {
+                            <span class="sub">@(r.IsPaid ? Ui.Pill("پرداخت‌شده", "ok") : Ui.Pill("پرداخت‌نشده", "wait"))</span>
+                        }
+                    </td>
+                    <td data-label="وضعیت">
+                        @Ui.TripPill(r.Status)
+                        @if (TripStatus.Live.Contains(r.Status))
+                        {
+                            <span class="sub"><a href="/Shipper/Tracking?tripId=@r.TripId">رهگیری ←</a></span>
+                        }
+                        else if (tab == "current" && !r.IsPaid)
+                        {
+                            <span class="sub"><a href="/Shipper/Orders/Detail/@r.TripId">پرداخت کرایه ←</a></span>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr>
+                    <td colspan="7" class="empty">
+                        <i class="bi bi-receipt"></i>
+                        @(tab switch
+                        {
+                            "done" => "هنوز سفارشی تحویل نشده است.",
+                            "cancelled" => "سفارش لغوشده‌ای ندارید.",
+                            _ => "سفارش جاری ندارید. بار خود را ثبت کنید و با پذیرش پیشنهاد یک راننده یا شرکت، سفارش ساخته می‌شود."
+                        })
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

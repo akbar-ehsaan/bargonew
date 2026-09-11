@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- نسخهٔ سامانه — هنگام انتشار، همین عدد را بالا ببرید -->
+    <Version>0.1.0</Version>
+    <Product>بارگو</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- فایل‌های بارگذاری‌شدهٔ کاربران بخشی از خروجی انتشار نیستند -->
+    <Content Remove="storage\**" />
+    <None Remove="storage\**" />
+  </ItemGroup>
+
+</Project>

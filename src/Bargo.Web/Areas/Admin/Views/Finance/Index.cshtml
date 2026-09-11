@@ -1,0 +1,95 @@
+@model FinanceTxnListVm
+@{
+    var kinds = (string[])ViewBag.Kinds;
+    var ownerId = ViewBag.OwnerId as int?;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-arrow-left-right"></i> کل تراکنش‌ها</h1>
+        <p>گردش همهٔ کیف پول‌ها — راننده، صاحب بار، شرکت و کیف پول بارگو. هر ردیف موجودی پس از خودش را دارد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Commission"><i class="bi bi-percent"></i> کمیسیون</a>
+        <a class="btn2 ghost" asp-action="Wallets"><i class="bi bi-wallet2"></i> کیف پول‌ها</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat s"><div class="l"><i class="bi bi-box-arrow-in-down"></i> ورودی (مجموعهٔ فیلترشده)</div><div class="v">@Fa.Toman(Model.SumIn)</div></div>
+    <div class="stat r"><div class="l"><i class="bi bi-box-arrow-up"></i> خروجی (مجموعهٔ فیلترشده)</div><div class="v">@Fa.Toman(Model.SumOut)</div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-list-ol"></i> تعداد ردیف</div><div class="v">@Fa.N(Model.Page.Total)</div></div>
+</div>
+
+@if (ownerId is int oid)
+{
+    <div class="alert2 info"><i class="bi bi-person"></i><div class="grow">گردش کیف پول <b>@ViewBag.OwnerName</b> (@OwnerKind.Label(Model.Owner ?? "")) — <a class="lnk" asp-action="Index">نمایش همهٔ حساب‌ها</a></div></div>
+}
+<div class="card2">
+    <form method="get" asp-action="Index" class="filters">
+        @if (ownerId is int keep)
+        {
+            <input type="hidden" name="ownerId" value="@keep" />
+        }
+        <div class="fld">
+            <label>صاحب کیف پول</label>
+            <select name="owner">
+                <option value="">همه</option>
+                @foreach (var k in new[] { OwnerKind.Driver, OwnerKind.Shipper, OwnerKind.Company, OwnerKind.Platform })
+                {
+                    <option value="@k" selected="@(Model.Owner == k)">@OwnerKind.Label(k)</option>
+                }
+            </select>
+        </div>
+        <div class="fld">
+            <label>نوع تراکنش</label>
+            <select name="kind">
+                <option value="">همه</option>
+                @foreach (var k in kinds)
+                {
+                    <option value="@k" selected="@(Model.Kind == k)">@WalletTxnKind.Label(k)</option>
+                }
+            </select>
+        </div>
+        <div class="fld narrow"><label>از تاریخ</label><input name="from" data-jdate value="@Fa.DateBox(Model.From)" placeholder="۱۴۰۵/۰۶/۰۱" /></div>
+        <div class="fld narrow"><label>تا تاریخ</label><input name="to" data-jdate value="@Fa.DateBox(Model.To)" placeholder="۱۴۰۵/۰۶/۳۱" /></div>
+        <div class="fld"><label>سفر (شناسه یا کد)</label><input name="trip" value="@Model.Trip" placeholder="T-050621-0042" dir="ltr" /></div>
+        <div class="row-actions">
+            <button class="btn2 pri"><i class="bi bi-funnel"></i> اعمال</button>
+            <a class="btn2 ghost" asp-action="Index">پاک کردن</a>
+        </div>
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>زمان</th><th>صاحب</th><th>نوع</th><th>مبلغ</th><th>موجودی پس از</th><th>سفر</th><th>شرح</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Page.Rows)
+            {
+                <tr>
+                    <td class="num">@Fa.N(t.WalletTransactionId)</td>
+                    <td class="nowrap">@Fa.Stamp(t.CreatedAt)</td>
+                    <td><b>@Model.Names.Name(t.OwnerKind, t.OwnerId)</b><span class="sub">@OwnerKind.Label(t.OwnerKind) · @Model.Names.Mobile(t.OwnerKind, t.OwnerId)</span></td>
+                    <td><span class="chip">@WalletTxnKind.Label(t.Kind)</span></td>
+                    <td class="nowrap" style="color:@(t.Amount < 0 ? "var(--no)" : "var(--ok)");font-weight:800">@(t.Amount < 0 ? "−" : "+")@Fa.Toman(Math.Abs(t.Amount))</td>
+                    <td class="nowrap">@Fa.Toman(t.BalanceAfter)</td>
+                    <td>
+                        @if (t.TripId is int tid)
+                        {
+                            <a class="lnk num" href="/Admin/Trips/Case/@tid">@(Model.TripCodes.GetValueOrDefault(tid) ?? "#" + tid)</a>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td class="small">@t.Note</td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="8" class="empty"><i class="bi bi-inbox"></i>تراکنشی با این فیلترها پیدا نشد.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

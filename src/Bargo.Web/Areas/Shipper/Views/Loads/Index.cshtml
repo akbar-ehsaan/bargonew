@@ -1,0 +1,132 @@
+@model PageVm<ShipperLoadRow>
+@{
+    var status = ViewBag.Status as string;
+    var q = ViewBag.Q as string;
+    var counts = (Dictionary<string, int>)ViewBag.Counts;
+    var tabs = Bargo.Web.Areas.ShipperPanel.Controllers.LoadsController.Tabs;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-boxes"></i> @ViewData["Title"]</h1>
+        <p>همهٔ بارهایی که ثبت کرده‌اید — از پیش‌نویس و دریافت پیشنهاد تا حمل، تحویل و لغو.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="/Shipper/Offers?pending=1"><i class="bi bi-tags"></i> پیشنهادهای در انتظار</a>
+        <a class="btn2 pri" href="/Shipper/Loads/Create"><i class="bi bi-plus-lg"></i> ثبت بار جدید</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a href="/Shipper/Loads" class="@(status is null ? "on" : "")">همه <span class="n">@Fa.N(counts.GetValueOrDefault("all"))</span></a>
+    @foreach (var tab in tabs)
+    {
+        <a href="/Shipper/Loads?status=@tab.Key" class="@(status == tab.Key ? "on" : "")"><i class="bi @tab.Icon"></i> @tab.Label <span class="n">@Fa.N(counts.GetValueOrDefault(tab.Key))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" action="/Shipper/Loads" class="filters">
+        @if (status is not null)
+        {
+            <input type="hidden" name="status" value="@status" />
+        }
+        <div class="fld">
+            <label>جستجو</label>
+            <input name="q" value="@q" placeholder="کد بار، عنوان، نوع بار یا شهر" />
+        </div>
+        <button type="submit" class="btn2 soft"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrWhiteSpace(q))
+        {
+            <a class="btn2 ghost" href="/Shipper/Loads@(status is null ? "" : "?status=" + status)">حذف جستجو</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>بار</th><th>مسیر</th><th>بارگیری</th><th>خودرو</th><th>کرایه</th><th>پیشنهادها</th><th>وضعیت</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var row in Model.Rows)
+            {
+                <tr data-href="/Shipper/Loads/Detail/@row.LoadId">
+                    <td>
+                        <a class="lnk" href="/Shipper/Loads/Detail/@row.LoadId">@(string.IsNullOrWhiteSpace(row.Title) ? "بار بدون عنوان" : row.Title)</a>
+                        <span class="sub"><span class="num">@row.Code</span>@(string.IsNullOrEmpty(row.CargoType) ? "" : " · " + row.CargoType) · @ShipperUi.Ton(row.WeightTon)</span>
+                        @if (row.TargetCompany is not null)
+                        {
+                            <span class="sub"><i class="bi bi-envelope-paper"></i> درخواست مستقیم: @row.TargetCompany</span>
+                        }
+                    </td>
+                    <td>@Ui.Route(row.From, row.To)</td>
+                    <td class="nowrap">@Fa.Stamp(row.LoadingFrom)</td>
+                    <td>@(row.VehicleType ?? "—")</td>
+                    <td class="nowrap">@(row.Price is long price ? Fa.Toman(price) : "بدون مبلغ")<span class="sub">@PriceMode.Label(row.PriceMode)</span></td>
+                    <td>
+                        @if (row.PendingOffers > 0)
+                        {
+                            @Ui.Pill(Fa.N(row.PendingOffers) + " در انتظار", "wait")
+                            <span class="sub">کمترین @Fa.Toman(row.LowestOffer)</span>
+                        }
+                        else if (LoadStatus.Market.Contains(row.Status))
+                        {
+                            <span class="muted">هنوز نرسیده</span>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td>
+                        @Ui.LoadPill(row.Status)
+                        @if (row.CurrentTripStatus is not null)
+                        {
+                            <span class="sub">سفر: @TripStatus.Label(row.CurrentTripStatus)</span>
+                        }
+                    </td>
+                    <td>
+                        <div class="row-actions">
+                            @if (row.PendingOffers > 0 && LoadStatus.Market.Contains(row.Status))
+                            {
+                                <a class="btn2 pri sm" href="/Shipper/Offers/Compare/@row.LoadId"><i class="bi bi-bar-chart-steps"></i> مقایسه</a>
+                            }
+                            @if (row.TripId is int tripId)
+                            {
+                                <a class="btn2 soft sm" href="/Shipper/Orders/Detail/@tripId"><i class="bi bi-receipt"></i> سفارش</a>
+                            }
+                            <a class="btn2 ghost sm" href="/Shipper/Loads/Create?copyOf=@row.LoadId" title="ثبت بار تازه با همین مشخصات"><i class="bi bi-copy"></i></a>
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr>
+                    <td colspan="8" class="empty">
+                        <i class="bi bi-box-seam"></i>
+                        @if (!string.IsNullOrWhiteSpace(q))
+                        {
+                            <text>باری با «@q» در این فهرست پیدا نشد.</text>
+                        }
+                        else
+                        {
+                            @(status switch
+                            {
+                                "waiting" => "بار پیش‌نویس یا منتشرشده‌ای که هنوز پیشنهاد نگرفته باشد ندارید.",
+                                "offering" => "باری که در حال دریافت پیشنهاد باشد ندارید.",
+                                "selected" => "باری که راننده‌اش انتخاب شده و هنوز حرکت نکرده باشد ندارید.",
+                                "loading" => "باری در مرحلهٔ بارگیری ندارید.",
+                                "transit" => "باری در حال حمل ندارید.",
+                                "delivered" => "هنوز باری تحویل نشده است.",
+                                "cancelled" => "بار لغوشده یا منقضی ندارید.",
+                                _ => "هنوز باری ثبت نکرده‌اید."
+                            })
+                        }
+                        <div class="form-actions" style="justify-content:center">
+                            <a class="btn2 pri" href="/Shipper/Loads/Create"><i class="bi bi-plus-lg"></i> ثبت بار جدید</a>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

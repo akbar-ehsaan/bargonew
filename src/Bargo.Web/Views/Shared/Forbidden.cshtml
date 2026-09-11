@@ -1,0 +1,11 @@
+@{
+    ViewData["Title"] ??= "دسترسی ندارید";
+}
+<div class="card2">
+    <div class="bd empty-state">
+        <i class="bi bi-shield-lock"></i>
+        <b>دسترسی ندارید</b>
+        <p>@(ViewData["Message"] ?? "این بخش برای حساب شما فعال نیست.")</p>
+        <a class="btn2 ghost" href="javascript:history.back()"><i class="bi bi-arrow-right"></i> بازگشت</a>
+    </div>
+</div>

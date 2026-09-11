@@ -1,0 +1,155 @@
+@inject CurrentUser Me
+@inject NotificationService Notify
+@{
+    var role = Me.Role;
+    var groups = PanelMenu.For(role);
+    var path = Context.Request.Path.Value ?? "/";
+    var activeHref = PanelMenu.ActiveHref(groups, path, Context.Request.Query);
+    var openGroup = PanelMenu.OpenGroup(groups, activeHref, path);
+    var area = "/" + Roles.AreaOf(role);
+    var owner = Me.Owner;
+    var unread = Me.IsAuthenticated ? await Notify.UnreadAsync(owner.Kind, owner.Id) : 0;
+    var skin = role switch
+    {
+        Roles.Driver => "skin-driver",
+        Roles.Shipper => "skin-shipper",
+        Roles.Company => "skin-company",
+        Roles.Admin => "skin-admin",
+        _ => ""
+    };
+    var panelTitle = role switch
+    {
+        Roles.Driver => "پنل راننده",
+        Roles.Shipper => "پنل صاحب بار",
+        Roles.Company => "پنل شرکت حمل‌ونقل",
+        Roles.Admin => "مدیریت سامانه",
+        _ => ""
+    };
+    // نوار پایین موبایل: چهار کار پرتکرار هر نقش + «منو»
+    (string Href, string Icon, string Label)[] bottom = role switch
+    {
+        Roles.Driver => [("/Driver", "bi-speedometer2", "خانه"), ("/Driver/Loads", "bi-box-seam", "بارها"), ("/Driver/Trips/Current", "bi-truck", "سفر من"), ("/Driver/Finance", "bi-wallet2", "کیف پول")],
+        Roles.Shipper => [("/Shipper", "bi-speedometer2", "خانه"), ("/Shipper/Loads/Create", "bi-plus-square", "ثبت بار"), ("/Shipper/Loads", "bi-boxes", "بارهای من"), ("/Shipper/Tracking", "bi-geo-alt", "رهگیری")],
+        Roles.Company => [("/Company", "bi-speedometer2", "خانه"), ("/Company/Dispatch", "bi-diagram-3", "تخصیص"), ("/Company/Trips?tab=current", "bi-signpost-split", "سفرها"), ("/Company/Monitoring", "bi-map", "نقشه")],
+        Roles.Admin => [("/Admin", "bi-speedometer2", "خانه"), ("/Admin/Documents", "bi-patch-check", "مدارک"), ("/Admin/Live", "bi-broadcast", "زنده"), ("/Admin/Finance", "bi-cash-stack", "مالی")],
+        _ => []
+    };
+    var title = ViewData["Title"] as string ?? "";
+}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>@title · بارگو</title>
+    <meta name="theme-color" content="#1b2a3a" />
+    <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
+    <link href="~/css/fonts.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link href="~/css/app.css" rel="stylesheet" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="@skin" data-role="@role">
+<div class="app">
+    <aside class="sidebar" id="sidebar" aria-label="منوی پنل">
+        <a class="brand" href="@area">
+            <img src="/img/logo.svg" alt="" />
+            <div><b>بارگو</b><span>@panelTitle</span></div>
+        </a>
+        <ul class="nav">
+            @foreach (var g in groups)
+            {
+                if (g.IsTop)
+                {
+                    var it = g.Items[0];
+                    var isNotif = it.Href.EndsWith("/Notifications");
+                    <li>
+                        <a href="@it.Href" class="top @(it.Href == activeHref ? "active" : "")">
+                            <i class="bi @it.Icon"></i><span>@it.Label</span>
+                            @if (isNotif && unread > 0)
+                            {
+                                <em class="badge">@Fa.N(unread)</em>
+                            }
+                        </a>
+                    </li>
+                }
+                else
+                {
+                    var open = ReferenceEquals(g, openGroup);
+                    <li class="grp @g.Tone @(open ? "open" : "")" data-grp="@g.Title">
+                        <button type="button" class="grp-h" aria-expanded="@(open ? "true" : "false")">
+                            <i class="bi @g.Icon gi"></i><span>@g.Title</span><i class="bi bi-chevron-down chev"></i>
+                        </button>
+                        <ul class="grp-b" hidden="@(!open)">
+                            @foreach (var it in g.Items)
+                            {
+                                <li>
+                                    <a href="@it.Href" class="@(it.Href == activeHref ? "active" : "")"><i class="bi @it.Icon"></i><span>@it.Label</span></a>
+                                </li>
+                            }
+                        </ul>
+                    </li>
+                }
+            }
+            <li class="nav-out">
+                <form method="post" action="/account/logout">
+                    @Html.AntiForgeryToken()
+                    <button type="submit"><i class="bi bi-box-arrow-right"></i><span>خروج از حساب</span></button>
+                </form>
+            </li>
+        </ul>
+        <div class="side-ver"><i class="bi bi-git"></i> نسخهٔ @(typeof(Program).Assembly.GetName().Version?.ToString(3))</div>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <button type="button" class="burger" data-open-menu aria-label="باز کردن منو"><i class="bi bi-list"></i></button>
+            <div class="ttl">@title</div>
+            <span class="tb-date">@Fa.LongDate(DateTime.UtcNow)</span>
+            @if (!string.IsNullOrEmpty(Roles.AreaOf(role)))
+            {
+                <a class="tb-btn" href="@area/Notifications" title="اعلان‌ها" aria-label="اعلان‌ها">
+                    <i class="bi bi-bell"></i>
+                    @if (unread > 0)
+                    {
+                        <span class="dot">@Fa.N(unread)</span>
+                    }
+                </a>
+            }
+            <div class="user">
+                <div><b>@Me.Name</b><small>@Roles.Title(role)</small></div>
+                <span class="av">@(string.IsNullOrEmpty(Me.Name) ? "؟" : Me.Name[..1])</span>
+            </div>
+        </header>
+
+        <main class="content">
+            @if (TempData["ok"] is string ok)
+            {
+                <div class="alert2 ok" role="status"><i class="bi bi-check-circle-fill"></i><div class="grow">@ok</div></div>
+            }
+            @if (TempData["err"] is string err)
+            {
+                <div class="alert2 err" role="alert"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">@err</div></div>
+            }
+            @RenderBody()
+        </main>
+        <footer class="footer">بارگو — سامانهٔ اعلام بار و مدیریت حمل‌ونقل</footer>
+    </div>
+    <div class="overlay" id="ovl"></div>
+
+    <nav class="botnav" aria-label="دسترسی سریع">
+        @foreach (var b in bottom)
+        {
+            <a href="@b.Href" class="@(b.Href == activeHref || (b.Href == area && path.TrimEnd('/').Equals(area, StringComparison.OrdinalIgnoreCase)) ? "active" : "")">
+                <i class="bi @b.Icon"></i><span>@b.Label</span>
+            </a>
+        }
+        <button type="button" data-open-menu><i class="bi bi-grid"></i><span>منو</span></button>
+    </nav>
+</div>
+<script src="~/js/jdate.js" asp-append-version="true"></script>
+<script src="~/js/money.js" asp-append-version="true"></script>
+<script src="~/js/panel.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

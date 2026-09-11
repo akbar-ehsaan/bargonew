@@ -1,0 +1,62 @@
+@model List<ShipperDriverRow>
+@{
+    var returnTo = Context.Request.Path.Value;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-heart"></i> رانندگان مورد علاقه</h1>
+        <p>وقتی بار عمومی تازه‌ای ثبت می‌کنید، به این رانندگان اعلان می‌شود تا زودتر پیشنهاد بدهند. انتخاب نهایی همچنان با شماست.</p>
+    </div>
+    <div class="actions">
+        <span class="chip"><i class="bi bi-heart-fill"></i> @Fa.N(Model.Count) راننده</span>
+        <a class="btn2 pri" asp-action="Index"><i class="bi bi-plus-circle"></i> افزودن از رانندگان قبلی</a>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>راننده</th><th>شهر</th><th>امتیاز کلی</th><th>سفر با شما</th><th>آخرین سفر</th><th>افزوده‌شده</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var fav in Model)
+            {
+                <tr>
+                    <td>
+                        <a class="lnk" href="/Shipper/Offers/Driver/@fav.DriverId">@fav.Name</a>
+                        <span class="sub">@(fav.CompanyName is null ? "رانندهٔ مستقل" : $"عضو {fav.CompanyName}")</span>
+                    </td>
+                    <td>@(fav.City ?? "—")</td>
+                    <td>@Ui.Stars(fav.RatingAvg, fav.RatingCount)<span class="sub">@Fa.N(fav.TripCount) سفر در بارگو</span></td>
+                    <td class="nowrap"><b>@Fa.N(fav.TripsWithMe)</b> سفر<span class="sub">@Fa.N(fav.DoneWithMe) تحویل‌شده</span></td>
+                    <td class="nowrap">
+                        @if (fav.LastTripId is int favLastTripId)
+                        {
+                            <text>@Fa.Date(fav.LastTripAt)</text>
+                            <span class="sub"><a class="lnk" href="/Shipper/Orders/Detail/@favLastTripId">جزئیات سفر</a></span>
+                        }
+                        else
+                        {
+                            <span class="muted">هنوز سفری نداشته</span>
+                        }
+                    </td>
+                    <td class="nowrap">@Fa.Date(fav.FavoritedAt)</td>
+                    <td>
+                        <div class="row-actions">
+                            <a class="btn2 ghost sm" href="/Shipper/Offers/Driver/@fav.DriverId"><i class="bi bi-person-badge"></i> مشخصات</a>
+                            <form method="post" asp-action="Unfavorite" data-confirm="@($"«{fav.Name}» از رانندگان مورد علاقه حذف شود؟")">
+                                <input type="hidden" name="driverId" value="@fav.DriverId" />
+                                <input type="hidden" name="returnUrl" value="@returnTo" />
+                                <button class="btn2 ghost sm"><i class="bi bi-heartbreak"></i> حذف</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-heart"></i>هنوز راننده‌ای را به علاقه‌مندی‌ها اضافه نکرده‌اید. از <a class="lnk" asp-action="Index">رانندگان قبلی</a> یا صفحهٔ مشخصات راننده در پیشنهادها، روی «افزودن به علاقه‌مندی» بزنید.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

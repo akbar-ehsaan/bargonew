@@ -1,0 +1,111 @@
+@model SupportQueueVm
+@{
+    (string Key, string Label)[] tabs =
+    [
+        ("open", "صف باز"), (TicketStatus.Answered, "پاسخ داده‌شده"), (TicketStatus.Closed, "بسته"), ("all", "همه")
+    ];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi @(Model.Sort == "priority" ? "bi-sort-down" : "bi-inbox")"></i> @ViewData["Title"]</h1>
+        <p>@(Model.Sort == "priority" ? "فوری، زیاد، عادی، کم — و درون هر اولویت، قدیمی‌ترین اول." : "صف باز از قدیمی‌ترین به‌روزرسانی مرتب است؛ تیکتی که کاربر دوباره پاسخ داده به صف برمی‌گردد.")</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 @(Model.Sort == "priority" ? "pri" : "ghost")" asp-action="Index" asp-route-sort="priority" asp-route-status="@Model.Status" asp-route-category="@Model.Category"><i class="bi bi-sort-down"></i> اولویت‌بندی</a>
+        <a class="btn2 @(Model.Mine ? "pri" : "ghost")" asp-action="Index" asp-route-mine="@(!Model.Mine)" asp-route-status="@Model.Status" asp-route-sort="@Model.Sort"><i class="bi bi-person-check"></i> تیکت‌های من</a>
+        <a class="btn2 ghost" asp-action="Operators"><i class="bi bi-headset"></i> اپراتورها</a>
+        <a class="btn2 ghost" asp-action="History"><i class="bi bi-clock-history"></i> سوابق</a>
+    </div>
+</div>
+
+<div class="stats">
+    <a class="stat r" asp-action="Index" asp-route-sort="priority"><div class="l"><i class="bi bi-lightning"></i> فوریِ باز</div><div class="v">@Fa.N(Model.UrgentOpen)</div></a>
+    <a class="stat w" asp-action="Index"><div class="l"><i class="bi bi-person-dash"></i> بدون اپراتور</div><div class="v">@Fa.N(Model.UnassignedOpen)</div></a>
+    <a class="stat p" asp-action="Index" asp-route-mine="true"><div class="l"><i class="bi bi-person-check"></i> بازِ من</div><div class="v">@Fa.N(Model.MineOpen)</div></a>
+    <div class="stat t"><div class="l"><i class="bi bi-inbox"></i> کل صف باز</div><div class="v">@Fa.N(Model.Counts.GetValueOrDefault("open"))</div></div>
+</div>
+
+@if (Model.Mine)
+{
+    <div class="alert2 info"><i class="bi bi-person-check"></i><div class="grow">فقط تیکت‌های تخصیص‌یافته به شما — <a class="lnk" asp-action="Index" asp-route-status="@Model.Status" asp-route-sort="@Model.Sort">نمایش همه</a></div></div>
+}
+
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        <a asp-action="Index" asp-route-status="@t.Key" asp-route-sort="@Model.Sort" asp-route-category="@Model.Category" asp-route-mine="@(Model.Mine ? "true" : null)" class="@(Model.Status == t.Key ? "on" : "")">@t.Label <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(t.Key))</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Index" class="filters">
+        <input type="hidden" name="status" value="@Model.Status" />
+        <input type="hidden" name="sort" value="@Model.Sort" />
+        @if (Model.Mine)
+        {
+            <input type="hidden" name="mine" value="true" />
+        }
+        <div class="fld">
+            <label>دسته</label>
+            <select name="category">
+                <option value="">همه</option>
+                @foreach (var k in TicketCategory.All)
+                {
+                    <option value="@k" selected="@(Model.Category == k)">@TicketCategory.Label(k)</option>
+                }
+            </select>
+        </div>
+        <div class="row-actions">
+            <button class="btn2 pri"><i class="bi bi-funnel"></i> اعمال</button>
+            @if (Model.Category is not null)
+            {
+                <a class="btn2 ghost" asp-action="Index" asp-route-status="@Model.Status" asp-route-sort="@Model.Sort">پاک کردن</a>
+            }
+        </div>
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>موضوع</th><th>کاربر</th><th>دسته</th><th>اولویت</th><th>اپراتور</th><th>پیام</th><th>آخرین به‌روزرسانی</th><th>وضعیت</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Page.Rows)
+            {
+                <tr data-href="@Url.Action("Thread", new { id = t.Id })">
+                    <td class="num">@Fa.N(t.Id)</td>
+                    <td>
+                        <a class="lnk" asp-action="Thread" asp-route-id="@t.Id">@t.Subject</a>
+                        @if (t.TripId is int tid)
+                        {
+                            <span class="sub">سفر <a class="lnk num" href="/Admin/Trips/Case/@tid">#@tid</a></span>
+                        }
+                    </td>
+                    <td><b>@t.OwnerName</b><span class="sub">@OwnerKind.Label(t.OwnerKind)</span></td>
+                    <td><span class="chip">@TicketCategory.Label(t.Category)</span></td>
+                    <td>@Ui.Pill(TicketPriority.Label(t.Priority), TicketPriority.Tone(t.Priority))</td>
+                    <td>
+                        @if (t.AssignedAdminId is int aid)
+                        {
+                            <span style="font-weight:@(aid == Model.MeId ? "800" : "600")">@(t.AssignedName ?? "مدیر #" + Fa.N(aid))</span>
+                            @if (aid == Model.MeId)
+                            {
+                                <span class="sub">شما</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="pill wait">بدون اپراتور</span>
+                        }
+                    </td>
+                    <td class="num">@Fa.N(t.Messages)</td>
+                    <td class="nowrap">@Fa.Ago(t.UpdatedAt)<span class="sub">ثبت @Fa.Date(t.CreatedAt)</span></td>
+                    <td>@Ui.TicketPill(t.Status)</td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="9" class="empty"><i class="bi bi-emoji-smile"></i>@(Model.Status == "open" ? "صف خالی است — تیکت بازی منتظر پاسخ نیست." : "تیکتی با این فیلترها پیدا نشد.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

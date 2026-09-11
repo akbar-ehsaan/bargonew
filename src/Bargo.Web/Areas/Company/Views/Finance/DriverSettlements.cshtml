@@ -1,0 +1,126 @@
+@model DriverSettlementsVm
+@{
+    var sel = Model.Selected;
+    var selDue = sel?.Amount ?? 0;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-person-check"></i> تسویه با رانندگان</h1>
+        <p>سهم راننده پس از تسویهٔ سفر محاسبه می‌شود ولی خودکار پرداخت نمی‌شود؛ شرکت هر وقت خواست (سفر به سفر یا یک‌جا) از کیف پول خودش به کیف پول راننده منتقل می‌کند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-wallet2"></i> کیف پول</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-wallet2"></i> موجودی کیف پول</div><div class="v">@Fa.Toman(Model.Balance)</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-hourglass-split"></i> جمع سهم معوق</div><div class="v">@Fa.Toman(Model.TotalDue)<small>@Fa.N(Model.TotalTrips) سفر</small></div></div>
+    <div class="stat i"><div class="l"><i class="bi bi-people"></i> رانندگان طلبکار</div><div class="v">@Fa.N(Model.Due.Count)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-calendar-check"></i> پرداختی این ماه</div><div class="v">@Fa.Toman(Model.PaidThisMonth)</div></div>
+</div>
+
+@if (Model.TotalDue > Model.Balance)
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">موجودی کیف پول برای پرداخت همهٔ سهم‌ها کافی نیست (@Fa.Toman(Model.TotalDue - Model.Balance) کسری). پرداخت سفر به سفر تا جایی که موجودی هست انجام می‌شود.</div></div>
+}
+
+<div class="grid-side">
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-people"></i> سهم معوق به تفکیک راننده</div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>راننده</th><th>سفر</th><th>مبلغ</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var d in Model.Due)
+                    {
+                        <tr style="@(sel?.DriverId == d.DriverId ? "background:var(--primary-soft)" : "")">
+                            <td data-label="راننده">
+                                <a class="lnk" asp-action="DriverSettlements" asp-route-driverId="@d.DriverId">@d.Name</a>
+                                <span class="sub num">@Fa.Digits(d.Mobile)@(d.InCompany ? "" : " · دیگر عضو شرکت نیست")</span>
+                            </td>
+                            <td data-label="سفر" class="num">@Fa.N(d.Trips)</td>
+                            <td data-label="مبلغ" class="nowrap"><b>@Fa.Toman(d.Amount)</b></td>
+                            <td>
+                                <div class="row-actions">
+                                    <a class="btn2 ghost sm" asp-action="DriverSettlements" asp-route-driverId="@d.DriverId"><i class="bi bi-list-check"></i> سفرها</a>
+                                    <form method="post" asp-action="PayDriverAll" asp-route-driverId="@d.DriverId" class="inline" data-confirm="@Fa.Toman(d.Amount) بابت @Fa.N(d.Trips) سفر به کیف پول «@d.Name» منتقل شود؟">
+                                        <button class="btn2 soft sm" disabled="@(d.Amount > Model.Balance)"><i class="bi bi-cash-coin"></i> پرداخت همه</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Due.Count == 0)
+                    {
+                        <tr><td colspan="4" class="empty"><i class="bi bi-check2-circle"></i>سهم هیچ راننده‌ای معوق نیست. با تسویهٔ سفرهای بعدی، سهم راننده اینجا می‌نشیند.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @if (sel is not null)
+        {
+            <div class="card2">
+                <div class="hd"><i class="bi bi-person"></i> سفرهای پرداخت‌نشدهٔ @sel.Name
+                    <span class="end">
+                        <b>@Fa.Toman(selDue)</b>
+                        <a class="btn2 ghost sm" asp-action="DriverSettlements"><i class="bi bi-x-lg"></i></a>
+                    </span>
+                </div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>سفر</th><th>مسیر</th><th>تحویل</th><th>تسویه</th><th>سهم شرکت</th><th>سهم راننده</th><th></th></tr></thead>
+                        <tbody>
+                        @foreach (var t in Model.Trips)
+                        {
+                            <tr>
+                                <td data-label="سفر"><a class="lnk" href="/Company/Trips/Detail/@t.TripId">@Fa.Digits(t.Code)</a></td>
+                                <td data-label="مسیر">@Ui.Route(t.Origin, t.Dest)<span class="sub">@t.CargoTitle</span></td>
+                                <td data-label="تحویل" class="nowrap">@Fa.Date(t.DeliveredAt)</td>
+                                <td data-label="تسویه" class="nowrap">@Fa.Date(t.SettledAt)</td>
+                                <td data-label="سهم شرکت" class="nowrap">@Fa.Toman(t.CarrierShare)</td>
+                                <td data-label="سهم راننده" class="nowrap"><b>@Fa.Toman(t.DriverShare)</b></td>
+                                <td>
+                                    <form method="post" asp-action="PayDriverShare" asp-route-tripId="@t.TripId" asp-route-driverId="@sel.DriverId" class="inline" data-confirm="@Fa.Toman(t.DriverShare) بابت سفر @Fa.Digits(t.Code) به کیف پول راننده منتقل شود؟">
+                                        <button class="btn2 pri sm" disabled="@((t.DriverShare ?? 0) > Model.Balance)"><i class="bi bi-cash-coin"></i> پرداخت</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                        @if (Model.Trips.Count == 0)
+                        {
+                            <tr><td colspan="7" class="empty"><i class="bi bi-check2-circle"></i>برای @sel.Name سهم پرداخت‌نشده‌ای نیست.</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-clock-history"></i> @(sel is null ? "پرداخت‌های اخیر" : $"پرداخت‌های اخیر به {sel.Name}")</div>
+        <div class="bd" style="padding-top:6px">
+            @if (Model.History.Count == 0)
+            {
+                <div class="empty-state" style="padding:22px 10px"><i class="bi bi-inbox"></i>هنوز سهمی پرداخت نشده است.</div>
+            }
+            @foreach (var h in Model.History)
+            {
+                <div class="kvrow" style="display:block">
+                    <div style="display:flex;justify-content:space-between;gap:10px">
+                        <span>@Fa.Date(h.CreatedAt) @if (h.TripCode is not null) { <a class="lnk" href="/Company/Trips/Detail/@h.TripId">@Fa.Digits(h.TripCode)</a> }</span>
+                        <b>@Fa.Toman(-h.Amount)</b>
+                    </div>
+                    @if (!string.IsNullOrEmpty(h.Note))
+                    {
+                        <div class="small muted">@h.Note</div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>

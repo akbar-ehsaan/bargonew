@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Bargo.Web/Bargo.Web.csproj" />
+  </Folder>
+</Solution>

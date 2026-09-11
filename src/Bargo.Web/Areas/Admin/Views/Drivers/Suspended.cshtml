@@ -1,0 +1,90 @@
+@model PageVm<DriverRow>
+@{
+    var q = ViewBag.Q as string;
+    var overdue = (int)ViewBag.Overdue;
+    var now = DateTime.UtcNow;
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-pause-circle"></i> تعلیق حساب رانندگان</h1>
+        <p>رانندگانی که حسابشان تعلیق است، با زمان تعلیق و پایانِ اعلام‌شده در آخرین تخلف. تعلیق خودکار برداشته نمی‌شود؛ آن‌هایی که مهلتشان گذشته بالای فهرست‌اند تا مدیر تصمیم بگیرد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Violations"><i class="bi bi-exclamation-octagon"></i> ثبت تخلف / تعلیق</a>
+        <a class="btn2 ghost" href="/Admin/Users/Blocked"><i class="bi bi-person-slash"></i> همهٔ کاربران مسدودشده</a>
+    </div>
+</div>
+
+@if (overdue > 0)
+{
+    <div class="alert2 warn"><i class="bi bi-alarm"></i><div class="grow">@Fa.N(overdue) راننده در این صفحه مهلت تعلیقش گذشته و هنوز فعال نشده است.</div></div>
+}
+
+<div class="card2">
+    <form method="get" asp-action="Suspended" class="filters">
+        <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@q" placeholder="نام، موبایل یا کد ملی" /></div>
+        <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+        @if (!string.IsNullOrEmpty(q))
+        {
+            <a class="btn2 ghost" asp-action="Suspended">پاک کردن</a>
+        }
+        <span class="muted small" style="margin-inline-start:auto">@Fa.N(Model.Total) راننده تعلیق‌شده</span>
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>راننده</th><th>شرکت</th><th>علت تعلیق</th><th>زمان تعلیق</th><th>پایان تعلیق</th><th>سفر / تخلف</th><th>اقدام</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                var past = r.SuspendedUntil is DateTime u && u < now;
+                <tr>
+                    <td><a class="lnk" href="/Admin/Users/Driver/@r.DriverId">@r.FullName</a><span class="sub num">@r.Mobile · @r.NationalCode</span></td>
+                    <td>
+                        @if (r.CompanyId is int cid)
+                        {
+                            <a class="lnk" href="/Admin/Users/Company/@cid">@r.CompanyName</a>
+                        }
+                        else
+                        {
+                            <span class="chip">مستقل</span>
+                        }
+                    </td>
+                    <td class="small" style="max-width:320px;white-space:pre-line">@(string.IsNullOrEmpty(r.StatusReason) ? "—" : r.StatusReason)</td>
+                    <td class="nowrap">@(r.SuspendedAt is DateTime sa ? Fa.Stamp(sa) : "—")@if (r.SuspendedAt is DateTime sa2)
+                        {
+                            <span class="sub">@Fa.Ago(sa2)</span>
+                        }</td>
+                    <td>
+                        @if (r.SuspendedUntil is DateTime until)
+                        {
+                            @Ui.Pill(Fa.Date(until), past ? "no" : "wait")
+                            @if (past)
+                            {
+                                <span class="sub" style="color:var(--no);font-weight:800">مهلت گذشته</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="muted">تا اطلاع ثانوی</span>
+                        }
+                    </td>
+                    <td class="num">@Fa.N(r.TripCount) سفر<span class="sub">@Fa.N(r.Violations) تخلف · @Fa.N(r.Cancelled) لغو</span></td>
+                    <td style="min-width:260px">
+                        <form method="post" asp-action="Reactivate" asp-route-id="@r.DriverId" class="row-actions" data-confirm="حساب «@r.FullName» دوباره فعال شود؟ راننده با اعلان باخبر می‌شود.">
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <div class="fld" style="flex:1;min-width:120px"><input name="reason" placeholder="توضیح (اختیاری)" maxlength="1000" /></div>
+                            <button class="btn2 sm grn"><i class="bi bi-play-circle"></i> فعال‌سازی</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            @if (Model.Total == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-check2-circle"></i>@(string.IsNullOrEmpty(q) ? "هیچ راننده‌ای تعلیق نیست." : "رانندهٔ تعلیق‌شده‌ای با این مشخصات پیدا نشد.")</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

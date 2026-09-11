@@ -1,0 +1,59 @@
+@model ReportRegionsVm
+@{
+    var maxO = Model.Origins.Count == 0 ? 0 : Model.Origins.Max(r => r.Count);
+    var maxD = Model.Dests.Count == 0 ? 0 : Model.Dests.Max(r => r.Count);
+    var maxC = Model.TopCities.Count == 0 ? 0 : Model.TopCities.Max(r => r.Count);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-map"></i> گزارش استان و شهر</h1>
+        <p>بارهای ثبت‌شده در بازه بر پایهٔ استان مبدا و مقصد، و شهرهای مبدا پرتکرار.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" href="/Admin/Regions"><i class="bi bi-geo"></i> مدیریت مناطق</a></div>
+</div>
+
+<partial name="_Range" model="Model.Range" />
+
+<div class="stats cols3" style="margin-top:18px">
+    <div class="stat p"><div class="l"><i class="bi bi-boxes"></i> بارهای بازه</div><div class="v">@Fa.N(Model.Total)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-geo-alt"></i> استان‌های مبدا</div><div class="v">@Fa.N(Model.Origins.Count)</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-pin-map"></i> استان‌های مقصد</div><div class="v">@Fa.N(Model.Dests.Count)</div></div>
+</div>
+
+@{
+    void Table(string title, string icon, List<RegionRowVm> rows, int max, string empty)
+    {
+        <div class="card2">
+            <div class="hd"><i class="bi @icon"></i> @title</div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>نام</th><th style="min-width:160px">بار</th><th>سهم</th><th>وزن</th></tr></thead>
+                    <tbody>
+                    @foreach (var r in rows)
+                    {
+                        <tr>
+                            <td><b>@r.Name</b></td>
+                            <td>
+                                <div class="small">@Fa.N(r.Count)</div>
+                                <div style="height:7px;border-radius:6px;background:var(--line-soft)"><div style="height:7px;border-radius:6px;background:var(--primary);width:@BackofficeFormat.Bar(r.Count, max)%"></div></div>
+                            </td>
+                            <td class="nowrap">@(Model.Total == 0 ? "—" : Fa.N(r.Count * 100.0 / Model.Total, 1) + "٪")</td>
+                            <td class="nowrap">@Fa.N(r.WeightTon, 1) تن</td>
+                        </tr>
+                    }
+                    @if (rows.Count == 0)
+                    {
+                        <tr><td colspan="4" class="empty"><i class="bi @icon"></i>@empty</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}
+
+<div class="grid3">
+    @{ Table("استان مبدا", "bi-geo-alt", Model.Origins, maxO, "در این بازه باری ثبت نشده است."); }
+    @{ Table("استان مقصد", "bi-pin-map", Model.Dests, maxD, "در این بازه باری ثبت نشده است."); }
+    @{ Table("شهرهای مبدا پرتکرار", "bi-buildings", Model.TopCities, maxC, "در این بازه باری ثبت نشده است."); }
+</div>

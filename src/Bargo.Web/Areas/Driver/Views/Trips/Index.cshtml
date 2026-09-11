@@ -1,0 +1,103 @@
+@model TripsVm
+@{
+    var tab = Model.Tab;
+    var dateHead = tab switch { "live" => "شروع", "done" => "تحویل", "cancelled" => "لغو", _ => "زمان بارگیری" };
+    var lead = tab switch
+    {
+        "live" => "سفرهایی که در راه‌اند — از حرکت به مبدا تا تخلیه.",
+        "done" => "سفرهای تحویل‌شده و تسویه‌شده. پس از تحویل می‌توانید به صاحب بار امتیاز بدهید.",
+        "cancelled" => "سفرهایی که پیش از تحویل لغو شده‌اند، با علت لغو.",
+        _ => "سفرهایی که هنوز شروع نشده‌اند: مأموریت‌های در انتظار قبول و سفرهای آمادهٔ حرکت."
+    };
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-signpost-split"></i> @ViewData["Title"]</h1>
+        <p>@lead</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="History"><i class="bi bi-clock-history"></i> تاریخچه و جمع‌بندی</a>
+        <a class="btn2 pri" asp-action="Current"><i class="bi bi-truck"></i> سفر در حال انجام</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Index" asp-route-tab="upcoming" class="@(tab == "upcoming" ? "on" : "")">آینده <span class="n">@Fa.N(Model.CountUpcoming)</span></a>
+    <a asp-action="Index" asp-route-tab="live" class="@(tab == "live" ? "on" : "")">در حال انجام <span class="n">@Fa.N(Model.CountLive)</span></a>
+    <a asp-action="Index" asp-route-tab="done" class="@(tab == "done" ? "on" : "")">تکمیل‌شده <span class="n">@Fa.N(Model.CountDone)</span></a>
+    <a asp-action="Index" asp-route-tab="cancelled" class="@(tab == "cancelled" ? "on" : "")">لغوشده <span class="n">@Fa.N(Model.CountCancelled)</span></a>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>مسیر</th><th>حمل‌کننده</th><th>خودرو</th><th>مسافت</th><th>سهم شما</th><th>@dateHead</th><th>وضعیت</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Page.Rows)
+            {
+                <tr data-href="@Url.Action("Detail", new { id = t.TripId })">
+                    <td><a class="lnk num" asp-action="Detail" asp-route-id="@t.TripId">@t.Code</a><span class="sub">@t.Title</span></td>
+                    <td>@Ui.Route(t.From, t.To)</td>
+                    <td>@(t.CarrierKind == CarrierKind.Company ? "شرکت " + t.CompanyName : "مستقل")</td>
+                    <td>@if (!string.IsNullOrEmpty(t.Plate)) { <span class="plate">@t.Plate</span> } else { <span class="muted">—</span> }</td>
+                    <td class="nowrap">@(t.PlannedKm is double pk ? Fa.N(pk) + " کیلومتر" : "—")@if (t.TravelledKm > 0) { <span class="sub">طی‌شده @Fa.N(t.TravelledKm)</span> }</td>
+                    <td class="nowrap"><b>@Fa.Toman(t.MyShare)</b><span class="sub">کرایه @Fa.Toman(t.Fare)</span></td>
+                    <td class="nowrap">
+                        @(tab switch
+                        {
+                            "live" => Fa.Stamp(t.ScheduledDepartureAt ?? t.CreatedAt),
+                            "done" => Fa.Stamp(t.DeliveredAt),
+                            "cancelled" => Fa.Stamp(t.CancelledAt),
+                            _ => Fa.Stamp(t.ScheduledDepartureAt ?? t.CreatedAt)
+                        })
+                        @if (tab == "cancelled" && !string.IsNullOrEmpty(t.CancelReason))
+                        {
+                            <span class="sub">@t.CancelReason</span>
+                        }
+                    </td>
+                    <td>@Ui.TripPill(t.Status)</td>
+                    <td>
+                        <div class="row-actions">
+                            @if (t.Status == TripStatus.Assigned)
+                            {
+                                <a class="btn2 grn sm" asp-action="Detail" asp-route-id="@t.TripId"><i class="bi bi-person-check"></i> پاسخ به مأموریت</a>
+                            }
+                            else if (TripStatus.Live.Contains(t.Status) || t.Status == TripStatus.Accepted)
+                            {
+                                <a class="btn2 soft sm" asp-action="Detail" asp-route-id="@t.TripId"><i class="bi bi-joystick"></i> ادامهٔ سفر</a>
+                            }
+                            else
+                            {
+                                <a class="btn2 ghost sm" asp-action="Detail" asp-route-id="@t.TripId">جزئیات</a>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr>
+                    <td colspan="9" class="empty">
+                        <i class="bi bi-signpost-split"></i>
+                        @(tab switch
+                        {
+                            "live" => "سفری در حال انجام ندارید.",
+                            "done" => "هنوز سفری را تکمیل نکرده‌اید.",
+                            "cancelled" => "سفر لغوشده‌ای ندارید.",
+                            _ => "سفر آینده‌ای ندارید؛ با پیشنهاد روی بارهای بازار سفر بگیرید."
+                        })
+                        @if (tab is "upcoming" or "live")
+                        {
+                            <div class="form-actions" style="justify-content:center">
+                                <a class="btn2 pri" asp-controller="Loads" asp-action="Nearby"><i class="bi bi-geo"></i> بارهای نزدیک من</a>
+                                <a class="btn2 ghost" asp-controller="Offers" asp-action="Index" asp-route-status="pending"><i class="bi bi-hourglass-split"></i> پیشنهادهای در انتظار</a>
+                            </div>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

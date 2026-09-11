@@ -1,0 +1,121 @@
+@model TripDetailVm?
+@{
+    var t = Model?.Trip;
+    var l = t?.Load;
+    ViewData["back"] = "waybill";
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-file-earmark-check"></i> @ViewData["Title"]</h1>
+        <p>بارنامه و اسناد سفر جاری. شمارهٔ بارنامه پیش از «شروع سفر» لازم است@(Model?.WaybillRequired == true ? " و بدون آن حمل آغاز نمی‌شود" : "").</p>
+    </div>
+    <div class="actions">
+        @if (t is not null)
+        {
+            <a class="btn2 ghost" asp-controller="Trips" asp-action="Detail" asp-route-id="@t.TripId"><i class="bi bi-signpost-split"></i> صفحهٔ سفر</a>
+            <a class="btn2 ghost" asp-controller="Operations" asp-action="Index"><i class="bi bi-joystick"></i> عملیات سفر</a>
+        }
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-files"></i> همهٔ بارنامه‌ها</a>
+    </div>
+</div>
+
+@if (Model is null || t is null || l is null)
+{
+    <div class="card2">
+        <div class="bd">
+            <div class="empty-state">
+                <i class="bi bi-file-earmark-text"></i>
+                <b>سفر جاری ندارید</b>
+                بارنامه به سفر تعلق دارد؛ وقتی سفری در جریان باشد، ثبت و مشاهدهٔ بارنامه‌اش همین‌جاست.
+                <div class="form-actions" style="justify-content:center">
+                    <a class="btn2 ghost" asp-action="Index"><i class="bi bi-files"></i> بارنامه‌های قبلی</a>
+                    <a class="btn2 pri" asp-controller="Loads" asp-action="Nearby"><i class="bi bi-geo"></i> بارهای نزدیک من</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="grid-side">
+        <div class="stack">
+            <div class="card2" id="waybill-card">
+                <div class="hd">
+                    <i class="bi bi-file-earmark-text"></i> بارنامهٔ سفر <span class="num">@t.Code</span>
+                    <span class="end">@Ui.TripPill(t.Status)</span>
+                </div>
+                <div class="bd">
+                    <partial name="_TripSteps" model="t" />
+                    <div class="sec-title"><i class="bi bi-file-earmark-text"></i> بارنامه</div>
+                    <partial name="_Waybill" model="Model" />
+                </div>
+            </div>
+
+            <div class="card2">
+                <div class="hd"><i class="bi bi-folder2-open"></i> اسناد این سفر <span class="end"><a class="btn2 sm ghost" asp-controller="Trips" asp-action="Detail" asp-route-id="@t.TripId">بارگذاری سند</a></span></div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>نوع</th><th>عنوان</th><th>بارگذاری</th><th>فایل</th></tr></thead>
+                        <tbody>
+                        @foreach (var d in Model.Documents)
+                        {
+                            <tr>
+                                <td>@TripDocumentKind.Label(d.Kind)</td>
+                                <td>@d.Title</td>
+                                <td class="nowrap">@Fa.Stamp(d.CreatedAt)<span class="sub">@(d.UploadedByKind == Roles.Driver ? "شما" : OwnerKind.Label(d.UploadedByKind))</span></td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(d.FilePath))
+                                    {
+                                        <a class="chip" href="@DocumentStorage.Url(d.FilePath)" target="_blank"><i class="bi bi-box-arrow-up-right"></i> مشاهده</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (Model.Documents.Count == 0)
+                        {
+                            <tr><td colspan="4" class="empty"><i class="bi bi-folder2-open"></i>برای این سفر هنوز سندی بارگذاری نشده است.</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="stack">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-card-list"></i> مشخصات حمل</div>
+                <div class="bd">
+                    <dl class="kv">
+                        <dt>کد سفر</dt><dd class="num">@t.Code</dd>
+                        <dt>کد بار</dt><dd class="num">@l.Code</dd>
+                        <dt>مسیر</dt><dd>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</dd>
+                        <dt>کالا</dt><dd>@l.Title · @l.CargoType · @Fa.N(l.WeightTon, 1) تن</dd>
+                        <dt>فرستنده</dt><dd>@(string.IsNullOrEmpty(Model.OwnerName) ? "—" : Model.OwnerName)</dd>
+                        <dt>گیرنده</dt><dd>@(string.IsNullOrEmpty(l.ReceiverName) ? "—" : l.ReceiverName)@(string.IsNullOrEmpty(l.ReceiverMobile) ? "" : " · " + l.ReceiverMobile)</dd>
+                        <dt>خودرو</dt>
+                        <dd>
+                            @if (t.Vehicle is not null)
+                            {
+                                <span class="plate">@t.Vehicle.PlateNo</span> <span class="muted small">@t.Vehicle.VehicleType?.Name</span>
+                            }
+                            else
+                            {
+                                <span class="muted">تعیین نشده</span>
+                            }
+                        </dd>
+                        <dt>کرایه</dt><dd>@Fa.Toman(t.Fare)</dd>
+                        @if (Model.IsCompanyTrip)
+                        {
+                            <dt>شرکت</dt><dd>@(t.Company?.Name ?? "—")</dd>
+                        }
+                    </dl>
+                    <p class="muted small" style="margin:12px 0 0">این مشخصات را با بارنامهٔ رسمی تطبیق دهید؛ اختلاف را پیش از حرکت به صاحب بار اطلاع دهید.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+}

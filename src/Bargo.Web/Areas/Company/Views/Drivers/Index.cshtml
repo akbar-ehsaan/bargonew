@@ -1,0 +1,145 @@
+@model OpsDriverListVm
+@{
+    (string Key, string Label, string Icon)[] tabs =
+    [
+        ("", "همه", "bi-people"),
+        (AccountStatus.Approved, "تأییدشده", "bi-check2-circle"),
+        (AccountStatus.Pending, "در انتظار تأیید", "bi-hourglass-split"),
+        (AccountStatus.Suspended, "تعلیق‌شده", "bi-pause-circle"),
+        (AccountStatus.Rejected, "ردشده", "bi-x-circle")
+    ];
+    var since = DateTime.UtcNow.AddMinutes(-CompanyOps.OnlineMinutes);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-people"></i> لیست رانندگان</h1>
+        <p>رانندگان عضو ناوگان شرکت. تأیید حساب و مدارک با مدیر بارگوست؛ شما راننده را می‌سازید، مدارکش را بارگذاری می‌کنید و مأموریت می‌دهید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Online"><i class="bi bi-broadcast"></i> آنلاین‌ها</a>
+        <a class="btn2 ghost" asp-action="Activity"><i class="bi bi-activity"></i> وضعیت فعالیت</a>
+        <a class="btn2 pri" asp-action="Add"><i class="bi bi-person-plus"></i> افزودن راننده</a>
+    </div>
+</div>
+
+<div class="tabs">
+    @foreach (var t in tabs)
+    {
+        var on = (Model.Status ?? "") == t.Key;
+        <a href="@Url.Action("Index", new { status = t.Key.Length == 0 ? null : t.Key, q = Model.Q })" class="@(on ? "on" : "")">
+            <i class="bi @t.Icon"></i> @t.Label <span class="n">@Fa.N(Model.Counts.GetValueOrDefault(t.Key.Length == 0 ? "all" : t.Key))</span>
+        </a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Index" class="filters">
+        @if (Model.Status is not null)
+        {
+            <input type="hidden" name="status" value="@Model.Status" />
+        }
+        <div class="fld"><label>جستجو</label><input name="q" value="@Model.Q" placeholder="نام یا شماره موبایل" /></div>
+        <button class="btn2 ghost"><i class="bi bi-search"></i> جستجو</button>
+        @if (Model.Q is not null)
+        {
+            <a class="btn2 ghost" asp-action="Index" asp-route-status="@Model.Status"><i class="bi bi-x-lg"></i> حذف فیلتر</a>
+        }
+    </form>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>راننده</th><th>موبایل</th><th>حساب</th><th>آمادگی</th><th>سفر جاری</th><th>امتیاز</th><th>سفرها</th><th>مدارک</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var d in Model.Page.Rows)
+            {
+                var busy = Model.Busy.GetValueOrDefault(d.DriverId);
+                var (avLabel, avTone) = OpsLabels.Availability(d, busy);
+                var issues = Model.Issues.GetValueOrDefault(d.DriverId) ?? [];
+                var blocking = issues.Count(i => i.Blocking);
+                var warnings = issues.Count - blocking;
+                var online = d.LastSeenAt > since;
+                <tr data-href="/Company/Drivers/Detail/@d.DriverId">
+                    <td>
+                        <a class="lnk" asp-action="Detail" asp-route-id="@d.DriverId">@d.FullName</a>
+                        <span class="sub">
+                            @(d.City?.Name ?? "شهر ثبت نشده")
+                            @if (online)
+                            {
+                                <text>· </text>@Ui.Pill("آنلاین", "ok")
+                            }
+                            else if (d.LastSeenAt is DateTime seen)
+                            {
+                                <text>· آخرین حضور @Fa.Ago(seen)</text>
+                            }
+                        </span>
+                    </td>
+                    <td class="num">@Fa.Digits(d.Mobile)</td>
+                    <td>@Ui.AccountPill(d.Status)</td>
+                    <td>
+                        @if (d.Status == AccountStatus.Approved)
+                        {
+                            @Ui.Pill(avLabel, avTone)
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td>
+                        @if (busy is not null)
+                        {
+                            <a class="lnk num" href="/Company/Trips/Detail/@busy.TripId">@busy.Code</a><span class="sub">@TripStatus.Label(busy.Status)</span>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td>@Ui.Stars(d.RatingAvg, d.RatingCount)</td>
+                    <td class="num">@Fa.N(d.TripCount)</td>
+                    <td>
+                        @if (blocking > 0)
+                        {
+                            @Ui.Pill(Fa.N(blocking) + " مانع", "no")
+                        }
+                        else if (warnings > 0)
+                        {
+                            @Ui.Pill(Fa.N(warnings) + " هشدار", "wait")
+                        }
+                        else
+                        {
+                            @Ui.Pill("آمادهٔ مأموریت", "ok")
+                        }
+                    </td>
+                    <td>
+                        <div class="row-actions">
+                            <a class="btn2 soft sm" asp-action="Detail" asp-route-id="@d.DriverId">پرونده</a>
+                            <a class="btn2 ghost sm" asp-action="Documents" asp-route-driverId="@d.DriverId" title="مدارک"><i class="bi bi-folder2-open"></i></a>
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr>
+                    <td colspan="9" class="empty">
+                        <i class="bi bi-people"></i>
+                        @if (Model.Q is not null)
+                        {
+                            <text>راننده‌ای با این مشخصات پیدا نشد.</text>
+                        }
+                        else if (Model.Status is not null)
+                        {
+                            <text>راننده‌ای در وضعیت «@AccountStatus.Label(Model.Status)» ندارید.</text>
+                        }
+                        else
+                        {
+                            <text>هنوز راننده‌ای به ناوگان شرکت اضافه نشده است. </text><a class="lnk" asp-action="Add">اولین راننده را اضافه کنید</a>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

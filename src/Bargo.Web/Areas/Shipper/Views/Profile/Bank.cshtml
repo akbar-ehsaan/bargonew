@@ -1,0 +1,66 @@
+@{
+    var sheba = ViewBag.Sheba as string;
+    var holder = ViewBag.Holder as string ?? "";
+    var hasSheba = !string.IsNullOrEmpty(sheba);
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-bank"></i> اطلاعات مالی</h1>
+        <p>شمارهٔ شبای حسابی که اگر لازم شود مبلغی از بارگو به حساب بانکی شما برگردد (مثلاً تسویهٔ موجودی کیف پول)، به آن واریز می‌شود.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" href="/Shipper/Finance"><i class="bi bi-wallet2"></i> کیف پول</a></div>
+</div>
+
+<partial name="_Tabs" />
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-credit-card-2-front"></i> حساب بانکی</div>
+        <div class="bd">
+            <form method="post" asp-action="Bank">
+                <div class="form-grid">
+                    <div class="fld full">
+                        <label>صاحب حساب</label>
+                        <input value="@holder" readonly style="background:#f5f7f9" />
+                        <span class="hint">نام از «مشخصات» می‌آید؛ حساب باید به نام خودتان یا کسب‌وکارتان باشد.</span>
+                    </div>
+                    <div class="fld full">
+                        <label>شمارهٔ شبا <span class="req">*</span></label>
+                        <input name="sheba" value="@sheba" dir="ltr" maxlength="34" placeholder="IR000000000000000000000000" required style="letter-spacing:.06em" />
+                        <span class="hint">IR و ۲۴ رقم — با یا بدون IR و فاصله وارد کنید.</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn2 pri"><i class="bi bi-check2"></i> @(hasSheba ? "ذخیرهٔ تغییر" : "ثبت شبا")</button>
+                </div>
+            </form>
+            @if (hasSheba)
+            {
+                <form method="post" asp-action="Bank" data-confirm="شمارهٔ شبا حذف شود؟" style="margin-top:10px">
+                    <input type="hidden" name="remove" value="true" />
+                    <button class="btn2 ghost sm"><i class="bi bi-trash"></i> حذف شبا</button>
+                </form>
+            }
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-info-circle"></i> وضعیت فعلی</div>
+            <div class="bd">
+                <div class="kvrow"><span>شبا</span><b dir="ltr">@(hasSheba ? ShipperUi.MaskSheba(sheba) : "ثبت نشده")</b></div>
+                <div class="kvrow"><span>صاحب حساب</span><b>@(string.IsNullOrEmpty(holder) ? "—" : holder)</b></div>
+                @if (!hasSheba)
+                {
+                    <p class="muted small" style="margin:10px 0 0"><i class="bi bi-exclamation-circle"></i> تا شبا ثبت نشود، واریز به حساب بانکی شما ممکن نیست.</p>
+                }
+            </div>
+        </div>
+        <div class="card2">
+            <div class="hd"><i class="bi bi-shield-check"></i> نکته</div>
+            <div class="bd small muted">
+                کرایهٔ سفرهای لغوشده به کیف پول شما برمی‌گردد و برای بار بعدی قابل استفاده است. بارگو هرگز شمارهٔ کارت، رمز دوم یا کد تأیید بانکی از شما نمی‌خواهد.
+            </div>
+        </div>
+    </div>
+</div>

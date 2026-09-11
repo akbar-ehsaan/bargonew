@@ -1,0 +1,255 @@
+@model LoadListVm
+@*
+    یک ویو برای پنج فهرست: همه بارها، جستجو، نزدیک من، پیشنهادی، ذخیره‌شده (Model.Mode).
+*@
+@{
+    var m = Model.Mode;
+    var f = Model.Filter;
+    var icon = m switch { "search" => "bi-funnel", "nearby" => "bi-geo", "suggested" => "bi-magic", "saved" => "bi-bookmark-star", _ => "bi-grid-3x3-gap" };
+    var positionNote = !Model.HasPosition
+        ? "موقعیت و شهر شما ثبت نشده است؛ فاصله تا مبدا سنجیده نمی‌شود."
+        : Model.LivePosition ? "فاصله‌ها از آخرین موقعیت GPS شما سنجیده شده است." : "فاصله‌ها از مرکز شهرِ حساب شما سنجیده شده است؛ برای دقت بیشتر اشتراک موقعیت را روشن کنید.";
+    var lead = m switch
+    {
+        "search" => "با فیلترها باری را پیدا کنید که به مسیر، خودرو و زمان شما می‌خورد.",
+        "nearby" => "بارهای بازار به ترتیب فاصلهٔ مبدا از شما. " + positionNote,
+        "suggested" => "بارهای هفتهٔ آینده که با خودرو و موقعیت شما جور است؛ روی هر کارت دلیل پیشنهاد نوشته شده است.",
+        "saved" => "بارهایی که نشان کرده‌اید. باری که دیگر در بازار نیست با وضعیتش نمایش داده می‌شود.",
+        _ => "بارهای منتشرشده در بازار بارگو که هنوز حمل‌کننده ندارند، تازه‌ترین‌ها اول."
+    };
+    int[] radii = [50, 100, 200, 500];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi @icon"></i> @ViewData["Title"]</h1>
+        <p>@lead</p>
+    </div>
+    <div class="actions">
+        @if (m == "all")
+        {
+            <a class="btn2 ghost" asp-action="Search"><i class="bi bi-funnel"></i> جستجوی پیشرفته</a>
+        }
+        <a class="btn2 pri" asp-controller="Offers" asp-action="Index" asp-route-status="pending"><i class="bi bi-hourglass-split"></i> پیشنهادهای من</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Index" class="@(m == "all" ? "on" : "")"><i class="bi bi-grid-3x3-gap"></i> همه بارها</a>
+    <a asp-action="Search" class="@(m == "search" ? "on" : "")"><i class="bi bi-funnel"></i> جستجو و فیلتر</a>
+    <a asp-action="Nearby" class="@(m == "nearby" ? "on" : "")"><i class="bi bi-geo"></i> نزدیک من</a>
+    <a asp-action="Suggested" class="@(m == "suggested" ? "on" : "")"><i class="bi bi-magic"></i> پیشنهادی به من</a>
+    <a asp-action="Saved" class="@(m == "saved" ? "on" : "")"><i class="bi bi-bookmark-star"></i> ذخیره‌شده</a>
+</div>
+
+@if (Model.Blocking.Count > 0)
+{
+    <div class="alert2 warn">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            <b>می‌توانید بارها را ببینید، ولی تا رفع این موارد پیشنهاد شما پذیرفته نمی‌شود:</b>
+            <ul style="margin:6px 0 0;padding-inline-start:18px">
+                @foreach (var i in Model.Blocking)
+                {
+                    <li>@i.Text @if (i.Link is not null) { <a class="lnk" href="@i.Link">رفع مشکل</a> }</li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+@if (m == "suggested")
+{
+    @if (Model.VehicleLabel is not null)
+    {
+        <div class="alert2 info"><i class="bi bi-truck"></i><div class="grow">مبنای پیشنهاد: خودروی فعال شما <b>@Model.VehicleLabel</b> با ظرفیت @Fa.N(Model.VehicleCapacity ?? 0, 1) تن · مبدا تا ۱۵۰ کیلومتری شما یا در استان شما · بارگیری در هفت روز آینده.</div></div>
+    }
+    @if (Model.Note is not null)
+    {
+        <div class="alert2 warn"><i class="bi bi-info-circle-fill"></i><div class="grow">@Model.Note</div><a class="btn2 soft sm" href="/Driver/Vehicle">مشخصات خودرو</a></div>
+    }
+}
+@if (m == "nearby" && !Model.HasPosition)
+{
+    <div class="alert2 warn">
+        <i class="bi bi-geo-alt"></i>
+        <div class="grow">برای مرتب‌سازی بر اساس فاصله، اشتراک موقعیت را روشن کنید یا شهر خود را در حساب کاربری ثبت کنید.</div>
+        <a class="btn2 soft sm" asp-controller="Operations" asp-action="Location">اشتراک موقعیت</a>
+    </div>
+}
+
+<div class="card2">
+    @if (m == "search" || m == "all")
+    {
+        <form method="get" asp-action="@(m == "search" ? "Search" : "Index")" class="filters">
+            @if (m == "search")
+            {
+                <div class="fld">
+                    <label>استان مبدا</label>
+                    <select name="OriginProvinceId">
+                        <option value="">همه</option>
+                        @foreach (var p in Model.Provinces)
+                        {
+                            <option value="@p.ProvinceId" selected="@(f.OriginProvinceId == p.ProvinceId)">@p.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>شهر مبدا</label>
+                    <select name="OriginCityId" data-cities-for="OriginProvinceId">
+                        <option value="">همه</option>
+                        @foreach (var c in Model.Cities)
+                        {
+                            <option value="@c.CityId" data-province="@c.ProvinceId" selected="@(f.OriginCityId == c.CityId)">@c.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>استان مقصد</label>
+                    <select name="DestProvinceId">
+                        <option value="">همه</option>
+                        @foreach (var p in Model.Provinces)
+                        {
+                            <option value="@p.ProvinceId" selected="@(f.DestProvinceId == p.ProvinceId)">@p.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>شهر مقصد</label>
+                    <select name="DestCityId" data-cities-for="DestProvinceId">
+                        <option value="">همه</option>
+                        @foreach (var c in Model.Cities)
+                        {
+                            <option value="@c.CityId" data-province="@c.ProvinceId" selected="@(f.DestCityId == c.CityId)">@c.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>نوع خودرو</label>
+                    <select name="VehicleTypeId">
+                        <option value="">همه</option>
+                        @foreach (var vt in Model.VehicleTypes)
+                        {
+                            <option value="@vt.VehicleTypeId" selected="@(f.VehicleTypeId == vt.VehicleTypeId)">@vt.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld narrow">
+                    <label>حداکثر وزن (تن)</label>
+                    <input name="MaxWeight" type="number" min="0" step="0.5" dir="ltr" value="@(f.MaxWeight is decimal w ? w.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "")" />
+                </div>
+                <div class="fld narrow">
+                    <label>بارگیری از تاریخ</label>
+                    <input name="FromDate" type="text" data-jdate value="@Fa.DateBox(f.FromDate)" />
+                </div>
+            }
+            <div class="fld narrow">
+                <label>نوع کرایه</label>
+                <select name="PriceMode">
+                    <option value="">همه</option>
+                    <option value="fixed" selected="@(f.PriceMode == "fixed")">کرایه ثابت</option>
+                    <option value="negotiable" selected="@(f.PriceMode == "negotiable")">توافقی</option>
+                </select>
+            </div>
+            <div class="fld narrow">
+                <label>ترتیب</label>
+                <select name="Sort">
+                    <option value="" selected="@(string.IsNullOrEmpty(f.Sort) || f.Sort == "new")">تازه‌ترین</option>
+                    <option value="loading" selected="@(f.Sort == "loading")">نزدیک‌ترین بارگیری</option>
+                    <option value="price" selected="@(f.Sort == "price")">بیشترین کرایه</option>
+                    <option value="weight" selected="@(f.Sort == "weight")">سنگین‌ترین</option>
+                </select>
+            </div>
+            <div class="row-actions">
+                <button type="submit" class="btn2 pri"><i class="bi bi-funnel"></i> اعمال</button>
+                @if (f.HasAny || !string.IsNullOrEmpty(f.Sort))
+                {
+                    <a class="btn2 ghost" asp-action="@(m == "search" ? "Search" : "Index")">پاک کردن</a>
+                }
+            </div>
+        </form>
+    }
+    else if (m == "nearby")
+    {
+        <div class="filters">
+            <div class="row-actions">
+                <span class="muted small">شعاع از موقعیت من:</span>
+                @foreach (var r in radii)
+                {
+                    <a class="btn2 sm @(Model.Radius == r ? "soft" : "ghost")" asp-action="Nearby" asp-route-radius="@r">تا @Fa.N(r) کیلومتر</a>
+                }
+                <a class="btn2 sm @(Model.Radius is null ? "soft" : "ghost")" asp-action="Nearby">بدون محدودیت</a>
+            </div>
+        </div>
+    }
+
+    <div class="bd">
+        @if (Model.Page.Total == 0)
+        {
+            <div class="empty-state">
+                <i class="bi @(m == "saved" ? "bi-bookmark" : "bi-box-seam")"></i>
+                @switch (m)
+                {
+                    case "search":
+                        <b>باری با این فیلترها پیدا نشد</b>
+                        <text>فیلترها را کمتر کنید یا استان به‌جای شهر انتخاب کنید.</text>
+                        break;
+                    case "nearby":
+                        <b>@(Model.Radius is int rr ? $"باری تا {Fa.N(rr)} کیلومتری شما نیست" : "فعلاً باری در بازار نیست")</b>
+                        <text>@(Model.Radius is not null ? "شعاع را بزرگ‌تر کنید یا همه بارها را ببینید." : "به‌محض انتشار بار تازه اینجا نمایش داده می‌شود.")</text>
+                        break;
+                    case "suggested":
+                        <b>فعلاً بار مناسبی برای شما پیدا نشد</b>
+                        <text>باری با وزن و نوع خودروی شما، در نزدیکی یا استان شما، برای هفتهٔ آینده منتشر نشده است. همه بارها را ببینید یا شعاع را در «نزدیک من» تغییر دهید.</text>
+                        break;
+                    case "saved":
+                        <b>باری ذخیره نکرده‌اید</b>
+                        <text>روی کارت هر بار نشان ذخیره را بزنید تا بعداً اینجا پیدایش کنید.</text>
+                        break;
+                    default:
+                        <b>فعلاً باری در بازار نیست</b>
+                        <text>به‌محض انتشار بار تازه اینجا نمایش داده می‌شود؛ می‌توانید «آماده بار» بمانید تا اعلان بگیرید.</text>
+                        break;
+                }
+                <div class="form-actions" style="justify-content:center">
+                    @if (m != "all")
+                    {
+                        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-grid-3x3-gap"></i> همه بارها</a>
+                    }
+                    @if (m != "nearby")
+                    {
+                        <a class="btn2 ghost" asp-action="Nearby"><i class="bi bi-geo"></i> نزدیک من</a>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <p class="muted small" style="margin-top:0">@Fa.N(Model.Page.Total) بار@(m == "nearby" && Model.HasPosition ? " · " + positionNote : "")</p>
+            <div class="loads">
+                @foreach (var c in Model.Page.Rows)
+                {
+                    <partial name="_LoadCard" model="c" />
+                }
+            </div>
+        }
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>
+
+@section Scripts {
+    <script>
+        // فرم جستجو: شهرها فقط از استان انتخاب‌شده (در فهرست‌های دیگر انتخابگری نیست و کاری نمی‌کند)
+        document.querySelectorAll('select[data-cities-for]').forEach(function (city) {
+            var prov = document.querySelector('select[name="' + city.getAttribute('data-cities-for') + '"]');
+            if (!prov) return;
+            var all = Array.prototype.slice.call(city.options);
+            function apply() {
+                var p = prov.value, keep = city.value;
+                city.textContent = '';
+                all.forEach(function (o) { if (!o.value || !p || o.getAttribute('data-province') === p) city.appendChild(o); });
+                if (city.value !== keep) city.value = '';
+            }
+            prov.addEventListener('change', apply);
+            apply();
+        });
+    </script>
+}

@@ -1,0 +1,102 @@
+@model DriverRatingsVm
+@{
+    (string Key, string Label)[] sorts = [("top", "بالاترین امتیاز"), ("low", "پایین‌ترین امتیاز"), ("most", "بیشترین امتیازدهی")];
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-star"></i> امتیاز رانندگان</h1>
+        <p>رتبه‌بندی رانندگانی که دست‌کم یک امتیاز گرفته‌اند، و تازه‌ترین امتیازهای پایین (۲ و کمتر) برای پیگیری. امتیاز را صاحبان بار پس از تحویل ثبت می‌کنند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Violations"><i class="bi bi-exclamation-octagon"></i> ثبت تخلف</a>
+        <a class="btn2 ghost" href="/Admin/Complaints?from=shipper"><i class="bi bi-exclamation-diamond"></i> شکایات صاحبان بار</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat p"><div class="l"><i class="bi bi-people"></i> رانندهٔ امتیازدار</div><div class="v">@Fa.N(Model.RatedDrivers)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-star-fill"></i> میانگین همهٔ امتیازها</div><div class="v">@Fa.N(Model.OverallAvg, 2) <small>از ۵</small></div></div>
+    <div class="stat r"><div class="l"><i class="bi bi-emoji-frown"></i> امتیاز پایین در ۳۰ روز اخیر</div><div class="v">@Fa.N(Model.LowCount30)</div></div>
+</div>
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="tabs" style="margin:0;padding:0 18px">
+            @foreach (var s in sorts)
+            {
+                <a asp-action="Ratings" asp-route-sort="@s.Key" asp-route-q="@Model.Q" class="@(Model.Sort == s.Key ? "on" : "")">@s.Label</a>
+            }
+        </div>
+        <form method="get" asp-action="Ratings" class="filters">
+            <input type="hidden" name="sort" value="@Model.Sort" />
+            <div class="fld"><label for="q">جستجو</label><input id="q" name="q" value="@Model.Q" placeholder="نام، موبایل یا کد ملی" /></div>
+            <button class="btn2 pri"><i class="bi bi-search"></i> جستجو</button>
+            @if (!string.IsNullOrEmpty(Model.Q))
+            {
+                <a class="btn2 ghost" asp-action="Ratings" asp-route-sort="@Model.Sort">پاک کردن</a>
+            }
+        </form>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr><th>#</th><th>راننده</th><th>امتیاز</th><th>سفر تحویل‌شده</th><th>لغو</th><th>تخلف</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                @{ var rank = (Model.Page.Page - 1) * Model.Page.PageSize; }
+                @foreach (var r in Model.Page.Rows)
+                {
+                    rank++;
+                    <tr data-href="/Admin/Users/Driver/@r.DriverId">
+                        <td class="num muted">@Fa.N(rank)</td>
+                        <td>
+                            <a class="lnk" href="/Admin/Users/Driver/@r.DriverId">@r.FullName</a>
+                            <span class="sub">@(r.CompanyName ?? "مستقل")@(r.City is null ? "" : " · " + r.City)</span>
+                        </td>
+                        <td>
+                            @Ui.Stars(r.RatingAvg, r.RatingCount)
+                            @if (r.RatingAvg < 3 && r.RatingCount >= 3)
+                            {
+                                <span class="sub" style="color:var(--no);font-weight:800">نیازمند پیگیری</span>
+                            }
+                        </td>
+                        <td class="num">@Fa.N(r.TripCount)</td>
+                        <td class="num">@(r.Cancelled > 0 ? Fa.N(r.Cancelled) : "—")</td>
+                        <td class="num">@(r.Violations > 0 ? Fa.N(r.Violations) : "—")</td>
+                        <td>@Ui.AccountPill(r.Status)</td>
+                    </tr>
+                }
+                @if (Model.Page.Total == 0)
+                {
+                    <tr><td colspan="7" class="empty"><i class="bi bi-star"></i>هنوز راننده‌ای امتیاز نگرفته است.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="Model.Page.Pager" />
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-emoji-frown"></i> تازه‌ترین امتیازهای پایین <span class="end muted small">۲ و کمتر</span></div>
+        <div class="bd">
+            @foreach (var l in Model.Low)
+            {
+                var rater = Model.Raters.GetValueOrDefault($"{l.FromKind}:{l.FromId}");
+                <div class="kvrow" style="flex-direction:column;align-items:stretch;gap:4px">
+                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+                        <a class="lnk" href="/Admin/Users/Driver/@l.ToId">@(Model.DriverNames.GetValueOrDefault(l.ToId) ?? "راننده #" + l.ToId)</a>
+                        <span class="stars"><i class="bi bi-star-fill"></i> @Fa.N(l.Score)</span>
+                    </div>
+                    <div class="small">
+                        از @OpsUi.Owner(rater) · سفر <a class="lnk num" href="/Admin/Trips/Case/@l.TripId">@(Model.TripCodes.GetValueOrDefault(l.TripId) ?? "#" + l.TripId)</a> · @Fa.Ago(l.CreatedAt)
+                    </div>
+                    @if (!string.IsNullOrEmpty(l.Comment))
+                    {
+                        <div class="small" style="white-space:pre-line">«@l.Comment»</div>
+                    }
+                </div>
+            }
+            @if (Model.Low.Count == 0)
+            {
+                <div class="empty-state"><i class="bi bi-emoji-smile"></i><b>امتیاز پایینی ثبت نشده</b>هیچ راننده‌ای امتیاز ۲ یا کمتر نگرفته است.</div>
+            }
+        </div>
+    </div>
+</div>

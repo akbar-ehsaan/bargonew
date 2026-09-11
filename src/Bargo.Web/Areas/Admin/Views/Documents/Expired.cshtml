@@ -1,0 +1,53 @@
+@model PageVm<DocumentRowVm>
+@{
+    var kind = ViewBag.Kind as string;
+    var owner = ViewBag.Owner as string;
+    var kindCounts = (Dictionary<string, int>)ViewBag.KindCounts;
+    var kinds = (string[])ViewBag.Kinds;
+    var owners = (string[])ViewBag.Owners;
+    ViewData["Mode"] = "expired";
+    ViewData["ReturnUrl"] = Context.Request.Path + Context.Request.QueryString;
+    ViewData["WarnDays"] = (int)ViewBag.WarnDays;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-calendar-x"></i> مدارک منقضی</h1>
+        <p>مدارک تأییدشده‌ای که تاریخشان گذشته و نسخهٔ تأییدشدهٔ تازه‌تری ندارند — دیرترین انقضا اول. با تنظیم «مدرک منقضی، پذیرش بار را می‌بندد» این رانندگان بار نمی‌گیرند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Alerts"><i class="bi bi-alarm"></i> هشدارهای انقضا</a>
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-hourglass-split"></i> صف بررسی</a>
+    </div>
+</div>
+
+<div class="tabs">
+    <a asp-action="Expired" asp-route-owner="@owner" class="@(kind is null ? "on" : "")">همه <span class="n">@Fa.N(kindCounts.Values.Sum())</span></a>
+    @foreach (var k in kinds.Where(k => kindCounts.ContainsKey(k)))
+    {
+        <a asp-action="Expired" asp-route-kind="@k" asp-route-owner="@owner" class="@(kind == k ? "on" : "")">@DocumentKind.Label(k) <span class="n">@Fa.N(kindCounts[k])</span></a>
+    }
+</div>
+
+<div class="card2">
+    <form method="get" asp-action="Expired" class="filters">
+        <input type="hidden" name="kind" value="@kind" />
+        <div class="fld narrow">
+            <label>صاحب مدرک</label>
+            <select name="owner">
+                <option value="">همه</option>
+                @foreach (var o in owners)
+                {
+                    <option value="@o" selected="@(owner == o)">@OwnerKind.Label(o)</option>
+                }
+            </select>
+        </div>
+        <div class="row-actions">
+            <button class="btn2 pri"><i class="bi bi-funnel"></i> اعمال</button>
+            @if (owner is not null)
+            {
+                <a class="btn2 ghost" asp-action="Expired" asp-route-kind="@kind">پاک کردن</a>
+            }
+        </div>
+    </form>
+    <partial name="_DocTable" model="Model" />
+</div>

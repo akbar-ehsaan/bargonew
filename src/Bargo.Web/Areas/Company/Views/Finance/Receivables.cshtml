@@ -1,0 +1,72 @@
+@model CompanyReceivablesVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-box-arrow-in-left"></i> مطالبات</h1>
+        <p>سفرهایی که شرکت حمل می‌کند و صاحب بار هنوز کرایه‌شان را به بارگو نداده است. پس از پرداخت و تحویل، سهم شرکت به کیف پول واریز می‌شود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Payables"><i class="bi bi-box-arrow-right"></i> بدهی‌ها</a>
+    </div>
+</div>
+
+<div class="stats cols3">
+    <div class="stat w"><div class="l"><i class="bi bi-hourglass-split"></i> کرایهٔ پرداخت‌نشده</div><div class="v">@Fa.Toman(Model.UnpaidTotal)<small>@Fa.N(Model.Unpaid.Total) سفر</small></div></div>
+    <div class="stat p"><div class="l"><i class="bi bi-wallet2"></i> سهم شرکت از آن</div><div class="v">@Fa.Toman(Model.UnpaidShare)</div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-building"></i> کرایهٔ مستقیم مشتریان شرکت</div><div class="v">@Fa.Toman(Model.OfflineTotal)</div></div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-hourglass-split"></i> در انتظار پرداخت صاحب بار</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>صاحب بار</th><th>مسیر</th><th>وضعیت</th><th>کرایه</th><th>سهم شرکت</th><th>راننده</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Unpaid.Rows)
+            {
+                <tr>
+                    <td data-label="سفر"><a class="lnk" href="/Company/Trips/Detail/@t.TripId">@Fa.Digits(t.Code)</a><span class="sub">@Fa.Date(t.CreatedAt)</span></td>
+                    <td data-label="صاحب بار">@t.Party</td>
+                    <td data-label="مسیر">@Ui.Route(t.Origin, t.Dest)<span class="sub">@t.CargoTitle</span></td>
+                    <td data-label="وضعیت">@Ui.TripPill(t.Status)</td>
+                    <td data-label="کرایه" class="nowrap"><b>@Fa.Toman(t.Fare)</b></td>
+                    <td data-label="سهم شرکت" class="nowrap">@Fa.Toman(t.CarrierShare)<span class="sub">کمیسیون @Fa.Toman(t.Commission)</span></td>
+                    <td data-label="راننده">@(t.DriverName ?? "—")</td>
+                </tr>
+            }
+            @if (Model.Unpaid.Total == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-check2-circle"></i>مطالبه‌ای در انتظار نیست؛ کرایهٔ همهٔ سفرهای جاری از صاحب بار دریافت شده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Unpaid.Pager" />
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-building"></i> بارهای مشتریان شرکت — دریافت بیرون از بارگو</div>
+    <div class="bd" style="padding-bottom:0">
+        <p class="small muted" style="margin:0 0 10px">این بارها را شرکت برای مشتری خودش ثبت و با ناوگان خودش حمل کرده؛ کرایه مستقیماً از مشتری گرفته می‌شود و بارگو از آن خبر ندارد. پیگیریِ وصول با حسابداری شرکت است.</p>
+    </div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سفر</th><th>مسیر</th><th>تحویل</th><th>کرایه</th><th>راننده</th></tr></thead>
+            <tbody>
+            @foreach (var t in Model.Offline)
+            {
+                <tr>
+                    <td data-label="سفر"><a class="lnk" href="/Company/Trips/Detail/@t.TripId">@Fa.Digits(t.Code)</a><span class="sub">بار @Fa.Digits(t.LoadCode)</span></td>
+                    <td data-label="مسیر">@Ui.Route(t.Origin, t.Dest)<span class="sub">@t.CargoTitle</span></td>
+                    <td data-label="تحویل" class="nowrap">@Fa.Date(t.DeliveredAt)</td>
+                    <td data-label="کرایه" class="nowrap"><b>@Fa.Toman(t.Fare)</b></td>
+                    <td data-label="راننده">@(t.DriverName ?? "—")</td>
+                </tr>
+            }
+            @if (Model.Offline.Count == 0)
+            {
+                <tr><td colspan="5" class="empty"><i class="bi bi-boxes"></i>هنوز باری از مشتریان شرکت با ناوگان خودِ شرکت تحویل نشده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

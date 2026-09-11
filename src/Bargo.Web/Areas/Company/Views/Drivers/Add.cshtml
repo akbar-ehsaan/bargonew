@@ -1,0 +1,119 @@
+@model OpsDriverForm
+@{
+    var cities = (List<OpsCityOption>)ViewBag.Cities;
+    var errors = ViewBag.Errors as List<string>;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-person-plus"></i> افزودن راننده</h1>
+        <p>حساب راننده را شرکت می‌سازد؛ راننده با همین موبایل و گذرواژهٔ اولیه وارد اپ می‌شود و پس از تأیید مدیر بارگو می‌تواند مأموریت بگیرد.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-arrow-right"></i> لیست رانندگان</a>
+    </div>
+</div>
+
+@if (errors is { Count: > 0 })
+{
+    <div class="alert2 err" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="grow">
+            @foreach (var e in errors)
+            {
+                <div>@e</div>
+            }
+        </div>
+    </div>
+}
+
+<form method="post" asp-action="Add" autocomplete="off">
+    <div class="grid-side">
+        <div class="card2">
+            <div class="bd">
+                <div class="form-grid">
+                    <div class="form-sec"><i class="bi bi-person"></i> مشخصات هویتی</div>
+                    <div class="fld">
+                        <label>نام <span class="req">*</span></label>
+                        <input name="FirstName" value="@Model.FirstName" maxlength="60" required />
+                    </div>
+                    <div class="fld">
+                        <label>نام خانوادگی <span class="req">*</span></label>
+                        <input name="LastName" value="@Model.LastName" maxlength="60" required />
+                    </div>
+                    <div class="fld">
+                        <label>شماره موبایل <span class="req">*</span></label>
+                        <input name="Mobile" value="@Model.Mobile" inputmode="tel" dir="ltr" required placeholder="09xxxxxxxxx" />
+                        <span class="hint">نام کاربری راننده در اپ بارگو همین شماره است.</span>
+                    </div>
+                    <div class="fld">
+                        <label>کد ملی <span class="req">*</span></label>
+                        <input name="NationalCode" value="@Model.NationalCode" inputmode="numeric" dir="ltr" required maxlength="10" />
+                    </div>
+                    <div class="fld">
+                        <label>شهر محل سکونت</label>
+                        <select name="CityId">
+                            <option value="">انتخاب نشده</option>
+                            @foreach (var g in cities.GroupBy(c => c.Province))
+                            {
+                                <optgroup label="@g.Key">
+                                    @foreach (var c in g)
+                                    {
+                                        <option value="@c.CityId" selected="@(Model.CityId == c.CityId)">@c.Name</option>
+                                    }
+                                </optgroup>
+                            }
+                        </select>
+                    </div>
+                    <div class="fld">
+                        <label>گذرواژهٔ اولیه <span class="req">*</span></label>
+                        <input name="Password" type="password" minlength="6" maxlength="100" required autocomplete="new-password" dir="ltr" />
+                        <span class="hint">دست‌کم ۶ نویسه. آن را به راننده بدهید؛ می‌تواند بعداً از پنل خودش عوضش کند.</span>
+                    </div>
+
+                    <div class="form-sec"><i class="bi bi-person-vcard"></i> گواهینامه و کارت هوشمند</div>
+                    <div class="fld">
+                        <label>شماره گواهینامه</label>
+                        <input name="LicenseNo" value="@Model.LicenseNo" maxlength="30" dir="ltr" />
+                    </div>
+                    <div class="fld">
+                        <label>انقضای گواهینامه</label>
+                        <input name="LicenseExpiresAt" data-jdate value="@Fa.DateBox(Model.LicenseExpiresAt)" placeholder="۱۴۰۵/۰۶/۲۱" />
+                    </div>
+                    <div class="fld">
+                        <label>شماره کارت هوشمند راننده</label>
+                        <input name="SmartCardNo" value="@Model.SmartCardNo" maxlength="30" dir="ltr" />
+                    </div>
+                    <div class="fld">
+                        <label>انقضای کارت هوشمند</label>
+                        <input name="SmartCardExpiresAt" data-jdate value="@Fa.DateBox(Model.SmartCardExpiresAt)" placeholder="۱۴۰۵/۰۶/۲۱" />
+                    </div>
+                    <div class="fld full">
+                        <span class="hint">شماره و تاریخ‌ها فقط برای هشدار انقضا ثبت می‌شوند؛ تصویر مدارک را در گام بعد (مدارک رانندگان) بارگذاری کنید.</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn2 pri lg"><i class="bi bi-check2-circle"></i> ثبت راننده</button>
+                    <a class="btn2 ghost lg" asp-action="Index">انصراف</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="stack">
+            <div class="card2">
+                <div class="hd"><i class="bi bi-signpost-2"></i> مراحل فعال‌شدن راننده</div>
+                <div class="bd">
+                    <ol class="small" style="margin:0;padding-inline-start:18px;line-height:2">
+                        <li><b>ثبت مشخصات</b> — همین فرم. حساب با وضعیت «در انتظار تأیید» ساخته می‌شود.</li>
+                        <li><b>بارگذاری مدارک</b> — کارت ملی، گواهینامه و کارت هوشمند؛ یا شما از «مدارک رانندگان»، یا خود راننده از اپ.</li>
+                        <li><b>تأیید مدیر بارگو</b> — مدارک بررسی و حساب تأیید می‌شود؛ نتیجه به راننده و شما اعلان می‌شود.</li>
+                        <li><b>تخصیص مأموریت</b> — از این پس راننده در فهرست تخصیص انتخاب‌پذیر است.</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="alert2 info" style="margin:0">
+                <i class="bi bi-info-circle-fill"></i>
+                <div class="grow">اگر راننده از قبل در بارگو حساب دارد (مستقل یا در شرکت دیگری)، ثبت دوباره ممکن نیست؛ از پشتیبانی بخواهید حسابش را به شرکت شما منتقل کند.</div>
+            </div>
+        </div>
+    </div>
+</form>

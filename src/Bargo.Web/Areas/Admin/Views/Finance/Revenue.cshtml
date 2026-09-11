@@ -1,0 +1,42 @@
+@model RevenueVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-graph-up-arrow"></i> گزارش درآمد</h1>
+        <p>۱۲ ماه شمسی اخیر بر پایهٔ زمان تسویهٔ سفر. کمیسیون همان مبلغِ قفل‌شده روی هر سفر است.</p>
+    </div>
+    <div class="actions"><a class="btn2 ghost" href="/Admin/Reports/Finance"><i class="bi bi-file-bar-graph"></i> گزارش مالی با بازهٔ دلخواه</a></div>
+</div>
+
+<div class="stats">
+    <div class="stat p"><div class="l"><i class="bi bi-truck"></i> حجم کرایه (۱۲ ماه)</div><div class="v">@Fa.Toman(Model.TotalFare)</div></div>
+    <div class="stat s"><div class="l"><i class="bi bi-percent"></i> کمیسیون (۱۲ ماه)</div><div class="v">@Fa.Toman(Model.TotalCommission)</div></div>
+    <div class="stat t"><div class="l"><i class="bi bi-flag"></i> سفرهای تسویه‌شده</div><div class="v">@Fa.N(Model.TotalTrips)</div></div>
+    <div class="stat w"><div class="l"><i class="bi bi-calculator"></i> میانگین نرخ کمیسیون</div><div class="v">@(Model.TotalFare == 0 ? "—" : Fa.N(Model.TotalCommission * 100.0 / Model.TotalFare, 2) + "٪")</div></div>
+</div>
+
+<div class="card2">
+    <div class="hd"><i class="bi bi-bar-chart"></i> ماه‌به‌ماه</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>ماه</th><th>سفر</th><th style="min-width:260px">حجم کرایه</th><th style="min-width:220px">کمیسیون</th><th>میانگین نرخ</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr>
+                    <td class="nowrap"><b>@r.Label</b></td>
+                    <td class="num">@Fa.N(r.Trips)</td>
+                    <td>
+                        <div class="small nowrap">@Fa.Toman(r.Fare)</div>
+                        <div style="height:8px;border-radius:6px;background:var(--line-soft)"><div style="height:8px;border-radius:6px;background:var(--primary);width:@BackofficeFormat.Bar(r.Fare, Model.MaxFare)%"></div></div>
+                    </td>
+                    <td>
+                        <div class="small nowrap">@Fa.Toman(r.Commission)</div>
+                        <div style="height:8px;border-radius:6px;background:var(--line-soft)"><div style="height:8px;border-radius:6px;background:var(--ok);width:@BackofficeFormat.Bar(r.Commission, Model.MaxCommission)%"></div></div>
+                    </td>
+                    <td class="nowrap">@(r.Fare == 0 ? "—" : Fa.N(r.AvgPercent, 2) + "٪")</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

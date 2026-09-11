@@ -1,0 +1,121 @@
+@model ProfileVm
+@{
+    var d = Model.Driver;
+    var f = Model.Form;
+    var locked = Model.IdentityLocked;
+    var provinceName = Model.Provinces.ToDictionary(p => p.ProvinceId, p => p.Name);
+    var errors = ViewData.ModelState.Where(kv => kv.Value?.Errors.Count > 0).SelectMany(kv => kv.Value!.Errors.Select(e => e.ErrorMessage)).ToList();
+}
+<div class="page-head">
+    <div><h1><i class="bi bi-person-gear"></i> حساب کاربری</h1><p>مشخصات، مدارک هویتی و حساب بانکی شما. موبایل @Fa.Digits(d.Mobile) نام کاربری شماست و تغییر نمی‌کند.</p></div>
+    <div class="actions">@Ui.AccountPill(d.Status)</div>
+</div>
+
+@if (d.Status == AccountStatus.Pending)
+{
+    <div class="alert2 warn"><i class="bi bi-hourglass-split"></i><div class="grow">حساب شما در انتظار تأیید مدیر است. برای تسریع، مشخصات را کامل کنید و <a class="lnk" href="/Driver/Vehicle/Documents?kind=national_card">مدارک هویتی</a> و <a class="lnk" href="/Driver/Vehicle">خودرو</a> را ثبت کنید.</div></div>
+}
+else if (d.Status is AccountStatus.Rejected or AccountStatus.Suspended)
+{
+    <div class="alert2 err"><i class="bi bi-x-octagon"></i><div class="grow"><b>@AccountStatus.Label(d.Status):</b> @(string.IsNullOrWhiteSpace(d.StatusReason) ? "بدون توضیح." : d.StatusReason)
+        @if (d.Status == AccountStatus.Rejected) { <span>پس از اصلاح مشخصات و ذخیره، حساب دوباره بررسی می‌شود.</span> } else { <span>برای رفع تعلیق با <a class="lnk" href="/Driver/Tickets/Create">پشتیبانی</a> در تماس باشید.</span> }
+    </div></div>
+}
+@if (errors.Count > 0)
+{
+    <div class="alert2 err"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow"><ul style="margin:0;padding-right:18px">@foreach (var e in errors) { <li>@e</li> }</ul></div></div>
+}
+
+<div class="grid-side">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-person-vcard"></i> مشخصات</div>
+        <div class="bd">
+            <form method="post" asp-action="Index">
+                <div class="form-grid">
+                    <div class="form-sec"><i class="bi bi-person"></i> هویت @if (locked) { <span class="chip"><i class="bi bi-lock"></i> تأییدشده — قفل</span> }</div>
+                    <div class="fld"><label>نام <span class="req">*</span></label><input name="FirstName" value="@f.FirstName" maxlength="60" required readonly="@locked" /></div>
+                    <div class="fld"><label>نام خانوادگی <span class="req">*</span></label><input name="LastName" value="@f.LastName" maxlength="60" required readonly="@locked" /></div>
+                    <div class="fld">
+                        <label>کد ملی <span class="req">*</span></label>
+                        <input name="NationalCode" value="@f.NationalCode" maxlength="10" inputmode="numeric" dir="ltr" required readonly="@locked" />
+                        @if (locked) { <span class="hint">پس از تأیید حساب، نام و کد ملی فقط از طریق پشتیبانی تغییر می‌کند.</span> }
+                    </div>
+                    <div class="fld"><label>تاریخ تولد</label><input name="BirthDate" data-jdate value="@Fa.DateBox(f.BirthDate)" placeholder="۱۳۷۰/۰۱/۰۱" /></div>
+
+                    <div class="form-sec"><i class="bi bi-geo-alt"></i> محل سکونت</div>
+                    <div class="fld">
+                        <label>شهر <span class="req">*</span></label>
+                        <select name="CityId" required>
+                            <option value="">انتخاب کنید</option>
+                            @foreach (var grp in Model.Cities.GroupBy(c => c.ProvinceId))
+                            {
+                                <optgroup label="@provinceName.GetValueOrDefault(grp.Key, "سایر")">
+                                    @foreach (var c in grp)
+                                    {
+                                        <option value="@c.CityId" selected="@(f.CityId == c.CityId)">@c.Name</option>
+                                    }
+                                </optgroup>
+                            }
+                        </select>
+                        <span class="hint">«بارهای نزدیک من» وقتی GPS خاموش است از همین شهر سنجیده می‌شود.</span>
+                    </div>
+                    <div class="fld"><label>نشانی</label><input name="Address" value="@f.Address" maxlength="500" /></div>
+
+                    <div class="form-sec"><i class="bi bi-person-vcard"></i> گواهینامه و کارت هوشمند</div>
+                    <div class="fld"><label>شمارهٔ گواهینامه</label><input name="LicenseNo" value="@f.LicenseNo" maxlength="30" dir="ltr" /></div>
+                    <div class="fld"><label>انقضای گواهینامه</label><input name="LicenseExpiresAt" data-jdate value="@Fa.DateBox(f.LicenseExpiresAt)" placeholder="۱۴۰۸/۰۶/۲۱" /></div>
+                    <div class="fld"><label>شمارهٔ کارت هوشمند</label><input name="SmartCardNo" value="@f.SmartCardNo" maxlength="30" dir="ltr" /></div>
+                    <div class="fld"><label>انقضای کارت هوشمند</label><input name="SmartCardExpiresAt" data-jdate value="@Fa.DateBox(f.SmartCardExpiresAt)" placeholder="۱۴۰۸/۰۶/۲۱" /></div>
+                    <div class="fld full"><span class="hint">تصویر این مدارک را در <a class="lnk" href="/Driver/Vehicle/Documents?kind=license">گواهینامه</a> و <a class="lnk" href="/Driver/Vehicle/Documents?kind=smart_card">کارت هوشمند</a> بارگذاری کنید؛ بدون تأیید مدیر، گرفتن بار ممکن نیست.</span></div>
+
+                    <div class="form-sec"><i class="bi bi-bank"></i> حساب بانکی</div>
+                    <div class="fld full">
+                        <label>شمارهٔ شبا</label>
+                        <input name="Sheba" value="@f.Sheba" maxlength="26" dir="ltr" placeholder="IR000000000000000000000000" />
+                        <span class="hint">برداشت از کیف پول فقط به این حساب واریز می‌شود. صاحب حساب باید خودتان باشید.</span>
+                    </div>
+                </div>
+                <div class="form-actions"><button class="btn2 pri"><i class="bi bi-check2"></i> ذخیرهٔ مشخصات</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div class="card2">
+            <div class="hd"><i class="bi bi-info-circle"></i> وضعیت حساب</div>
+            <div class="bd">
+                <dl class="kv">
+                    <dt>وضعیت</dt><dd>@Ui.AccountPill(d.Status)</dd>
+                    @if (d.ApprovedAt is not null) { <dt>تاریخ تأیید</dt><dd>@Fa.Date(d.ApprovedAt)</dd> }
+                    <dt>موبایل</dt><dd dir="ltr" style="text-align:right">@Fa.Digits(d.Mobile)</dd>
+                    <dt>شرکت</dt><dd>@(Model.CompanyName ?? "رانندهٔ مستقل")</dd>
+                    <dt>عضویت</dt><dd>@Fa.LongDate(d.CreatedAt)</dd>
+                    <dt>امتیاز</dt><dd>@Ui.Stars(d.RatingAvg, d.RatingCount)</dd>
+                    <dt>سفرها</dt><dd>@Fa.N(d.TripCount) سفر</dd>
+                    <dt>آماده بار</dt><dd>@(d.IsAvailable ? Ui.Pill("روشن", "ok") : Ui.Pill("خاموش", "mut")) <a class="lnk small" href="/Driver">تغییر در داشبورد</a></dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-key"></i> تغییر گذرواژه</div>
+            <div class="bd">
+                <form method="post" asp-action="Password">
+                    <div class="fld" style="margin-bottom:10px"><label>گذرواژهٔ فعلی</label><input type="password" name="current" autocomplete="current-password" dir="ltr" required /></div>
+                    <div class="fld" style="margin-bottom:10px"><label>گذرواژهٔ تازه</label><input type="password" name="next" autocomplete="new-password" dir="ltr" minlength="6" required /><span class="hint">دست‌کم ۶ نویسه</span></div>
+                    <div class="fld" style="margin-bottom:10px"><label>تکرار گذرواژهٔ تازه</label><input type="password" name="confirm" autocomplete="new-password" dir="ltr" minlength="6" required /></div>
+                    <div class="form-actions"><button class="btn2 ghost"><i class="bi bi-shield-lock"></i> تغییر گذرواژه</button></div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card2">
+            <div class="hd"><i class="bi bi-broadcast-pin"></i> کلید ارسال موقعیت</div>
+            <div class="bd">
+                <p class="small muted" style="margin:0 0 8px">اپ راننده با این کلید هر @Fa.N(Model.IntervalMin) دقیقه موقعیت شما را می‌فرستد. آن را با کسی در میان نگذارید.</p>
+                <input value="@d.TrackKey" dir="ltr" readonly onclick="this.select()" style="width:100%;padding:8px 11px;border:1px solid #cdd5de;border-radius:9px;font:inherit;font-size:12.5px" />
+                <p class="small muted" style="margin:8px 0 0">روشن/خاموش کردن ارسال موقعیت از <a class="lnk" href="/Driver/Operations/Location">اشتراک موقعیت</a>.</p>
+            </div>
+        </div>
+    </div>
+</div>
