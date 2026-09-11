@@ -1,4 +1,4 @@
-using Bargo.Web.Data;
+﻿using Bargo.Web.Data;
 using Bargo.Web.Models.Entities;
 using Bargo.Web.Models.ViewModels;
 using Bargo.Web.Services;
@@ -193,7 +193,7 @@ public class OffersController(BargoDbContext db, CurrentUser me, TripFlow flow, 
         if (d is null) return NotFound();
 
         // هویت راننده فقط وقتی آشکار است که سفرِ پرداخت‌شده‌ای با او داشته باشیم (Privacy)
-        var revealed = await db.Trips.AsNoTracking().VisibleTo(me.ToActor()).AnyAsync(t => t.DriverId == id && t.IsPaid, ct);
+        var revealed = await db.Trips.AsNoTracking().VisibleTo(me.ToActor()).AnyAsync(t => t.DriverId == id && (t.IsPaid || t.PayMethod == PayMethods.Cash), ct);
         ViewData["Title"] = revealed ? $"مشخصات راننده — {d.FullName}" : "مشخصات راننده";
 
         var vehicles = await db.Vehicles.AsNoTracking().Include(v => v.VehicleType)

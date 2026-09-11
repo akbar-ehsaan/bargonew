@@ -1,4 +1,4 @@
-@model TripDetailVm?
+﻿@model TripDetailVm?
 @{
     var t = Model?.Trip;
     var l = t?.Load;
@@ -95,7 +95,7 @@ else
                         <dt>مسیر</dt><dd>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</dd>
                         <dt>کالا</dt><dd>@l.Title · @l.CargoType · @Fa.N(l.WeightTon, 1) تن</dd>
                         <dt>فرستنده</dt><dd>@(string.IsNullOrEmpty(Model.OwnerName) ? "—" : Model.OwnerName)</dd>
-                        <dt>گیرنده</dt><dd>@(!t.IsPaid ? Privacy.HiddenName : string.IsNullOrEmpty(l.ReceiverName) ? "—" : l.ReceiverName)@(!t.IsPaid || string.IsNullOrEmpty(l.ReceiverMobile) ? "" : " · " + l.ReceiverMobile)</dd>
+                        <dt>گیرنده</dt><dd>@(!t.Revealed ? Privacy.HiddenName : string.IsNullOrEmpty(l.ReceiverName) ? "—" : l.ReceiverName)@(!t.Revealed || string.IsNullOrEmpty(l.ReceiverMobile) ? "" : " · " + l.ReceiverMobile)</dd>
                         <dt>خودرو</dt>
                         <dd>
                             @if (t.Vehicle is not null)

@@ -1,4 +1,4 @@
-using Bargo.Web.Data;
+﻿using Bargo.Web.Data;
 using Bargo.Web.Models.Entities;
 using Bargo.Web.Models.ViewModels;
 using Bargo.Web.Services;
@@ -89,7 +89,7 @@ internal static class CompanyLedger
             Status = t.Status, Fare = t.Fare, Total = t.Fare + t.LoadingFee + t.UnloadingFee + t.WaybillFee + t.Vat,
             Commission = t.Commission, CarrierShare = t.CarrierShare, DriverShare = t.DriverShare,
             IsPaid = t.IsPaid, CreatedAt = t.CreatedAt, DeliveredAt = t.DeliveredAt, SettledAt = t.SettledAt, DriverSharePaidAt = t.DriverSharePaidAt,
-            Party = !t.IsPaid ? Privacy.HiddenName
+            Party = !(t.IsPaid || t.PayMethod == PayMethods.Cash) ? Privacy.HiddenName
                 : t.Company != null ? t.Company.Name : t.Driver != null ? t.Driver.FirstName + " " + t.Driver.LastName : "—",
             DriverId = t.DriverId,
             DriverName = t.Driver != null ? t.Driver.FirstName + " " + t.Driver.LastName : null
@@ -102,7 +102,7 @@ internal static class CompanyLedger
             Commission = t.Commission, CarrierShare = t.CarrierShare, DriverShare = t.DriverShare,
             IsPaid = t.IsPaid, CreatedAt = t.CreatedAt, DeliveredAt = t.DeliveredAt, SettledAt = t.SettledAt, DriverSharePaidAt = t.DriverSharePaidAt,
             Party = t.Load.Shipper != null
-                ? (!t.IsPaid ? Privacy.HiddenName
+                ? (!(t.IsPaid || t.PayMethod == PayMethods.Cash) ? Privacy.HiddenName
                     : t.Load.Shipper.Kind == "business" && t.Load.Shipper.BusinessName != null && t.Load.Shipper.BusinessName != ""
                         ? t.Load.Shipper.BusinessName : t.Load.Shipper.FullName)
                 : "بار مشتریِ شرکت",

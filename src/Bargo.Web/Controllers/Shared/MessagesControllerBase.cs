@@ -1,4 +1,4 @@
-using Bargo.Web.Data;
+﻿using Bargo.Web.Data;
 using Bargo.Web.Filters;
 using Bargo.Web.Models.Entities;
 using Bargo.Web.Services;
@@ -29,7 +29,7 @@ public abstract class MessagesControllerBase(BargoDbContext db, CurrentUser me, 
         // نام فرستنده در گفتگوهای تأییدنشده مخفی است (Privacy): سفرِ پرداخت‌شده آشکار است
         var tripIds = mine.Where(m => m.TripId != null).Select(m => m.TripId!.Value).Distinct().ToList();
         var paidTrips = tripIds.Count == 0 ? [] :
-            await db.Trips.AsNoTracking().Where(t => tripIds.Contains(t.TripId) && t.IsPaid).Select(t => t.TripId).ToListAsync(ct);
+            await db.Trips.AsNoTracking().Where(t => tripIds.Contains(t.TripId) && (t.IsPaid || t.PayMethod == PayMethods.Cash)).Select(t => t.TripId).ToListAsync(ct);
 
         var rows = mine.GroupBy(m => m.ThreadKey).Select(g =>
         {
@@ -115,7 +115,7 @@ public abstract class MessagesControllerBase(BargoDbContext db, CurrentUser me, 
             var t = await db.Trips.AsNoTracking().VisibleTo(actor).Where(x => x.TripId == tripId)
                 .Select(x => new
                 {
-                    x.Code, x.LoadId, x.Load!.ShipperId, LoadCompanyId = x.Load.CompanyId, x.CarrierKind, x.DriverId, x.CompanyId, x.IsPaid,
+                    x.Code, x.LoadId, x.Load!.ShipperId, LoadCompanyId = x.Load.CompanyId, x.CarrierKind, x.DriverId, x.CompanyId, Revealed = x.IsPaid || x.PayMethod == PayMethods.Cash,
                     Shipper = x.Load.Shipper!.FullName, Driver = x.Driver!.FirstName + " " + x.Driver.LastName, Company = x.Company!.Name
                 }).FirstOrDefaultAsync(ct);
             if (t is null) return null;
@@ -125,7 +125,7 @@ public abstract class MessagesControllerBase(BargoDbContext db, CurrentUser me, 
             var iAmOwner = owner == (k, id);
             var other = iAmOwner ? carrier : owner;
             var otherName = iAmOwner ? (t.CarrierKind == CarrierKind.Company ? t.Company : t.Driver) : (t.Shipper ?? "صاحب بار");
-            return ($"گفتگوی سفر {t.Code}", other, otherName ?? "", t.IsPaid, tripId, t.LoadId);
+            return ($"گفتگوی سفر {t.Code}", other, otherName ?? "", t.Revealed, tripId, t.LoadId);
         }
 
         if (key.StartsWith("offer:") && int.TryParse(key[6..], out var offerId))

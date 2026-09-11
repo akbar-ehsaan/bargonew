@@ -1,4 +1,4 @@
-using Bargo.Web.Data;
+﻿using Bargo.Web.Data;
 using Bargo.Web.Models.Entities;
 using Bargo.Web.Models.ViewModels;
 using Bargo.Web.Services;
@@ -97,8 +97,8 @@ public class WaybillsController(BargoDbContext db, CurrentUser me, TripFlow flow
                 From = t.Load!.OriginCity!.Name,
                 To = t.Load!.DestCity!.Name,
                 Status = t.Status,
-                ReceiverName = t.IsPaid ? t.Load!.ReceiverName : null,
-                ReceiverMobile = t.IsPaid ? t.Load!.ReceiverMobile : null,
+                ReceiverName = (t.IsPaid || t.PayMethod == PayMethods.Cash) ? t.Load!.ReceiverName : null,
+                ReceiverMobile = (t.IsPaid || t.PayMethod == PayMethods.Cash) ? t.Load!.ReceiverMobile : null,
                 DeliveredAt = t.DeliveredAt,
                 WaybillNo = t.Waybill!.Number
             });

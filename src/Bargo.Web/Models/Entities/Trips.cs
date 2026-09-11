@@ -107,6 +107,14 @@ public class Trip
     public long TotalPayable => Fare + LoadingFee + UnloadingFee + WaybillFee + Vat;
     /// <summary>کرایه از صاحب بار دریافت شده (کیف پول/درگاه) و نزد بارگو امانت است.</summary>
     public bool IsPaid { get; set; }
+    /// <summary>wallet | cash — از بار کپی می‌شود؛ در نقدی فقط کمیسیون از حمل‌کننده کسر می‌شود.</summary>
+    [MaxLength(10)] public string PayMethod { get; set; } = PayMethods.Wallet;
+    /// <summary>
+    /// هویت طرفین آشکار است؟ در پرداخت آنلاین با پرداخت کرایه، و در نقدی همان لحظهٔ
+    /// ساخت سفر (پرداختی در کار نیست که منتظرش بمانیم).
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool Revealed => IsPaid || PayMethod == PayMethods.Cash;
     /// <summary>شرکت سهم راننده را از کیف پول خودش به کیف پول راننده منتقل کرد.</summary>
     public DateTime? DriverSharePaidAt { get; set; }
 

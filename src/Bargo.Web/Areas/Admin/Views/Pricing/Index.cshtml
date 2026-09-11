@@ -18,11 +18,16 @@
             <div class="hd"><i class="bi bi-sliders"></i> نرخ‌ها</div>
             <div class="bd">
                 <form method="post" asp-action="Save" data-confirm="نرخ‌های تازه برای سفرهای بعدی ذخیره شود؟">
-                    <div class="form-grid cols3">
+                    <div class="form-grid cols2">
                         <div class="fld">
-                            <label>درصد کمیسیون بارگو <span class="req">*</span></label>
-                            <input name="commissionPercent" value="@BackofficeLookup.Invariant(Model.CommissionPercent)" inputmode="decimal" dir="ltr" required />
-                            <span class="hint">بین ۰ و ۵۰ — مثلاً ۸ یا ۷.۵</span>
+                            <label>کمیسیون رانندهٔ مستقل ↔ بارگو (٪) <span class="req">*</span></label>
+                            <input name="driverPercent" value="@BackofficeLookup.Invariant(Model.DriverPercent)" inputmode="decimal" dir="ltr" required />
+                            <span class="hint">الگوی راهداری: ۱۰٪ بیرون از پایانه — بین ۰ و ۵۰</span>
+                        </div>
+                        <div class="fld">
+                            <label>کمیسیون شرکت حمل‌ونقل ↔ بارگو (٪) <span class="req">*</span></label>
+                            <input name="companyPercent" value="@BackofficeLookup.Invariant(Model.CompanyPercent)" inputmode="decimal" dir="ltr" required />
+                            <span class="hint">الگوی راهداری: ۸٪ در پایانه — بین ۰ و ۵۰</span>
                         </div>
                         <div class="fld">
                             <label>حداقل کمیسیون هر سفر (تومان) <span class="req">*</span></label>
@@ -70,8 +75,9 @@
         <div class="hd"><i class="bi bi-calculator"></i> نمونهٔ محاسبه با نرخ فعلی</div>
         <div class="bd">
             <div class="kvrow"><span>کرایهٔ توافقی</span><b>@Fa.Toman(Model.SampleFare)</b></div>
-            <div class="kvrow"><span>کمیسیون بارگو (@Fa.N(Model.CommissionPercent, 2)٪، حداقل @Fa.Toman(Model.CommissionMinRial))</span><b>@Fa.Toman(Model.SampleCommission)</b></div>
-            <div class="kvrow"><span>سهم حمل‌کننده</span><b>@Fa.Toman(Model.SampleFare - Model.SampleCommission)</b></div>
+            <div class="kvrow"><span>کمیسیون رانندهٔ مستقل (@Fa.N(Model.DriverPercent, 2)٪، حداقل @Fa.Toman(Model.CommissionMinRial))</span><b>@Fa.Toman(Model.SampleCommissionDriver)</b></div>
+            <div class="kvrow"><span>کمیسیون شرکت حمل‌ونقل (@Fa.N(Model.CompanyPercent, 2)٪)</span><b>@Fa.Toman(Model.SampleCommissionCompany)</b></div>
+            <div class="kvrow"><span>سهم رانندهٔ مستقل</span><b>@Fa.Toman(Model.SampleFare - Model.SampleCommissionDriver)</b></div>
             <div class="kvrow"><span>مالیات روی فاکتور کمیسیون</span><b>@Fa.Toman(Model.SampleTax)</b></div>
             <p class="muted small" style="margin:10px 0 0">در سفر شرکتی، سهم راننده از «سهم حمل‌کننده» و با درصدِ تعیین‌شده در پروفایل همان شرکت محاسبه می‌شود.</p>
         </div>

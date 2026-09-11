@@ -306,8 +306,12 @@ public class AccountController(
                 if (string.IsNullOrWhiteSpace(vm.FirstName) || string.IsNullOrWhiteSpace(vm.LastName))
                     ModelState.AddModelError(nameof(vm.FirstName), "نام و نام خانوادگی را وارد کنید.");
                 if (!IranId.IsNationalCode(vm.NationalCode)) ModelState.AddModelError(nameof(vm.NationalCode), "کد ملی معتبر نیست.");
+                else if (await db.Drivers.AnyAsync(x => x.NationalCode == Fa.Latin(vm.NationalCode), ct))
+                    ModelState.AddModelError(nameof(vm.NationalCode), "با این کد ملی قبلاً حساب راننده ساخته شده است.");
                 if (string.IsNullOrWhiteSpace(vm.LicenseNo)) ModelState.AddModelError(nameof(vm.LicenseNo), "شمارهٔ گواهینامه را وارد کنید.");
+                else if (Fa.Latin(vm.LicenseNo).Length > 30) ModelState.AddModelError(nameof(vm.LicenseNo), "شمارهٔ گواهینامه حداکثر ۳۰ نویسه باشد.");
                 if (string.IsNullOrWhiteSpace(vm.SmartCardNo)) ModelState.AddModelError(nameof(vm.SmartCardNo), "شمارهٔ کارت هوشمند را وارد کنید.");
+                else if (Fa.Latin(vm.SmartCardNo).Length > 30) ModelState.AddModelError(nameof(vm.SmartCardNo), "شمارهٔ کارت هوشمند حداکثر ۳۰ نویسه باشد.");
                 if (vm.VehicleTypeId is null || string.IsNullOrWhiteSpace(vm.PlateNo))
                     ModelState.AddModelError(nameof(vm.PlateNo), "نوع خودرو و پلاک را وارد کنید.");
                 if (mobile.Length > 0 && await db.Drivers.AnyAsync(x => x.Mobile == mobile, ct))
@@ -325,6 +329,8 @@ public class AccountController(
                 if (!IranId.IsCompanyNationalId(vm.NationalId)) ModelState.AddModelError(nameof(vm.NationalId), "شناسهٔ ملی شرکت معتبر نیست.");
                 if (string.IsNullOrWhiteSpace(vm.ManagerName)) ModelState.AddModelError(nameof(vm.ManagerName), "نام مدیرعامل را وارد کنید.");
                 if (!string.IsNullOrWhiteSpace(vm.Sheba) && !IranId.IsSheba(vm.Sheba)) ModelState.AddModelError(nameof(vm.Sheba), "شمارهٔ شبا معتبر نیست.");
+                if (Fa.Latin(vm.RegistrationNo).Length > 30) ModelState.AddModelError(nameof(vm.RegistrationNo), "شمارهٔ ثبت حداکثر ۳۰ رقم باشد.");
+                if ((vm.LicenseNoCompany?.Trim().Length ?? 0) > 40) ModelState.AddModelError(nameof(vm.LicenseNoCompany), "شمارهٔ مجوز حداکثر ۴۰ نویسه باشد.");
                 if (mobile.Length > 0 && await db.CompanyUsers.AnyAsync(x => x.Mobile == mobile, ct))
                     ModelState.AddModelError(nameof(vm.Mobile), "این شماره قبلاً کاربر یک شرکت است.");
                 var nid = Fa.Latin(vm.NationalId);

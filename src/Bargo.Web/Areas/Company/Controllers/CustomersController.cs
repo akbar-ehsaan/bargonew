@@ -1,4 +1,4 @@
-using Bargo.Web.Data;
+﻿using Bargo.Web.Data;
 using Bargo.Web.Filters;
 using Bargo.Web.Models.Entities;
 using Bargo.Web.Models.ViewModels;
@@ -41,7 +41,7 @@ public class CustomersController(BargoDbContext db, CurrentUser me, DocumentStor
         {
             ViewData["Title"] = "صاحبان بار";
             // فقط صاحبان باری که دست‌کم یک سفر پرداخت‌شده با شرکت دارند — هویت پیش از پرداخت مخفی است (Privacy)
-            var trips = db.Trips.AsNoTracking().Where(t => t.CompanyId == cid && t.IsPaid && t.Load!.ShipperId != null);
+            var trips = db.Trips.AsNoTracking().Where(t => t.CompanyId == cid && (t.IsPaid || t.PayMethod == PayMethods.Cash) && t.Load!.ShipperId != null);
             if (q is not null)
                 trips = trips.Where(t => t.Load!.Shipper!.FullName.Contains(q)
                                          || (t.Load.Shipper.BusinessName != null && t.Load.Shipper.BusinessName.Contains(q))

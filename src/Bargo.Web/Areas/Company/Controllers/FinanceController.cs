@@ -1,4 +1,4 @@
-using Bargo.Web.Data;
+﻿using Bargo.Web.Data;
 using Bargo.Web.Filters;
 using Bargo.Web.Models.Entities;
 using Bargo.Web.Models.ViewModels;
@@ -75,6 +75,9 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
                           ?? throw new UserError("شرکت پیدا نشد.");
             if (string.IsNullOrWhiteSpace(company.Sheba))
                 throw new UserError("برای شرکت شمارهٔ شبا ثبت نشده است. ابتدا از «حساب شرکت ← اطلاعات بانکی» شبا را ثبت کنید.");
+            // درخواست برداشت با شبای خراب نباید تا صف واریز مدیر برسد — همان قاعدهٔ پنل راننده
+            if (!IranId.IsSheba(company.Sheba))
+                throw new UserError("شبای ثبت‌شدهٔ شرکت معتبر نیست؛ آن را از «حساب شرکت ← اطلاعات بانکی» اصلاح کنید.");
 
             var balance = await wallet.BalanceAsync(OwnerKind.Company, cid, ct);
             var reserved = await CompanyLedger.ReservedForPayoutAsync(db, cid, ct);
@@ -87,7 +90,7 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
             var pr = new PayoutRequest
             {
                 OwnerKind = OwnerKind.Company, OwnerId = cid, OwnerName = company.Name,
-                Amount = amount.Value, Sheba = company.Sheba, Status = PayoutStatus.Pending
+                Amount = amount.Value, Sheba = IranId.NormSheba(company.Sheba), Status = PayoutStatus.Pending
             };
             db.PayoutRequests.Add(pr);
             await db.SaveChangesAsync(ct);
@@ -232,7 +235,7 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
 
         // سفرهای بازار: کرایه هنوز از صاحب بار گرفته نشده. بارِ خودِ شرکت با ناوگان خودش
         // IsPaid=true ساخته می‌شود، پس خودبه‌خود اینجا نیست و در بخش دوم می‌آید.
-        var unpaid = db.Trips.AsNoTracking().Where(t => t.CompanyId == cid && !t.IsPaid && t.Status != TripStatus.Cancelled);
+        var unpaid = db.Trips.AsNoTracking().Where(t => t.CompanyId == cid && !t.IsPaid && t.PayMethod != PayMethods.Cash && t.Status != TripStatus.Cancelled);
         var offline = db.Trips.AsNoTracking()
             .Where(t => t.CompanyId == cid && t.Load!.CompanyId == cid && (t.Status == TripStatus.Delivered || t.Status == TripStatus.Settled));
 
@@ -252,7 +255,7 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
         var cid = me.CompanyId;
         var shares = UnpaidShares(cid);
         var fares = db.Trips.AsNoTracking()
-            .Where(t => t.Load!.CompanyId == cid && (t.CompanyId == null || t.CompanyId != cid) && !t.IsPaid && t.Status != TripStatus.Cancelled);
+            .Where(t => t.Load!.CompanyId == cid && (t.CompanyId == null || t.CompanyId != cid) && !t.IsPaid && t.PayMethod != PayMethods.Cash && t.Status != TripStatus.Cancelled);
 
         return View(new CompanyPayablesVm
         {
@@ -378,7 +381,7 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
         var monthStart = Fa.MonthStartUtc;
 
         var all = db.Trips.AsNoTracking().Where(t => t.Load!.CompanyId == cid && (t.CompanyId == null || t.CompanyId != cid));
-        var unpaid = all.Where(t => !t.IsPaid && t.Status != TripStatus.Cancelled);
+        var unpaid = all.Where(t => !t.IsPaid && t.PayMethod != PayMethods.Cash && t.Status != TripStatus.Cancelled);
         var list = tab switch
         {
             "paid" => all.Where(t => t.IsPaid).OrderByDescending(t => t.TripId),

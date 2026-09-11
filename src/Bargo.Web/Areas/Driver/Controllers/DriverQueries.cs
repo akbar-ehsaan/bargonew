@@ -1,4 +1,4 @@
-using Bargo.Web.Data;
+﻿using Bargo.Web.Data;
 using Bargo.Web.Models.Entities;
 using Bargo.Web.Models.ViewModels;
 using Bargo.Web.Services;
@@ -154,7 +154,7 @@ internal static class DriverQueries
         vm.Line = pts.Select(p => new[] { Math.Round(p.Lat, 5), Math.Round(p.Lng, 5) }).ToList();
 
         // هویت صاحب بار تا پرداخت کرایه از حمل‌کننده مخفی است (Privacy)
-        var revealed = trip.IsPaid;
+        var revealed = trip.Revealed;
         if (l.Shipper is not null)
         {
             vm.OwnerName = Privacy.Name(l.Shipper.DisplayName, revealed);

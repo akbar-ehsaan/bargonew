@@ -1,4 +1,4 @@
-@model TripDetailVm
+﻿@model TripDetailVm
 @{
     var t = Model.Trip;
     var l = t.Load!;
@@ -10,7 +10,7 @@
     if (t.LastLat is double tla && t.LastLng is double tlg && TripStatus.Live.Contains(t.Status))
         markers.Add(new { lat = tla, lng = tlg, kind = "truck", label = "آخرین موقعیت شما · " + Fa.Ago(t.LastPointAt ?? DateTime.UtcNow) });
     // تماس‌ها و نام گیرنده تا پرداخت کرایه توسط صاحب بار مخفی‌اند (Privacy)
-    var showContacts = t.Status != TripStatus.Cancelled && t.IsPaid;
+    var showContacts = t.Status != TripStatus.Cancelled && t.Revealed;
     var docKinds = new[] { TripDocumentKind.LoadingReceipt, TripDocumentKind.DeliveryReceipt, TripDocumentKind.Photo };
     ViewData["back"] = null;
 }

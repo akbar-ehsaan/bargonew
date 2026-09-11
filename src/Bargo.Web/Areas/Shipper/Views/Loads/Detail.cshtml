@@ -1,4 +1,4 @@
-@model ShipperLoadDetailVm
+﻿@model ShipperLoadDetailVm
 @{
     var l = Model.Load;
     var trip = Model.Trip;
@@ -87,11 +87,11 @@ else if (l.Status == LoadStatus.Expired)
                     <partial name="_TripSteps" model="trip" />
                     <div class="grid2" style="margin-top:14px">
                         <div>
-                            <div class="kvrow"><span>حمل‌کننده</span><b>@CarrierKind.Label(trip.CarrierKind)@(trip.IsPaid && trip.Company is not null ? " — " + trip.Company.Name : "")</b></div>
+                            <div class="kvrow"><span>حمل‌کننده</span><b>@CarrierKind.Label(trip.CarrierKind)@(trip.Revealed && trip.Company is not null ? " — " + trip.Company.Name : "")</b></div>
                             <div class="kvrow">
                                 <span>راننده</span>
                                 <b>
-                                    @if (!trip.IsPaid)
+                                    @if (!trip.Revealed)
                                     {
                                         <span class="muted">@Privacy.HiddenName</span>
                                     }
@@ -109,7 +109,7 @@ else if (l.Status == LoadStatus.Expired)
                             <div class="kvrow">
                                 <span>خودرو</span>
                                 <b>
-                                    @if (trip.IsPaid && trip.Vehicle is not null)
+                                    @if (trip.Revealed && trip.Vehicle is not null)
                                     {
                                         <partial name="_Plate" model="trip.Vehicle.PlateNo" /> <span class="muted small">@trip.Vehicle.VehicleType?.Name</span>
                                     }
@@ -130,7 +130,7 @@ else if (l.Status == LoadStatus.Expired)
                             <div class="kvrow"><span>@(trip.EtaAt is null ? "حرکت برنامه‌ریزی‌شده" : "رسیدن تقریبی")</span><b>@Fa.Stamp(trip.EtaAt ?? trip.ScheduledDepartureAt ?? l.LoadingFrom)</b></div>
                         </div>
                     </div>
-                    @if (!trip.IsPaid && trip.Status != TripStatus.Cancelled)
+                    @if (!trip.IsPaid && trip.PayMethod != PayMethods.Cash && trip.Status != TripStatus.Cancelled)
                     {
                         <div class="alert2 warn" style="margin-top:12px"><i class="bi bi-credit-card"></i><div class="grow">کرایهٔ این سفر هنوز پرداخت نشده است؛ حمل پس از پرداخت قطعی می‌شود.</div><a class="btn2 grn sm" href="/Shipper/Finance/Pay">پرداخت کرایه</a></div>
                     }

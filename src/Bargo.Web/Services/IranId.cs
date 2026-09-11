@@ -46,4 +46,51 @@ public static class IranId
         var s = Fa.Latin(input).Replace(" ", "").ToUpperInvariant();
         return s.StartsWith("IR") ? s : "IR" + s;
     }
+
+    /// <summary>
+    /// موبایل ایرانی معتبر؟ قاعدهٔ نرمال‌سازی (۰۹xxxxxxxxx، پذیرش +98 و ارقام فارسی)
+    /// یک‌جا در <see cref="Fa.NormMobile"/> است؛ این‌جا فقط به آن تکیه می‌شود تا دو تعریف نسازیم.
+    /// </summary>
+    public static bool IsMobile(string? input) => Fa.NormMobile(input).Length == 11;
+
+    /// <summary>
+    /// تلفن ثابت: ارقام لاتین، بدون فاصله و جداکنندهٔ هزارگان؛ خط تیره و + می‌مانند
+    /// (مثل ۰۲۱-۸۸۰۰۰۰۰۰). همان چیزی که در پایگاه‌داده ذخیره می‌شود.
+    /// </summary>
+    public static string NormPhone(string? input) => Fa.Latin(input).Replace(" ", "");
+
+    /// <summary>
+    /// تلفن ثابت با کد شهر: ۸ تا ۲۰ نویسه، فقط رقم و «-» و «+». برای تلفن ثابت
+    /// رقم کنترل رسمی وجود ندارد؛ همین قاعدهٔ ساختاری در کل پروژه ملاک است.
+    /// </summary>
+    public static bool IsPhone(string? input)
+    {
+        var s = NormPhone(input);
+        return s.Length is >= 8 and <= 20 && s.All(ch => char.IsAsciiDigit(ch) || ch is '-' or '+');
+    }
+
+    /// <summary>
+    /// کد پستی ۱۰ رقمی ایران — قاعدهٔ رسمی شرکت پست: با صفر شروع نمی‌شود، رقم «۲»
+    /// در آن به‌کار نمی‌رود، رقم پنجم «۰» یا «۵» نیست و چهار رقم اول یکسان نیستند.
+    /// (کد پستی رقم کنترل ندارد؛ فقط همین قواعد ساختاری قابل بررسی‌اند.)
+    /// </summary>
+    public static bool IsPostalCode(string? input)
+    {
+        var s = Fa.Latin(input).Replace("-", "").Replace(" ", "");
+        if (s.Length != 10 || !s.All(char.IsAsciiDigit)) return false;
+        if (s[0] == '0' || s.Contains('2')) return false;
+        if (s[4] is '0' or '5') return false;
+        return s[..4].Distinct().Count() > 1;
+    }
+
+    /// <summary>
+    /// کد اقتصادی: ۱۰ تا ۱۴ رقم. سازمان مالیاتی الگوریتم رقم کنترل را منتشر نکرده و
+    /// کدهای قدیمی (۱۲ رقمی با پیشوند ۴) و جدید (شناسهٔ ملی + پسوند) هر دو رایج‌اند؛
+    /// پس فقط طول و رقم‌بودن بررسی می‌شود — همان قاعده‌ای که در فرم‌ها اعمال شده است.
+    /// </summary>
+    public static bool IsEconomicCode(string? input)
+    {
+        var s = Fa.Latin(input);
+        return s.Length is >= 10 and <= 14 && s.All(char.IsAsciiDigit);
+    }
 }

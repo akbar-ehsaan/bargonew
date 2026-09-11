@@ -111,9 +111,15 @@ try {
     $r = Post $shipper "/Shipper/Offers/Accept" @{ id = $offerId } "/Shipper/Offers/Compare/$loadId"
     $tripId = Q "SELECT TOP 1 TripId FROM Trips WHERE LoadId=$loadId"
     Check "trip created from offer" (($tripId -ne "") -and ((Q "SELECT Status FROM Trips WHERE TripId=$tripId") -eq "accepted")) "trip=$tripId load=$(Q "SELECT Status FROM Loads WHERE LoadId=$loadId")"
-    Check "commission locked on trip" ((Q "SELECT Commission FROM Trips WHERE TripId=$tripId") -eq "30400000") "fare=$(Q "SELECT Fare FROM Trips WHERE TripId=$tripId") commission=$(Q "SELECT Commission FROM Trips WHERE TripId=$tripId")"
+    # کمیسیون رانندهٔ مستقل ۱۰٪ است (نرخ تفکیکی راننده/شرکت — الگوی راهداری)
+    Check "commission locked on trip (driver 10%)" ((Q "SELECT Commission FROM Trips WHERE TripId=$tripId") -eq "38000000") "fare=$(Q "SELECT Fare FROM Trips WHERE TripId=$tripId") commission=$(Q "SELECT Commission FROM Trips WHERE TripId=$tripId")"
 
     Write-Host "== ۴. پرداخت کرایه از کیف پول (صاحب بار)"
+    # اجراهای قبلی کیف پول دمو را خالی می‌کنند — کسری با شارژ آزمایشی (Gateway=demo) جبران می‌شود
+    $bal = [long](Q "SELECT WalletBalance FROM Shippers WHERE Mobile='09121111111'")
+    if ($bal -lt 380000000) {
+        Post $shipper "/Pay/Charge" @{ amountToman = "100,000,000"; returnUrl = "/Shipper/Finance" } "/Shipper/Finance" | Out-Null
+    }
     $balBefore = [long](Q "SELECT WalletBalance FROM Shippers WHERE Mobile='09121111111'")
     $r = Post $shipper "/Shipper/Finance/Pay" @{ tripId = $tripId; returnUrl = "/Shipper" } "/Shipper/Finance/Pay"
     $balAfter = [long](Q "SELECT WalletBalance FROM Shippers WHERE Mobile='09121111111'")
@@ -140,8 +146,8 @@ try {
     Check "delivered with code and auto-settled" ($st -eq "settled") "status=$st load=$(Q "SELECT Status FROM Loads WHERE LoadId=$loadId")"
 
     Write-Host "== ۷. تسویه"
-    Check "driver credited carrier share" ((Q "SELECT SUM(Amount) FROM WalletTransactions WHERE TripId=$tripId AND OwnerKind='driver' AND Kind='fare_income'") -eq "349600000")
-    Check "platform credited commission" ((Q "SELECT SUM(Amount) FROM WalletTransactions WHERE TripId=$tripId AND OwnerKind='platform' AND Kind='commission'") -eq "30400000")
+    Check "driver credited carrier share" ((Q "SELECT SUM(Amount) FROM WalletTransactions WHERE TripId=$tripId AND OwnerKind='driver' AND Kind='fare_income'") -eq "342000000")
+    Check "platform credited commission" ((Q "SELECT SUM(Amount) FROM WalletTransactions WHERE TripId=$tripId AND OwnerKind='platform' AND Kind='commission'") -eq "38000000")
     Check "two invoices issued" ((Q "SELECT COUNT(*) FROM Invoices WHERE TripId=$tripId") -eq "2")
     Check "event trail recorded" ([int](Q "SELECT COUNT(*) FROM TripEvents WHERE TripId=$tripId") -ge 10) "events=$(Q "SELECT COUNT(*) FROM TripEvents WHERE TripId=$tripId")"
 

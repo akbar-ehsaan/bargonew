@@ -1,4 +1,4 @@
-@model OperationsVm
+﻿@model OperationsVm
 @{
     var vm = Model.Detail;
     var t = vm?.Trip;
@@ -123,7 +123,7 @@ else
                     {
                         <a class="btn2 ghost block" style="margin-top:8px" href="tel:@vm.OwnerMobile"><i class="bi bi-telephone-outbound"></i> تماس با صاحب بار <span class="num">@vm.OwnerMobile</span></a>
                     }
-                    @if (!t.IsPaid)
+                    @if (!t.Revealed)
                     {
                         <p class="muted small" style="margin:8px 0 0">@Privacy.HiddenNote</p>
                     }

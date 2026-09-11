@@ -327,15 +327,31 @@ public class TripFlow(
         if (offer.Driver is { } drv && drv.Status != AccountStatus.Approved)
             throw new UserError("حساب این راننده در حال حاضر فعال نیست.");
 
-        var pct = await settings.GetDecimalAsync(SettingsService.Keys.CommissionPercent, ct);
+        // نرخ کمیسیون به نوع حمل‌کننده بسته است — مثل نرخ مصوب راهداری (راننده/شرکت جدا)
+        var pct = await settings.GetDecimalAsync(offer.CarrierKind == CarrierKind.Company
+            ? SettingsService.Keys.CommissionPercentCompany
+            : SettingsService.Keys.CommissionPercentDriver, ct);
         var min = await settings.GetLongAsync(SettingsService.Keys.CommissionMinRial, ct);
         var commission = Math.Min(offer.Amount, Math.Max(min, (long)Math.Round(offer.Amount * pct / 100m)));
 
-        var loadingFee = await settings.GetLongAsync(SettingsService.Keys.LoadingFeeRial, ct);
-        var unloadingFee = await settings.GetLongAsync(SettingsService.Keys.UnloadingFeeRial, ct);
-        var waybillFee = await settings.GetLongAsync(SettingsService.Keys.WaybillFeeRial, ct);
-        var vatPct = await settings.GetBoolAsync(SettingsService.Keys.VatEnabled, ct)
+        // در پرداخت نقدی پولی از بارگو نمی‌گذرد؛ هزینه‌های جانبی و مالیات هم نقدی
+        // رد و بدل می‌شوند و فقط کمیسیون از کیف پول حمل‌کننده کسر خواهد شد
+        var cash = load.PayMethod == PayMethods.Cash;
+        var loadingFee = cash ? 0 : await settings.GetLongAsync(SettingsService.Keys.LoadingFeeRial, ct);
+        var unloadingFee = cash ? 0 : await settings.GetLongAsync(SettingsService.Keys.UnloadingFeeRial, ct);
+        var waybillFee = cash ? 0 : await settings.GetLongAsync(SettingsService.Keys.WaybillFeeRial, ct);
+        var vatPct = !cash && await settings.GetBoolAsync(SettingsService.Keys.VatEnabled, ct)
             ? await settings.GetDecimalAsync(SettingsService.Keys.VatPercent, ct) : 0m;
+
+        // بار نقدی: حمل‌کننده باید کمیسیون را در کیف پول داشته باشد — وگرنه تسویه گیر می‌کند
+        if (cash)
+        {
+            var (ck, cid2) = offer.CarrierKind == CarrierKind.Company
+                ? (OwnerKind.Company, offer.CompanyId!.Value)
+                : (OwnerKind.Driver, offer.DriverId!.Value);
+            if (await wallet.BalanceAsync(ck, cid2, ct) < commission)
+                throw new UserError($"برای بار نقدی، کیف پول حمل‌کننده باید دست‌کم به اندازهٔ کمیسیون ({Fa.Toman(commission)}) موجودی داشته باشد.");
+        }
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
@@ -349,6 +365,7 @@ public class TripFlow(
             DriverId = offer.DriverId,
             VehicleId = offer.VehicleId,
             Fare = offer.Amount,
+            PayMethod = load.PayMethod,
             CommissionPercent = pct,
             Commission = commission,
             CarrierShare = offer.Amount - commission,
@@ -548,9 +565,19 @@ public class TripFlow(
 
         await db.SaveChangesAsync(ct);
 
-        // تحویل شد و کرایه از قبل پرداخت شده → تسویهٔ خودکار
-        if (to == TripStatus.Delivered && trip.IsPaid)
-            await SettleAsync(trip, Actor.System, ct);
+        // تحویل شد و کرایه از قبل پرداخت شده (یا نقدی است) → تسویهٔ خودکار
+        if (to == TripStatus.Delivered && (trip.IsPaid || trip.PayMethod == PayMethods.Cash))
+        {
+            try { await SettleAsync(trip, Actor.System, ct); }
+            catch (UserError e) when (trip.PayMethod == PayMethods.Cash)
+            {
+                // کیف پول حمل‌کننده برای کمیسیون کافی نبود — سفر تحویل‌شده می‌ماند و به صف مدیر می‌رود
+                trip.IsProblem = true;
+                trip.ProblemNote = $"تسویهٔ نقدی ناموفق: {e.Message}";
+                notify.ToCarrier(trip, $"کمیسیون سفر {trip.Code} کسر نشد", "کیف پول را شارژ کنید تا سفر تسویه شود.", "finance");
+                await db.SaveChangesAsync(ct);
+            }
+        }
     }
 
     // ------------------------------------------------------------------
@@ -667,6 +694,7 @@ public class TripFlow(
     {
         var load = trip.Load ?? await db.Loads.FirstAsync(l => l.LoadId == trip.LoadId, ct);
         if (!OwnsLoad(load, actor)) throw new UserError("این سفر متعلق به شما نیست.");
+        if (trip.PayMethod == PayMethods.Cash) throw new UserError("کرایهٔ این سفر نقدی است و در مقصد به حمل‌کننده پرداخت می‌شود.");
         if (trip.IsPaid) throw new UserError("کرایهٔ این سفر قبلاً پرداخت شده است.");
         if (trip.Status == TripStatus.Cancelled) throw new UserError("سفر لغو شده است.");
 
@@ -696,7 +724,8 @@ public class TripFlow(
     public async Task SettleAsync(Trip trip, Actor actor, CancellationToken ct = default)
     {
         if (trip.Status != TripStatus.Delivered) throw new UserError("فقط سفرِ تحویل‌شده تسویه می‌شود.");
-        if (!trip.IsPaid) throw new UserError("کرایهٔ این سفر هنوز از صاحب بار دریافت نشده است.");
+        var cash = trip.PayMethod == PayMethods.Cash;
+        if (!trip.IsPaid && !cash) throw new UserError("کرایهٔ این سفر هنوز از صاحب بار دریافت نشده است.");
 
         var load = trip.Load ?? await db.Loads.FirstAsync(l => l.LoadId == trip.LoadId, ct);
         var (carrierKind, carrierId) = trip.CarrierKind == CarrierKind.Company
@@ -708,7 +737,15 @@ public class TripFlow(
 
         // بارِ مشتریِ خودِ شرکت که با ناوگان خودش حمل شده: پولی نزد بارگو نیست
         var selfCarried = load.CompanyId is not null && load.CompanyId == trip.CompanyId;
-        if (!selfCarried)
+        if (!selfCarried && cash)
+        {
+            // نقدی — الگوی کمیسیون باربری: کرایه دستِ حمل‌کننده است و فقط کمیسیون
+            // از کیف پولش کسر می‌شود (اگر موجودی نباشد WalletService رد می‌کند)
+            await wallet.PostAsync(carrierKind, carrierId, -trip.Commission, WalletTxnKind.Commission, trip.TripId, $"کمیسیون سفر نقدی {trip.Code}", ct);
+            await wallet.PostAsync(OwnerKind.Platform, 0, trip.Commission, WalletTxnKind.Commission, trip.TripId, $"کمیسیون سفر {trip.Code}", ct);
+            db.Invoices.Add(NewInvoice("C", trip, carrierKind, carrierId, "commission", trip.Commission, trip.VatPercent));
+        }
+        else if (!selfCarried)
         {
             await wallet.PostAsync(carrierKind, carrierId, trip.CarrierShare, WalletTxnKind.FareIncome, trip.TripId, $"سهم کرایهٔ سفر {trip.Code}", ct);
             await wallet.PostAsync(OwnerKind.Platform, 0, trip.Commission, WalletTxnKind.Commission, trip.TripId, $"کمیسیون سفر {trip.Code}", ct);

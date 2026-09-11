@@ -1,4 +1,4 @@
-@model ShipperOrderVm
+﻿@model ShipperOrderVm
 @{
     var t = Model.Trip;
     var ld = t.Load!;
@@ -6,7 +6,7 @@
     var isLive = TripStatus.Live.Contains(t.Status);
     var isDone = TripStatus.Done.Contains(t.Status);
     var isCancelled = t.Status == TripStatus.Cancelled;
-    var canPay = !t.IsPaid && !isCancelled;
+    var canPay = !t.IsPaid && !isCancelled && t.PayMethod != PayMethods.Cash;
     var shortfall = Math.Max(0L, t.TotalPayable - Model.WalletBalance);
     var here = Url.Action("Detail", new { id = t.TripId }) ?? "";
     var backTab = isDone ? "done" : isCancelled ? "cancelled" : "current";
@@ -200,7 +200,11 @@
                 }
                 <div class="kvrow">
                     <span>وضعیت پرداخت</span>
-                    @if (t.IsPaid)
+                    @if (t.PayMethod == PayMethods.Cash)
+                    {
+                        @Ui.Pill("نقدی به حمل‌کننده در مقصد", "inf")
+                    }
+                    else if (t.IsPaid)
                     {
                         @Ui.Pill(t.Status == TripStatus.Settled ? "پرداخت و تسویه‌شده" : "پرداخت‌شده · امانت نزد بارگو", "ok")
                     }
@@ -278,7 +282,7 @@
             <div class="hd"><i class="bi bi-person-badge"></i> حمل‌کننده</div>
             <div class="bd">
                 <div class="kvrow"><span>نوع</span><b>@CarrierKind.Label(t.CarrierKind)</b></div>
-                @if (!t.IsPaid)
+                @if (!t.Revealed)
                 {
                     <div class="alert2 info"><i class="bi bi-incognito"></i>
                         <div class="grow">@Privacy.HiddenNote</div>

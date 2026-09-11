@@ -1,4 +1,4 @@
-using Bargo.Web.Data;
+﻿using Bargo.Web.Data;
 using Bargo.Web.Models.Entities;
 using Bargo.Web.Models.ViewModels;
 using Bargo.Web.Services;
@@ -24,7 +24,7 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
     {
         ViewData["Title"] = "کیف پول";
         var actor = me.ToActor();
-        var unpaid = db.Trips.AsNoTracking().VisibleTo(actor).Where(t => !t.IsPaid && t.Status != TripStatus.Cancelled);
+        var unpaid = db.Trips.AsNoTracking().VisibleTo(actor).Where(t => !t.IsPaid && t.PayMethod != PayMethods.Cash && t.Status != TripStatus.Cancelled);
         var monthStart = Fa.MonthStartUtc;
 
         var vm = new ShipperFinanceVm
@@ -119,7 +119,7 @@ public class FinanceController(BargoDbContext db, CurrentUser me, WalletService 
     {
         Balance = await wallet.BalanceAsync(OwnerKind.Shipper, me.Id, ct),
         Unpaid = await db.Trips.AsNoTracking().VisibleTo(me.ToActor())
-            .Where(t => !t.IsPaid && t.Status != TripStatus.Cancelled)
+            .Where(t => !t.IsPaid && t.PayMethod != PayMethods.Cash && t.Status != TripStatus.Cancelled)
             .OrderBy(t => t.ScheduledDepartureAt ?? t.CreatedAt)
             .Select(ShipperTripRow.FromTrip).ToListAsync(ct),
         PendingPayments = await db.Payments.AsNoTracking()

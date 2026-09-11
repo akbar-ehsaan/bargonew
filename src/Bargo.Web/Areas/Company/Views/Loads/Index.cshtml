@@ -1,4 +1,4 @@
-@model OpsLoadTripsVm
+﻿@model OpsLoadTripsVm
 @{
     (string Key, string Label, string Icon)[] tabs =
     [
@@ -77,7 +77,7 @@ else if (Model.Trips is not null)
                         <td><a class="lnk num" href="/Company/Trips/Detail/@t.TripId">@t.Code</a><span class="sub num">@l.Code</span></td>
                         <td><b>@l.Title</b><span class="sub">@l.CargoType · @OpsLabels.Ton(l.WeightTon) تن</span></td>
                         <td>@Ui.Route(l.OriginCity?.Name, l.DestCity?.Name)</td>
-                        <td>@CustomerOf(l, t.IsPaid)</td>
+                        <td>@CustomerOf(l, t.Revealed)</td>
                         <td class="nowrap">@Fa.Stamp(t.ScheduledDepartureAt ?? l.LoadingFrom)</td>
                         <td>
                             @if (t.Driver is not null)

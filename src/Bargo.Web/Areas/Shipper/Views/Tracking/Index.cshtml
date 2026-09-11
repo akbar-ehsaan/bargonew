@@ -1,4 +1,4 @@
-@model ShipperTrackingVm
+﻿@model ShipperTrackingVm
 @{
     var trip = Model.Trip;
     (string Key, string Label, string Icon)[] modes =
@@ -204,7 +204,7 @@
             <div class="card2">
                 <div class="hd"><i class="bi bi-person-badge"></i> حمل‌کننده</div>
                 <div class="bd">
-                    @if (!trip.IsPaid)
+                    @if (!trip.Revealed)
                     {
                         <div class="alert2 info"><i class="bi bi-incognito"></i><div class="grow">@Privacy.HiddenNote</div></div>
                     }

@@ -62,6 +62,19 @@ public static class PriceMode
     public static string Label(string s) => s == Fixed ? "کرایه ثابت" : "توافقی";
 }
 
+/// <summary>
+/// روش پرداخت کرایه — مثل «پرداخت بارنامه» در باربری‌های واقعی:
+///   wallet: آنلاین از کیف پول؛ تا تحویل نزد بارگو امانت می‌ماند (روش پیش‌فرض).
+///   cash:   نقدی به حمل‌کننده در مقصد؛ پولی از بارگو نمی‌گذرد و فقط کمیسیون
+///           هنگام تسویه از کیف پول حمل‌کننده کسر می‌شود (الگوی کمیسیون باربری).
+/// </summary>
+public static class PayMethods
+{
+    public const string Wallet = "wallet";
+    public const string Cash = "cash";
+    public static string Label(string m) => m == Cash ? "نقدی به حمل‌کننده در مقصد" : "آنلاین از کیف پول (امانی)";
+}
+
 /// <summary>بار ثبت‌شده.</summary>
 public class Load
 {
@@ -105,6 +118,9 @@ public class Load
 
     public DateTime LoadingFrom { get; set; }
     public DateTime? LoadingTo { get; set; }
+
+    /// <summary>wallet | cash — روش پرداخت کرایه؛ هنگام ساخت سفر روی آن کپی می‌شود.</summary>
+    [MaxLength(10)] public string PayMethod { get; set; } = PayMethods.Wallet;
 
     [MaxLength(12)] public string PriceMode { get; set; } = Entities.PriceMode.Negotiable;
     /// <summary>کرایهٔ اعلامی به ریال (در حالت توافقی، پیشنهاد اولیهٔ صاحب بار).</summary>

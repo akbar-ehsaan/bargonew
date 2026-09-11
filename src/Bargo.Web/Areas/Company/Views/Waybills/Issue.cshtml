@@ -1,4 +1,4 @@
-@model OpsWaybillIssueVm
+﻿@model OpsWaybillIssueVm
 <div class="page-head">
     <div>
         <h1><i class="bi bi-file-earmark-plus"></i> صدور/ثبت بارنامه</h1>
@@ -46,8 +46,8 @@ else
                     <div class="grid-side">
                         <dl class="kv">
                             <dt>بار</dt><dd>@l.Title — @l.CargoType · @OpsLabels.Ton(l.WeightTon) تن</dd>
-                            <dt>صاحب بار</dt><dd>@(l.Shipper is not null ? (t.IsPaid ? l.Shipper.DisplayName : Privacy.HiddenName) : "مشتری شرکت")</dd>
-                            <dt>گیرنده</dt><dd>@(l.Shipper is not null && !t.IsPaid ? Privacy.HiddenName : l.ReceiverName ?? "—") <span class="num">@(l.Shipper is not null && !t.IsPaid ? "" : Fa.Digits(l.ReceiverMobile))</span></dd>
+                            <dt>صاحب بار</dt><dd>@(l.Shipper is not null ? (t.Revealed ? l.Shipper.DisplayName : Privacy.HiddenName) : "مشتری شرکت")</dd>
+                            <dt>گیرنده</dt><dd>@(l.Shipper is not null && !t.Revealed ? Privacy.HiddenName : l.ReceiverName ?? "—") <span class="num">@(l.Shipper is not null && !t.Revealed ? "" : Fa.Digits(l.ReceiverMobile))</span></dd>
                             <dt>راننده</dt><dd>@(t.Driver?.FullName ?? "—")@if (t.Vehicle is not null) { <text> · </text><partial name="_Plate" model="t.Vehicle.PlateNo" /> }</dd>
                             <dt>بارگیری</dt><dd>@Fa.Stamp(t.LoadedAt ?? l.LoadingFrom)</dd>
                             <dt>کرایه</dt><dd class="num">@Fa.Toman(t.Fare)</dd>

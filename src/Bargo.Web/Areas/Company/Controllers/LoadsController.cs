@@ -384,7 +384,7 @@ public class LoadsController(BargoDbContext db, CurrentUser me, TripFlow flow, A
             Load = load, IsOwn = own, Trips = trips, MyOffers = myOffers,
             MyPendingOffer = myOffers.FirstOrDefault(o => o.Status == OfferStatus.Pending),
             CanOffer = !own && inMarket,
-            CommissionPercent = await settings.GetDecimalAsync(SettingsService.Keys.CommissionPercent, ct),
+            CommissionPercent = await settings.GetDecimalAsync(SettingsService.Keys.CommissionPercentCompany, ct),
             CanDispatch = await CompanyOps.HasAsync(db, me, CompanyPermission.Dispatch, ct)
         };
 

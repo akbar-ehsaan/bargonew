@@ -16,7 +16,10 @@ public class SettingsService(BargoDbContext db, IMemoryCache cache)
 
     public static class Keys
     {
-        public const string CommissionPercent = "Finance.CommissionPercent";
+        /// <summary>کمیسیون رانندهٔ مستقل ↔ پلتفرم — الگوی راهداری: ۱۰٪ بیرون از پایانه.</summary>
+        public const string CommissionPercentDriver = "Finance.CommissionPercentDriver";
+        /// <summary>کمیسیون شرکت حمل‌ونقل ↔ پلتفرم — الگوی راهداری: ۸٪ در پایانه.</summary>
+        public const string CommissionPercentCompany = "Finance.CommissionPercentCompany";
         public const string CommissionMinRial = "Finance.CommissionMinRial";
         public const string MinPayoutRial = "Finance.MinPayoutRial";
         public const string VatEnabled = "Finance.VatEnabled";
@@ -65,7 +68,10 @@ public class SettingsService(BargoDbContext db, IMemoryCache cache)
 
     public static readonly IReadOnlyDictionary<string, Def> Defaults = new Dictionary<string, Def>
     {
-        [Keys.CommissionPercent] = new("8", "درصد کمیسیون بارگو از کرایه", "finance"),
+        // دو نرخ جدا — مثل نرخ مصوب راهداری (۸٪ پایانه، ۱۰٪ بیرون): سهم پلتفرم از
+        // رانندهٔ مستقل و از شرکت حمل‌ونقل می‌تواند متفاوت باشد
+        [Keys.CommissionPercentDriver] = new("10", "درصد کمیسیون بارگو از رانندهٔ مستقل", "finance"),
+        [Keys.CommissionPercentCompany] = new("8", "درصد کمیسیون بارگو از شرکت حمل‌ونقل", "finance"),
         [Keys.CommissionMinRial] = new("500000", "حداقل کمیسیون هر سفر (ریال)", "finance"),
         [Keys.MinPayoutRial] = new("1000000", "حداقل مبلغ درخواست برداشت (ریال)", "finance"),
         [Keys.VatEnabled] = new("false", "مالیات بر ارزش افزوده اعمال شود", "finance"),

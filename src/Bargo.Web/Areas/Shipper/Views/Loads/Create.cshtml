@@ -249,6 +249,14 @@
                         </select>
                     </div>
                     <div class="fld">
+                        <label>روش پرداخت کرایه</label>
+                        <select name="PayMethod">
+                            <option value="@PayMethods.Wallet" selected="@(Model.PayMethod != PayMethods.Cash)">آنلاین از کیف پول — تا تحویل نزد بارگو امانت می‌ماند</option>
+                            <option value="@PayMethods.Cash" selected="@(Model.PayMethod == PayMethods.Cash)">نقدی به حمل‌کننده در مقصد — مثل پرداخت بارنامه</option>
+                        </select>
+                        <span class="hint">در پرداخت نقدی پولی از بارگو نمی‌گذرد و فقط کمیسیون از حمل‌کننده کسر می‌شود.</span>
+                    </div>
+                    <div class="fld">
                         <label>کرایه (تومان)</label>
                         <input name="PriceToman" class="money" inputmode="numeric" value="@Model.PriceToman" />
                         <span class="hint">در حالت توافقی اختیاری است و پیشنهاد اولیهٔ شما دیده می‌شود؛ در کرایه ثابت الزامی است.</span>

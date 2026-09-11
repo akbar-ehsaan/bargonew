@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Linq.Expressions;
 using Bargo.Web.Models.Entities;
 using Bargo.Web.Services;
@@ -90,6 +90,8 @@ public sealed class ShipperTripRow
     /// <summary>کل مبلغ پرداختی = کرایه + هزینه‌های بارگیری/تخلیه/بارنامه + ارزش افزوده.</summary>
     public long Total { get; init; }
     public bool IsPaid { get; init; }
+    /// <summary>هویت حمل‌کننده آشکار است (پرداخت‌شده یا نقدی).</summary>
+    public bool Revealed { get; init; }
     public DateTime? EtaAt { get; init; }
     public DateTime? LastPointAt { get; init; }
     public DateTime? ScheduledDepartureAt { get; init; }
@@ -102,7 +104,7 @@ public sealed class ShipperTripRow
 
     /// <summary>«شرکت · راننده» یا فقط یکی از آن دو — تا پرداخت کرایه مخفی.</summary>
     public string Carrier =>
-        !IsPaid ? Services.Privacy.HiddenName
+        !Revealed ? Services.Privacy.HiddenName
         : !string.IsNullOrWhiteSpace(CompanyName)
             ? (string.IsNullOrWhiteSpace(DriverName) ? CompanyName! : $"{CompanyName} · {DriverName}")
             : string.IsNullOrWhiteSpace(DriverName) ? "—" : DriverName!;
@@ -119,13 +121,14 @@ public sealed class ShipperTripRow
         CarrierKind = t.CarrierKind,
         DriverId = t.DriverId,
         // هویت حمل‌کننده تا پرداخت کرایه از صاحب بار مخفی است (Privacy)
-        DriverName = t.IsPaid && t.Driver != null ? t.Driver.FirstName + " " + t.Driver.LastName : null,
-        CompanyName = t.IsPaid && t.Company != null ? t.Company.Name : null,
-        PlateNo = t.IsPaid && t.Vehicle != null ? t.Vehicle.PlateNo : null,
+        DriverName = (t.IsPaid || t.PayMethod == PayMethods.Cash) && t.Driver != null ? t.Driver.FirstName + " " + t.Driver.LastName : null,
+        CompanyName = (t.IsPaid || t.PayMethod == PayMethods.Cash) && t.Company != null ? t.Company.Name : null,
+        PlateNo = (t.IsPaid || t.PayMethod == PayMethods.Cash) && t.Vehicle != null ? t.Vehicle.PlateNo : null,
         Status = t.Status,
         Fare = t.Fare,
         Total = t.Fare + t.LoadingFee + t.UnloadingFee + t.WaybillFee + t.Vat,
         IsPaid = t.IsPaid,
+        Revealed = t.IsPaid || t.PayMethod == PayMethods.Cash,
         EtaAt = t.EtaAt,
         LastPointAt = t.LastPointAt,
         ScheduledDepartureAt = t.ScheduledDepartureAt,
@@ -217,6 +220,8 @@ public sealed class ShipperLoadForm
     public string PriceMode { get; set; } = "negotiable";
     public string? PriceToman { get; set; }
     public string? DeclaredValueToman { get; set; }
+    /// <summary>wallet | cash — روش پرداخت کرایه (الگوی «پرداخت بارنامه»).</summary>
+    public string PayMethod { get; set; } = "wallet";
 
     // sec-media
     public string? Description { get; set; }

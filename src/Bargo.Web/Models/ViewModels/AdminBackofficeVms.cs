@@ -241,14 +241,18 @@ public sealed record LockedTripVm(int TripId, string Code, long Fare, decimal Pe
 
 public sealed class PricingVm
 {
-    public decimal CommissionPercent { get; init; }
+    /// <summary>کمیسیون رانندهٔ مستقل ↔ پلتفرم.</summary>
+    public decimal DriverPercent { get; init; }
+    /// <summary>کمیسیون شرکت حمل‌ونقل ↔ پلتفرم.</summary>
+    public decimal CompanyPercent { get; init; }
     public long CommissionMinRial { get; init; }
     public decimal VatPercent { get; init; }
     public List<LockedTripVm> Recent { get; init; } = [];
     /// <summary>نمونهٔ محاسبه برای کرایهٔ ۱۰ میلیون تومانی با نرخ فعلی.</summary>
     public long SampleFare => 100_000_000;
-    public long SampleCommission => Math.Min(SampleFare, Math.Max(CommissionMinRial, (long)Math.Round(SampleFare * CommissionPercent / 100m)));
-    public long SampleTax => (long)Math.Round(SampleCommission * VatPercent / 100m);
+    public long SampleCommissionDriver => Math.Min(SampleFare, Math.Max(CommissionMinRial, (long)Math.Round(SampleFare * DriverPercent / 100m)));
+    public long SampleCommissionCompany => Math.Min(SampleFare, Math.Max(CommissionMinRial, (long)Math.Round(SampleFare * CompanyPercent / 100m)));
+    public long SampleTax => (long)Math.Round(SampleCommissionDriver * VatPercent / 100m);
 }
 
 public sealed class TariffsVm

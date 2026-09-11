@@ -66,7 +66,7 @@ public class ProfileController(BargoDbContext db, CurrentUser me, DocumentStorag
         if (nationalCode.Length > 0 && !IranId.IsNationalCode(nationalCode)) ModelState.AddModelError(nameof(vm.NationalCode), "کد ملی معتبر نیست.");
         if (kind == "business" && nationalId.Length > 0 && !IranId.IsCompanyNationalId(nationalId))
             ModelState.AddModelError(nameof(vm.NationalId), "شناسهٔ ملی شرکت (۱۱ رقم) معتبر نیست.");
-        if (kind == "business" && economic.Length > 0 && (economic.Length is < 10 or > 14 || !economic.All(char.IsAsciiDigit)))
+        if (kind == "business" && economic.Length > 0 && !IranId.IsEconomicCode(economic))
             ModelState.AddModelError(nameof(vm.EconomicCode), "کد اقتصادی باید ۱۰ تا ۱۴ رقم باشد.");
         if (!string.IsNullOrEmpty(email) && (email.Length > 120 || !MailAddress.TryCreate(email, out _)))
             ModelState.AddModelError(nameof(vm.Email), "نشانی ایمیل معتبر نیست.");

@@ -60,7 +60,7 @@ public class AccountController(BargoDbContext db, CurrentUser me, DocumentStorag
         var managerName = (vm.ManagerName ?? "").Trim();
         var managerCode = Fa.Latin(vm.ManagerNationalCode);
         var mobile = Fa.NormMobile(vm.Mobile);
-        var phone = Fa.Latin(vm.Phone);
+        var phone = IranId.NormPhone(vm.Phone);
         var email = vm.Email?.Trim();
         var address = vm.Address?.Trim();
 
@@ -77,7 +77,7 @@ public class AccountController(BargoDbContext db, CurrentUser me, DocumentStorag
         if (managerName.Length is < 3 or > 100) errors.Add("نام مدیرعامل را (۳ تا ۱۰۰ نویسه) بنویسید");
         if (managerCode.Length > 0 && !IranId.IsNationalCode(managerCode)) errors.Add("کد ملی مدیرعامل معتبر نیست");
         if (mobile.Length == 0) errors.Add("شمارهٔ موبایل شرکت معتبر نیست (۰۹xxxxxxxxx)");
-        if (phone.Length > 0 && (phone.Length is < 8 or > 20 || !phone.All(ch => char.IsAsciiDigit(ch) || ch is '-' or '+')))
+        if (phone.Length > 0 && !IranId.IsPhone(phone))
             errors.Add("تلفن ثابت معتبر نیست (با کد شهر، مثلاً ۰۲۱۸۸۰۰۰۰۰۰)");
         if (!string.IsNullOrEmpty(email) && (email.Length > 120 || !MailAddress.TryCreate(email, out _)))
             errors.Add("نشانی ایمیل معتبر نیست");

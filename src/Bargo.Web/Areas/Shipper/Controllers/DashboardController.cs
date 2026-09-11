@@ -1,4 +1,4 @@
-using Bargo.Web.Data;
+﻿using Bargo.Web.Data;
 using Bargo.Web.Filters;
 using Bargo.Web.Models.Entities;
 using Bargo.Web.Models.ViewModels;
@@ -77,7 +77,7 @@ public class DashboardController(BargoDbContext db, CurrentUser me) : Controller
             vm.Todos.Add(new TodoItem($"بار سفر {t.Code} تخلیه شد — پس از بررسی سلامت بار، کد تحویل را به راننده بدهید",
                 $"/Shipper/Orders/Detail/{t.TripId}", "bi-shield-lock", "inf"));
 
-        var unpaid = await trips.Where(t => !t.IsPaid && t.Status != TripStatus.Cancelled)
+        var unpaid = await trips.Where(t => !t.IsPaid && t.PayMethod != PayMethods.Cash && t.Status != TripStatus.Cancelled)
             .OrderBy(t => t.TripId).Select(t => new { t.TripId, t.Code, Total = t.Fare + t.LoadingFee + t.UnloadingFee + t.WaybillFee + t.Vat }).Take(6).ToListAsync(ct);
         foreach (var t in unpaid)
             vm.Todos.Add(new TodoItem($"کرایه و هزینه‌های سفر {t.Code} ({Fa.Toman(t.Total)}) پرداخت نشده است",

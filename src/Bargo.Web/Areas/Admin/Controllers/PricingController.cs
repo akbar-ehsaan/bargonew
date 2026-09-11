@@ -41,7 +41,8 @@ public class PricingController(BargoDbContext db, SettingsService settings, Audi
         ViewData["Title"] = "درصد کمیسیون";
         var vm = new PricingVm
         {
-            CommissionPercent = await settings.GetDecimalAsync(SettingsService.Keys.CommissionPercent, ct),
+            DriverPercent = await settings.GetDecimalAsync(SettingsService.Keys.CommissionPercentDriver, ct),
+            CompanyPercent = await settings.GetDecimalAsync(SettingsService.Keys.CommissionPercentCompany, ct),
             CommissionMinRial = await settings.GetLongAsync(SettingsService.Keys.CommissionMinRial, ct),
             VatPercent = await settings.GetDecimalAsync(SettingsService.Keys.VatPercent, ct),
             Recent = await db.Trips.AsNoTracking().OrderByDescending(t => t.TripId).Take(10)
@@ -57,14 +58,17 @@ public class PricingController(BargoDbContext db, SettingsService settings, Audi
     /// سهمِ حمل‌کننده‌ای را که روی عدد مشخصی توافق کرده عوض نکند.
     /// </summary>
     [HttpPost]
-    public async Task<IActionResult> Save(string? commissionPercent, string? commissionMinToman, string? vatPercent, CancellationToken ct)
+    public async Task<IActionResult> Save(string? driverPercent, string? companyPercent, string? commissionMinToman, string? vatPercent, CancellationToken ct)
     {
-        var pct = BackofficeLookup.ParseDecimal(commissionPercent);
+        var dPct = BackofficeLookup.ParseDecimal(driverPercent);
+        var cPct = BackofficeLookup.ParseDecimal(companyPercent);
         var vat = BackofficeLookup.ParseDecimal(vatPercent);
         var min = Fa.ParseToman(commissionMinToman);
 
-        if (pct is null || pct.Value < 0m || pct.Value > 50m)
-        { TempData["err"] = "درصد کمیسیون باید عددی بین ۰ و ۵۰ باشد."; return RedirectToAction(nameof(Index)); }
+        if (dPct is null || dPct.Value < 0m || dPct.Value > 50m)
+        { TempData["err"] = "درصد کمیسیون راننده باید عددی بین ۰ و ۵۰ باشد."; return RedirectToAction(nameof(Index)); }
+        if (cPct is null || cPct.Value < 0m || cPct.Value > 50m)
+        { TempData["err"] = "درصد کمیسیون شرکت حمل‌ونقل باید عددی بین ۰ و ۵۰ باشد."; return RedirectToAction(nameof(Index)); }
         if (vat is null || vat.Value < 0m || vat.Value > 50m)
         { TempData["err"] = "درصد مالیات بر ارزش افزوده باید عددی بین ۰ و ۵۰ باشد."; return RedirectToAction(nameof(Index)); }
         if (min is null || min.Value < 0)
@@ -72,21 +76,23 @@ public class PricingController(BargoDbContext db, SettingsService settings, Audi
 
         var before = new
         {
-            percent = await settings.GetAsync(SettingsService.Keys.CommissionPercent, ct),
+            driver = await settings.GetAsync(SettingsService.Keys.CommissionPercentDriver, ct),
+            company = await settings.GetAsync(SettingsService.Keys.CommissionPercentCompany, ct),
             minRial = await settings.GetAsync(SettingsService.Keys.CommissionMinRial, ct),
             vat = await settings.GetAsync(SettingsService.Keys.VatPercent, ct)
         };
-        var after = new { percent = Inv(pct.Value), minRial = min.Value.ToString(CultureInfo.InvariantCulture), vat = Inv(vat.Value) };
+        var after = new { driver = Inv(dPct.Value), company = Inv(cPct.Value), minRial = min.Value.ToString(CultureInfo.InvariantCulture), vat = Inv(vat.Value) };
 
-        if (before.percent == after.percent && before.minRial == after.minRial && before.vat == after.vat)
+        if (before.driver == after.driver && before.company == after.company && before.minRial == after.minRial && before.vat == after.vat)
         { TempData["ok"] = "چیزی تغییر نکرد."; return RedirectToAction(nameof(Index)); }
 
-        if (before.percent != after.percent) await settings.SetAsync(SettingsService.Keys.CommissionPercent, after.percent, ct);
+        if (before.driver != after.driver) await settings.SetAsync(SettingsService.Keys.CommissionPercentDriver, after.driver, ct);
+        if (before.company != after.company) await settings.SetAsync(SettingsService.Keys.CommissionPercentCompany, after.company, ct);
         if (before.minRial != after.minRial) await settings.SetAsync(SettingsService.Keys.CommissionMinRial, after.minRial, ct);
         if (before.vat != after.vat) await settings.SetAsync(SettingsService.Keys.VatPercent, after.vat, ct);
 
         await audit.LogAsync("Setting", 0, "pricing",
-            $"کمیسیون {Fa.N(pct.Value, 2)}٪، حداقل {Fa.Toman(min.Value)}، مالیات {Fa.N(vat.Value, 2)}٪",
+            $"کمیسیون رانندهٔ مستقل {Fa.N(dPct.Value, 2)}٪ و شرکت {Fa.N(cPct.Value, 2)}٪، حداقل {Fa.Toman(min.Value)}، مالیات {Fa.N(vat.Value, 2)}٪",
             new { before, after });
 
         TempData["ok"] = "نرخ‌ها ذخیره شد. سفرهای ساخته‌شده پیش از این لحظه با نرخ قبلی تسویه می‌شوند.";

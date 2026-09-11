@@ -69,9 +69,9 @@
             </div>
             <div class="fld"><label>نام <span class="req">*</span></label><input asp-for="FirstName" /><span asp-validation-for="FirstName" class="val-err"></span></div>
             <div class="fld"><label>نام خانوادگی <span class="req">*</span></label><input asp-for="LastName" /></div>
-            <div class="fld"><label>کد ملی <span class="req">*</span></label><input asp-for="NationalCode" inputmode="numeric" dir="ltr" /><span asp-validation-for="NationalCode" class="val-err"></span></div>
-            <div class="fld"><label>شمارهٔ گواهینامه <span class="req">*</span></label><input asp-for="LicenseNo" dir="ltr" /><span asp-validation-for="LicenseNo" class="val-err"></span></div>
-            <div class="fld"><label>شمارهٔ کارت هوشمند <span class="req">*</span></label><input asp-for="SmartCardNo" dir="ltr" /><span asp-validation-for="SmartCardNo" class="val-err"></span></div>
+            <div class="fld"><label>کد ملی <span class="req">*</span></label><input asp-for="NationalCode" inputmode="numeric" dir="ltr" maxlength="10" /><span asp-validation-for="NationalCode" class="val-err"></span></div>
+            <div class="fld"><label>شمارهٔ گواهینامه <span class="req">*</span></label><input asp-for="LicenseNo" inputmode="numeric" dir="ltr" maxlength="30" /><span asp-validation-for="LicenseNo" class="val-err"></span></div>
+            <div class="fld"><label>شمارهٔ کارت هوشمند <span class="req">*</span></label><input asp-for="SmartCardNo" inputmode="numeric" dir="ltr" maxlength="30" /><span asp-validation-for="SmartCardNo" class="val-err"></span></div>
             <div class="fld">
                 <label>نوع خودرو <span class="req">*</span></label>
                 <select asp-for="VehicleTypeId">
@@ -91,11 +91,11 @@
         else if (Model.Type == Roles.Company)
         {
             <div class="fld full"><label>نام شرکت <span class="req">*</span></label><input asp-for="CompanyName" /><span asp-validation-for="CompanyName" class="val-err"></span></div>
-            <div class="fld"><label>شناسهٔ ملی <span class="req">*</span></label><input asp-for="NationalId" inputmode="numeric" dir="ltr" /><span asp-validation-for="NationalId" class="val-err"></span></div>
-            <div class="fld"><label>شمارهٔ ثبت</label><input asp-for="RegistrationNo" dir="ltr" /></div>
-            <div class="fld"><label>شمارهٔ مجوز فعالیت</label><input asp-for="LicenseNoCompany" /></div>
+            <div class="fld"><label>شناسهٔ ملی <span class="req">*</span></label><input asp-for="NationalId" inputmode="numeric" dir="ltr" maxlength="11" /><span asp-validation-for="NationalId" class="val-err"></span></div>
+            <div class="fld"><label>شمارهٔ ثبت</label><input asp-for="RegistrationNo" inputmode="numeric" dir="ltr" maxlength="30" /></div>
+            <div class="fld"><label>شمارهٔ مجوز فعالیت</label><input asp-for="LicenseNoCompany" dir="ltr" maxlength="40" /></div>
             <div class="fld"><label>نام مدیرعامل <span class="req">*</span></label><input asp-for="ManagerName" /><span asp-validation-for="ManagerName" class="val-err"></span></div>
-            <div class="fld full"><label>شمارهٔ شبا</label><input asp-for="Sheba" dir="ltr" placeholder="IR…" /><span asp-validation-for="Sheba" class="val-err"></span></div>
+            <div class="fld full"><label>شمارهٔ شبا</label><input asp-for="Sheba" dir="ltr" maxlength="34" placeholder="IR000000000000000000000000" /><span asp-validation-for="Sheba" class="val-err"></span></div>
         }
         else
         {
@@ -117,7 +117,7 @@
             <div class="fld"><label>نام کسب‌وکار</label><input asp-for="BusinessName" /><span asp-validation-for="BusinessName" class="val-err"></span></div>
         }
 
-        <div class="fld"><label>موبایل <span class="req">*</span></label><input asp-for="Mobile" inputmode="tel" dir="ltr" placeholder="۰۹۱۲۳۴۵۶۷۸۹" /><span asp-validation-for="Mobile" class="val-err"></span></div>
+        <div class="fld"><label>موبایل <span class="req">*</span></label><input asp-for="Mobile" inputmode="tel" dir="ltr" maxlength="13" placeholder="۰۹۱۲۳۴۵۶۷۸۹" /><span asp-validation-for="Mobile" class="val-err"></span></div>
         <div class="fld">
             <label>استان <span class="req">*</span></label>
             <select id="provincePick">
