@@ -8,24 +8,119 @@
     var devOtp = ViewBag.DevOtp as string;
     var returnQs = string.IsNullOrEmpty(Model.ReturnUrl) ? "" : "&returnUrl=" + Uri.EscapeDataString(Model.ReturnUrl);
 }
-<h1>@(isAdmin ? "ورود مدیر سامانه" : "ورود به بارگو")</h1>
-<p class="sub">
-    @if (isAdmin)
-    {
-        <text>این صفحه مخصوص مدیران بارگوست؛ ورود فقط با موبایل و گذرواژه.</text>
-    }
-    else if (otpMode)
-    {
-        <text>نقش خود را انتخاب کنید؛ کد ورود به موبایلتان پیامک می‌شود.</text>
-    }
-    else
-    {
-        <text>نقش خود را انتخاب کنید؛ هر نقش پنل مخصوص خودش را دارد.</text>
-    }
-</p>
 
-@if (!otpMode)
+<style>
+    .login-logo{display:flex;flex-direction:column;align-items:center;gap:8px;margin:4px 0 14px}
+    .login-logo img{width:64px;height:64px}
+    .login-logo b{font-size:20px}
+    .login-logo span{font-size:12.5px;color:var(--ink-faint)}
+    .biginput{font-size:20px !important;text-align:center;letter-spacing:2px;height:52px}
+    .code-input{font-size:26px !important;text-align:center;letter-spacing:14px;height:56px;font-variant-numeric:tabular-nums}
+    .role-pick label{cursor:pointer}
+    .linkrow{text-align:center}
+</style>
+
+<div class="login-logo">
+    <img src="/img/logo.svg" alt="بارگو" />
+    <b>@(isAdmin ? "ورود مدیر سامانه" : "ورود به بارگو")</b>
+    <span>
+        @if (isAdmin)
+        {
+            <text>این صفحه مخصوص مدیران بارگوست؛ ورود فقط با موبایل و گذرواژه.</text>
+        }
+        else if (otpMode && string.IsNullOrEmpty(otpMobile))
+        {
+            <text>شمارهٔ موبایل خود را وارد کنید؛ کد ورود پیامک می‌شود.</text>
+        }
+        else if (otpMode)
+        {
+            <text>کد پیامک‌شده را وارد کنید.</text>
+        }
+        else
+        {
+            <text>ورود با موبایل و گذرواژه.</text>
+        }
+    </span>
+</div>
+
+@if (otpMode && string.IsNullOrEmpty(otpMobile))
 {
+    @* گام یک: شماره را بگیر و کد بفرست — حالت پیش‌فرض *@
+    <form method="post" action="/account/otp/send">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+
+        <div class="role-pick" role="radiogroup" aria-label="نقش">
+            <label><input type="radio" name="role" value="shipper" checked="@(Model.Role == Roles.Shipper)" /><i class="bi bi-box-seam"></i> صاحب بار</label>
+            <label><input type="radio" name="role" value="driver" checked="@(Model.Role == Roles.Driver)" /><i class="bi bi-truck"></i> راننده</label>
+            <label><input type="radio" name="role" value="company" checked="@(Model.Role == Roles.Company)" /><i class="bi bi-buildings"></i> شرکت حمل‌ونقل</label>
+        </div>
+
+        <div class="fld">
+            <label for="Mobile">شمارهٔ موبایل</label>
+            <input id="Mobile" name="mobile" class="biginput" inputmode="tel" autocomplete="username" maxlength="11"
+                   placeholder="۰۹۱۲۳۴۵۶۷۸۹" dir="ltr" autofocus required />
+        </div>
+        <button type="submit" class="btn2 pri lg block"><i class="bi bi-send"></i> دریافت کد ورود</button>
+    </form>
+
+    <div class="linkrow">
+        <a class="lnk" href="/account/login?mode=password&role=@Model.Role@returnQs"><i class="bi bi-key"></i> ورود با گذرواژه</a>
+    </div>
+}
+else if (otpMode)
+{
+    @* گام دو: کد پیامک‌شده *@
+    @if (!string.IsNullOrEmpty(devOtp))
+    {
+        <div class="alert2 warn"><i class="bi bi-bug"></i><div class="grow">فقط حالت توسعه (پیامک ارسال نمی‌شود) — کد ورود: <b class="num" dir="ltr">@devOtp</b></div></div>
+    }
+    <form method="post" action="/account/otp/verify">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="role" value="@Model.Role" />
+        <input type="hidden" name="mobile" value="@otpMobile" />
+        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+
+        <div class="fld">
+            <label for="Code">کد پیامک‌شده به <span class="num" dir="ltr">@Fa.Digits(otpMobile)</span></label>
+            <input id="Code" name="code" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="5"
+                   placeholder="•••••" dir="ltr" autofocus required />
+            <span class="hint">کد ۵ رقمی تا ۳ دقیقه معتبر است.</span>
+        </div>
+        <button type="submit" class="btn2 pri lg block"><i class="bi bi-box-arrow-in-left"></i> ورود</button>
+    </form>
+
+    <form method="post" action="/account/otp/send" style="margin-top:10px">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="role" value="@Model.Role" />
+        <input type="hidden" name="mobile" value="@otpMobile" />
+        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+        <button type="submit" class="btn2 ghost block" id="resendBtn" disabled>
+            <i class="bi bi-arrow-repeat"></i> ارسال دوبارهٔ کد <span id="resendTimer" class="num"></span>
+        </button>
+    </form>
+
+    <div class="linkrow">
+        <a class="lnk" href="/account/login?role=@Model.Role@returnQs"><i class="bi bi-pencil"></i> ویرایش شماره</a> ·
+        <a class="lnk" href="/account/login?mode=password&role=@Model.Role@returnQs">ورود با گذرواژه</a>
+    </div>
+
+    <script>
+        // شمارش معکوس ۶۰ ثانیه‌ای دکمهٔ «ارسال دوباره» — مثل اپ‌های موبایل‌محور
+        (function () {
+            var left = 60, btn = document.getElementById('resendBtn'), t = document.getElementById('resendTimer');
+            var fa = function (n) { return String(n).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; }); };
+            var tick = function () {
+                if (left <= 0) { btn.disabled = false; t.textContent = ''; return; }
+                t.textContent = '(' + fa(left) + ')'; left--; setTimeout(tick, 1000);
+            };
+            tick();
+        })();
+    </script>
+}
+else
+{
+    @* ورود با گذرواژه — گزینهٔ دوم (و تنها راه مدیر) *@
     <form method="post" action="/account/login">
         @Html.AntiForgeryToken()
         <input type="hidden" asp-for="ReturnUrl" />
@@ -46,7 +141,7 @@
 
         <div class="fld">
             <label for="Mobile">شمارهٔ موبایل</label>
-            <input asp-for="Mobile" inputmode="tel" autocomplete="username" placeholder="09xxxxxxxxx" dir="ltr" />
+            <input asp-for="Mobile" class="biginput" inputmode="tel" autocomplete="username" placeholder="۰۹۱۲۳۴۵۶۷۸۹" dir="ltr" />
             <span asp-validation-for="Mobile" class="val-err"></span>
         </div>
         <div class="fld">
@@ -60,67 +155,9 @@
     @if (!isAdmin)
     {
         <div class="linkrow">
-            <a class="lnk" href="/account/login?mode=otp&role=@Model.Role@returnQs"><i class="bi bi-chat-square-dots"></i> ورود با کد یکبارمصرف</a>
+            <a class="lnk" href="/account/login?role=@Model.Role@returnQs"><i class="bi bi-chat-square-dots"></i> ورود با کد یکبارمصرف</a>
         </div>
     }
-}
-else if (string.IsNullOrEmpty(otpMobile))
-{
-    @* گام یک: شماره را بگیر و کد بفرست *@
-    <form method="post" action="/account/otp/send">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
-
-        <div class="role-pick" role="radiogroup" aria-label="نقش">
-            <label><input type="radio" name="role" value="shipper" checked="@(Model.Role == Roles.Shipper)" /><i class="bi bi-box-seam"></i> صاحب بار</label>
-            <label><input type="radio" name="role" value="driver" checked="@(Model.Role == Roles.Driver)" /><i class="bi bi-truck"></i> راننده</label>
-            <label><input type="radio" name="role" value="company" checked="@(Model.Role == Roles.Company)" /><i class="bi bi-buildings"></i> شرکت حمل‌ونقل</label>
-        </div>
-
-        <div class="fld">
-            <label for="Mobile">شمارهٔ موبایل</label>
-            <input id="Mobile" name="mobile" inputmode="tel" autocomplete="username" placeholder="09xxxxxxxxx" dir="ltr" required />
-        </div>
-        <button type="submit" class="btn2 pri lg block"><i class="bi bi-send"></i> دریافت کد ورود</button>
-    </form>
-
-    <div class="linkrow">
-        <a class="lnk" href="/account/login?role=@Model.Role@returnQs"><i class="bi bi-key"></i> ورود با گذرواژه</a>
-    </div>
-}
-else
-{
-    @* گام دو: کد پیامک‌شده را بگیر و وارد کن *@
-    @if (!string.IsNullOrEmpty(devOtp))
-    {
-        <div class="alert2 warn"><i class="bi bi-bug"></i><div class="grow">فقط حالت توسعه (پیامک ارسال نمی‌شود) — کد ورود: <b class="num" dir="ltr">@devOtp</b></div></div>
-    }
-    <form method="post" action="/account/otp/verify">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="role" value="@Model.Role" />
-        <input type="hidden" name="mobile" value="@otpMobile" />
-        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
-
-        <div class="fld">
-            <label for="Code">کد پیامک‌شده به <span class="num" dir="ltr">@Fa.Digits(otpMobile)</span></label>
-            <input id="Code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="5" placeholder="•••••" dir="ltr" autofocus required />
-            <span class="hint">کد ۵ رقمی تا ۳ دقیقه معتبر است.</span>
-        </div>
-        <button type="submit" class="btn2 pri lg block"><i class="bi bi-box-arrow-in-left"></i> ورود</button>
-    </form>
-
-    <form method="post" action="/account/otp/send" style="margin-top:10px">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="role" value="@Model.Role" />
-        <input type="hidden" name="mobile" value="@otpMobile" />
-        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
-        <button type="submit" class="btn2 ghost block"><i class="bi bi-arrow-repeat"></i> ارسال دوبارهٔ کد</button>
-    </form>
-
-    <div class="linkrow">
-        <a class="lnk" href="/account/login?mode=otp&role=@Model.Role@returnQs">تغییر شماره</a> ·
-        <a class="lnk" href="/account/login?role=@Model.Role@returnQs">ورود با گذرواژه</a>
-    </div>
 }
 
 @if (!isAdmin)

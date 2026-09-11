@@ -43,8 +43,9 @@ public class AccountController(
         if (disabled == 1) TempData["err"] = "حساب کاربری شما غیرفعال شده است.";
 
         var r = role is Roles.Driver or Roles.Company or Roles.Admin ? role : Roles.Shipper;
-        // حالت «کد یکبارمصرف» فقط برای سه نقش عمومی؛ مدیر همیشه با گذرواژه وارد می‌شود
-        ViewBag.Mode = mode == "otp" && r != Roles.Admin ? "otp" : "password";
+        // پیش‌فرض ورود «موبایل + کد یکبارمصرف» است (سبک اپ‌های موبایل‌محور)؛
+        // گذرواژه گزینهٔ دوم است و مدیر همیشه با گذرواژه وارد می‌شود
+        ViewBag.Mode = mode == "password" || r == Roles.Admin ? "password" : "otp";
         ViewBag.OtpMobile = TempData["otp_mobile"] as string;
         ViewBag.DevOtp = TempData["dev_otp"] as string;
         return View(new LoginVm { Role = r, ReturnUrl = returnUrl });

@@ -104,6 +104,7 @@
     <div class="main">
         <header class="topbar">
             <button type="button" class="burger" data-open-menu aria-label="باز کردن منو"><i class="bi bi-list"></i></button>
+            <button type="button" class="tb-btn" onclick="history.length > 1 ? history.back() : location.assign('@area')" title="بازگشت" aria-label="بازگشت"><i class="bi bi-arrow-right"></i></button>
             <div class="ttl">@title</div>
             <span class="tb-date">@Fa.LongDate(DateTime.UtcNow)</span>
             @if (!string.IsNullOrEmpty(Roles.AreaOf(role)))
@@ -120,6 +121,10 @@
                 <div><b>@Me.Name</b><small>@Roles.Title(role)</small></div>
                 <span class="av">@(string.IsNullOrEmpty(Me.Name) ? "؟" : Me.Name[..1])</span>
             </div>
+            <form method="post" action="/account/logout" data-confirm="از حساب خارج می‌شوید؟">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="tb-btn" title="خروج از حساب" aria-label="خروج از حساب"><i class="bi bi-box-arrow-left"></i></button>
+            </form>
         </header>
 
         <main class="content">
