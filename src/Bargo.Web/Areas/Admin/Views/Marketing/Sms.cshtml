@@ -1,0 +1,219 @@
+@model CampaignSmsVm
+@{
+    var f = Model.F;
+
+    string GroupName(string? gc, string? gp, string? gcity)
+    {
+        var parts = new[] { string.IsNullOrWhiteSpace(gc) ? "همهٔ گروه‌ها" : gc,
+                            string.IsNullOrWhiteSpace(gp) ? null : gp,
+                            string.IsNullOrWhiteSpace(gcity) ? null : gcity };
+        return string.Join(" — ", parts.Where(p => p != null));
+    }
+    string Ordinal(int n) => n switch
+    {
+        2 => "دوم", 3 => "سوم", 4 => "چهارم", 5 => "پنجم", 6 => "ششم",
+        _ => Fa.N(n) + "م"
+    };
+}
+
+<style>
+    .sm-count { font-size: 40px; font-weight: 900; line-height: 1.3; }
+    .sm-break { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 9px; margin-top: 12px; }
+    .sm-break > div { border: 1px solid var(--line,#e3e8ef); border-radius: 11px; padding: 9px 11px; font-size: .78rem; }
+    .sm-break b { display: block; font-size: 17px; font-weight: 900; }
+    .sm-break span { color: var(--muted,#7b8794); }
+</style>
+
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-send-plus"></i> ارسال پیامک به بانک مخاطبان</h1>
+        <p>گام ۱ از ۳ — گیرندگان را انتخاب کنید؛ نوشتن متن و تأیید در گام‌های بعد است.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Dashboard"><i class="bi bi-speedometer"></i> داشبورد پیامک</a>
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-clock-history"></i> کمپین‌های پیشین</a>
+    </div>
+</div>
+
+@if (!f.SmsReal || !f.CampaignOn)
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-triangle"></i><div class="grow">
+        <b>@(!f.SmsReal ? "سرویس پیامک روی «log» است" : "کلید کمپین پیامکی در «تنظیمات» بسته است").</b>
+        فرم زیر کار می‌کند و کمپین ثبت می‌شود، ولی <b>هیچ پیامکی به گیرنده نمی‌رسد</b>.
+        این پیش‌فرضِ عمدی است: گیرندهٔ این پیامک‌ها هرگز چیزی از ما نخواسته؛
+        روشن‌کردنش باید تصمیم آگاهانهٔ یک انسان باشد.
+    </div></div>
+}
+
+@* ⚠️ هشدار «بار چندم» — اگر گروه انتخاب‌شده قبلاً کمپین گرفته، همین بالا و پیش
+   از هر کاری گفته شود که این ارسالِ چندم است. *@
+@if (Model.PriorRounds > 0)
+{
+    <div class="alert2 warn"><i class="bi bi-arrow-repeat"></i><div class="grow">
+        <b>به گروه «@GroupName(f.Cat, f.Province, f.City)» قبلاً @Fa.N(Model.PriorRounds) بار کمپین رفته —
+        این می‌شود بارِ @Ordinal(Model.PriorRounds + 1).</b>
+        اگر موج بعدی عمدی است اشکالی ندارد؛ تیکِ «قبلاً گرفته‌اند را رد کن» را روشن نگه دارید
+        تا همان آدم‌ها دوباره نگیرند.
+    </div></div>
+}
+
+<div class="grid2">
+    @* فیلترها فرم GET جداست و با هر تغییر خودش ارسال می‌شود تا عدد «چند نفر»
+       همیشه با فیلتر روی صفحه بخواند. *@
+    <div class="card2">
+        <div class="hd"><i class="bi bi-funnel"></i> گیرندگان</div>
+        <div class="bd">
+            <form method="get" asp-action="Sms">
+                <div class="fld">
+                    <label>گروه</label>
+                    <select name="cat" onchange="this.form.submit()">
+                        <option value="">همه</option>
+                        @foreach (var c in f.Categories)
+                        {
+                            <option value="@c" selected="@(c == f.Cat)">@c</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>استان</label>
+                    <select name="province" onchange="this.form.submit()">
+                        <option value="">همه</option>
+                        @foreach (var p in f.Provinces)
+                        {
+                            <option value="@p" selected="@(p == f.Province)">@p</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>شهر</label>
+                    <select name="city" onchange="this.form.submit()">
+                        <option value="">همه</option>
+                        @foreach (var c in f.Cities)
+                        {
+                            <option value="@c" selected="@(c == f.City)">@c</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld">
+                    <label style="display:flex;gap:8px;align-items:center;cursor:pointer">
+                        <input type="checkbox" name="excludeSent" value="true" checked="@f.ExcludeSent"
+                               onchange="this.form.submit()" style="width:auto" />
+                        @* هیدنِ «false» عمداً بعد از چک‌باکس است: بایندر اولین مقدار را
+                           می‌خواند؛ بدونش برداشتن تیک هیچ پارامتری نمی‌فرستاد و
+                           پیش‌فرض اکشن دوباره تیک را می‌زد. *@
+                        <input type="hidden" name="excludeSent" value="false" />
+                        کسانی که قبلاً پیامک گرفته‌اند را رد کن
+                    </label>
+                    <span class="hint">
+                        ارسال دوم به همان‌ها هم هزینهٔ تازه است و هم گیرنده را می‌رنجاند.
+                        سابقهٔ ارسال از خودِ بانک خوانده می‌شود، نه از حافظه.
+                    </span>
+                </div>
+                <noscript><button type="submit" class="btn2 sm pri">اعمال فیلتر</button></noscript>
+            </form>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-people"></i> با این فیلتر، چند نفر واقعاً پیامک می‌گیرند</div>
+        <div class="bd">
+            <div class="sm-count" style="color:@(Model.Count > 0 ? "var(--ok,#188a4f)" : "var(--no,#c0392b)")">@Fa.N(Model.Count)</div>
+            <p class="muted small">گیرندهٔ قابل ارسال: در بانک است و «دیگر پیام نده» نزده.</p>
+
+            @* شکستن عدد عمدی است: «۵۰ هزار ردیف ولی ۰ گیرنده» بدون توضیح شبیه
+               خرابی نرم‌افزار است، در حالی که واقعیت داده است. *@
+            <div class="sm-break">
+                <div><b>@Fa.N(Model.ScopeTotal)</b><span>کل ردیف در این فیلتر</span></div>
+                <div><b style="color:var(--no,#c0392b)">@Fa.N(Model.ScopeOptOut)</b><span>انصراف داده‌اند</span></div>
+                <div><b>@Fa.N(Model.ScopeAlreadySent)</b><span>قبلاً پیامک گرفته‌اند</span></div>
+            </div>
+
+            @if (Model.Count == 0 && Model.ScopeTotal > 0)
+            {
+                <div class="alert2 warn" style="margin-top:12px"><i class="bi bi-info-circle"></i><div class="grow">
+                    با این فیلتر <b>هیچ گیرنده‌ای نمانده</b> — یا همه قبلاً گرفته‌اند
+                    (تیک «رد کن» را بردارید) یا انصراف داده‌اند.
+                </div></div>
+            }
+            else if (f.Cap > 0 && Model.Count > f.Cap)
+            {
+                <div class="alert2 warn" style="margin-top:12px"><i class="bi bi-info-circle"></i><div class="grow">
+                    سقف هر کمپین <b>@Fa.N(f.Cap)</b> گیرنده است؛ در این ارسال فقط @Fa.N(f.Cap) نفر اولِ
+                    فهرست پیامک می‌گیرند و @Fa.N(Model.Count - f.Cap) نفر باقی می‌مانند. برای بقیه، کمپین را
+                    دوباره اجرا کنید — گزینهٔ «قبلاً گرفته‌اند را رد کن» خودش جلوی تکرار را می‌گیرد.
+                </div></div>
+            }
+        </div>
+    </div>
+</div>
+
+@* نوشتن متن در صفحهٔ بعد است، نه اینجا — شمارندهٔ زنده، جای‌نشان‌ها،
+   پیش‌نمایش و ارسال آزمایشی همه آنجا هستند. *@
+<div class="card2" style="margin-top:18px">
+    <div class="hd"><i class="bi bi-pencil-square"></i> متن پیامک</div>
+    <div class="bd">
+        <form method="post" asp-action="Compose">
+            <input type="hidden" name="cat" value="@f.Cat" />
+            <input type="hidden" name="province" value="@f.Province" />
+            <input type="hidden" name="city" value="@f.City" />
+            <input type="hidden" name="excludeSent" value="@(f.ExcludeSent ? "true" : "false")" />
+            <p class="muted small">
+                در گام بعد متن را می‌نویسید و هم‌زمان می‌بینید چند نویسه و <b>چند پیامک</b> شده
+                (فارسی هر ۷۰ نویسه یک پیامک؛ در پیام چندبخشی هر بخش ۶۷ نویسه).
+                همان‌جا می‌توانید نام گیرنده و شهر را داخل متن بگذارید و یک <b>ارسال آزمایشی</b>
+                به شمارهٔ خودتان بزنید.
+            </p>
+            <div class="row-actions">
+                <button type="submit" class="btn2 pri" disabled="@(Model.Count == 0)">
+                    نوشتن متن برای @Fa.N(Model.Count) گیرنده
+                </button>
+                <span class="muted small">این دکمه چیزی ارسال نمی‌کند.</span>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (f.Budget.Capped)
+{
+    <div class="alert2 ok" style="margin-top:18px"><i class="bi bi-speedometer2"></i><div class="grow">
+        سقف امروز <b>@Fa.N(f.Budget.Cap)</b> پیامک است؛ تا الان <b>@Fa.N(f.Budget.SentToday)</b> رفته و
+        <b>@Fa.N(f.Budget.Remaining)</b> مانده. این سقف روی همهٔ کمپین‌ها با هم اعمال می‌شود.
+    </div></div>
+}
+
+@* ---------- چه گروه‌هایی پیام گرفته‌اند ---------- *@
+<div class="card2" style="margin-top:18px">
+    <div class="hd"><i class="bi bi-clock-history"></i> گروه‌هایی که قبلاً پیام گرفته‌اند</div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>گروه</th><th>چند کمپین</th><th>جمع ارسال</th><th>آخرین بار</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var g in Model.SentGroups)
+            {
+                <tr>
+                    <td>@GroupName(g.Category, g.Province, g.City)</td>
+                    <td class="num">@Fa.N(g.Campaigns)</td>
+                    <td class="num">@Fa.N(g.TotalSent)</td>
+                    <td class="nowrap">@(g.LastAt != null ? Fa.Stamp(g.LastAt.Value) : "—")</td>
+                    <td>
+                        <a class="btn2 sm ghost"
+                           href="@Url.Action("Sms", new { cat = g.Category, province = g.Province, city = g.City, excludeSent = f.ExcludeSent })">
+                            انتخاب همین گروه
+                        </a>
+                    </td>
+                </tr>
+            }
+            @if (Model.SentGroups.Count == 0)
+            {
+                <tr><td colspan="5" class="empty"><i class="bi bi-clock-history"></i>هنوز به هیچ گروهی کمپینی نرفته است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.SentGroups.Count > 0)
+    {
+        <div class="bd">
+            <p class="muted small">انتخاب هر گروه همان فیلتر را می‌نشاند و همان بالا هشدار می‌آید که این ارسالِ چندم است.</p>
+        </div>
+    }
+</div>

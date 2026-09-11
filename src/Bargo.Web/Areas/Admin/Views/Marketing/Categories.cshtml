@@ -1,0 +1,70 @@
+@model MarketingCategoriesVm
+@{
+    var names = Model.Rows.Where(r => !string.IsNullOrWhiteSpace(r.Name))
+                    .Select(r => r.Name!).OrderBy(n => n).ToList();
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-tags"></i> گروه‌های بانک مخاطبان</h1>
+        <p>
+            روی هم @Fa.N(Model.Total) مخاطب در @Fa.N(Model.Rows.Count) گروه.
+            گروهی که اشتباه ثبت شده را می‌توانید به گروه درست منتقل کنید — اگر نام مقصد با یکی از
+            گروه‌های موجود یکی باشد، همان‌جا <b>ادغام</b> می‌شود. مقصد خالی یعنی «گروهش را بردار»؛ خود مخاطب حذف نمی‌شود.
+        </p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Contacts"><i class="bi bi-person-lines-fill"></i> بانک مخاطبان</a>
+        <a class="btn2 ghost" asp-action="Import"><i class="bi bi-file-earmark-arrow-up"></i> ورود مخاطبان</a>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead>
+                <tr><th>گروه</th><th>تعداد</th><th>سهم</th><th>انتقال / ادغام</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                var blank = string.IsNullOrWhiteSpace(r.Name);
+                <tr>
+                    <td>
+                        @if (blank)
+                        {
+                            <span class="muted">(بدون گروه)</span>
+                        }
+                        else
+                        {
+                            <a class="lnk" asp-action="Contacts" asp-route-cat="@r.Name">@r.Name</a>
+                        }
+                    </td>
+                    <td class="num">@Fa.N(r.Count)</td>
+                    <td class="muted">@Fa.Digits(Math.Round(r.Count * 100.0 / Math.Max(Model.Total, 1), 1).ToString("0.#"))٪</td>
+                    <td>
+                        <form method="post" asp-action="RenameCategory" class="row-actions" style="gap:.35rem">
+                            <input type="hidden" name="fromCategory" value="@r.Name" />
+                            @* فهرست گروه‌های موجود کنار کادر آزاد: ادغام با انتخاب انجام می‌شود
+                               و نه با تایپ دوبارهٔ نام، که غلط املایی می‌آورد و گروه سومی می‌سازد. *@
+                            <input list="cats" name="toCategory" placeholder="گروه مقصد (خالی = بی‌گروه)"
+                                   style="min-width:190px" />
+                            <button class="btn2 sm ghost">انتقال</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            @if (Model.Rows.Count == 0)
+            {
+                <tr><td colspan="4" class="empty"><i class="bi bi-tags"></i>بانک مخاطبان هنوز خالی است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<datalist id="cats">
+    @foreach (var n in names)
+    {
+        <option value="@n"></option>
+    }
+</datalist>

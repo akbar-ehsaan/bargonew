@@ -1,0 +1,201 @@
+@model CampaignCreateVm
+@{
+    long priceToman = Model.PriceRial / 10;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-send-plus"></i> ساخت کمپین</h1>
+        <p>کمپین پیش‌نویس: صف ساخته می‌شود ولی تا زدن «شروع» در پروندهٔ کمپین هیچ پیامکی نمی‌رود.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-clock-history"></i> کمپین‌ها</a>
+        <a class="btn2 ghost" asp-action="Sms"><i class="bi bi-send"></i> جریان سه‌گامی</a>
+    </div>
+</div>
+
+@* ⚠️ خالی‌بودن بانک باید همین اول گفته شود: گیرنده‌های کمپین از «بانک مخاطبان»
+   می‌آیند و نه مستقیم از کاربران ثبت‌نامی. تا بانک خالی باشد هر کمپینی صفر
+   گیرنده می‌گیرد، و مدیر همان را «ذخیره نشد» می‌فهمد. *@
+@if (Model.All == 0)
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-triangle"></i><div class="grow">
+        <b>بانک مخاطبان خالی است.</b><br>
+        گیرندهٔ کمپین از این بانک انتخاب می‌شود، نه مستقیم از کاربران ثبت‌نامی.
+        تا پر نشود، هر کمپینی صفر گیرنده می‌گیرد.
+        <div class="row-actions" style="margin-top:8px">
+            <a class="btn2 sm pri" asp-action="Import">ورود مخاطبان (کاربران بارگو یا فایل)</a>
+        </div>
+    </div></div>
+}
+
+<div class="card2" style="max-width:760px">
+    <div class="bd">
+        <form method="post" asp-action="Create">
+            <div class="fld">
+                <label>عنوان کمپین — فقط برای خودتان، ارسال نمی‌شود</label>
+                <input name="title" maxlength="120" required placeholder="مثلاً: دعوت رانندگان تهران" />
+            </div>
+
+            @* متن‌های آماده: صفحهٔ خالی همان جایی است که متنِ بد نوشته می‌شود. *@
+            @if (Model.Templates.Count > 0)
+            {
+                <div class="fld">
+                    <label>متن آماده — انتخاب کنید و بعد دلخواه ویرایشش کنید</label>
+                    <select id="tpl">
+                        <option value="">— خودم می‌نویسم —</option>
+                        @foreach (var t in Model.Templates)
+                        {
+                            <option value="@t.Body">@t.Title</option>
+                        }
+                    </select>
+                </div>
+            }
+
+            <div class="fld">
+                <label>متن پیامک</label>
+                <textarea id="body" name="body" rows="4" maxlength="500" required
+                          placeholder="مثلاً: بار خود را رایگان در بارگو ثبت کنید."></textarea>
+                <span class="hint" id="counter"></span>
+            </div>
+
+            <div class="form-grid cols3">
+                <div class="fld">
+                    <label>گروه</label>
+                    @* گروهِ آمده از نشانی همین‌جا انتخاب می‌ماند — وگرنه مدیر گروه
+                       را انتخاب می‌کند و فرم روی «همه» برمی‌گردد. *@
+                    <select id="f-cat" name="cat">
+                        <option value="">همه</option>
+                        @foreach (var c in Model.Categories)
+                        {
+                            <option value="@c" selected="@(c == Model.Cat)">@c</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>استان</label>
+                    <select id="f-prov" name="province">
+                        <option value="">همه</option>
+                        @foreach (var p in Model.Provinces)
+                        {
+                            <option value="@p">@p</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>شهر</label>
+                    <select id="f-city" name="city">
+                        <option value="">همه</option>
+                        @foreach (var c in Model.Cities)
+                        {
+                            <option value="@c">@c</option>
+                        }
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>وضعیت</label>
+                    @* ⚠️ وقتی از یک گروه مشخص آمده‌ایم، پیش‌فرض «هر وضعیتی» است:
+                       مدیری که همین حالا گروه را ساخته، همهٔ آن گروه را می‌خواهد؛
+                       با پیش‌فرض «هنوز نگرفته‌اند»، هر کس که قبلاً یک پیامک گرفته
+                       بی‌صدا از گیرنده‌ها می‌افتاد. *@
+                    <select id="f-state" name="state">
+                        <option value="untouched" selected="@(Model.Cat is null)">فقط آنها که هنوز پیامکی نگرفته‌اند</option>
+                        <option value="" selected="@(Model.Cat is not null)">هر وضعیتی</option>
+                        <option value="sent">فقط آنها که قبلاً گرفته‌اند</option>
+                    </select>
+                </div>
+                <div class="fld">
+                    <label>سقف گیرنده</label>
+                    <input id="f-cap" name="cap" type="number" min="1" max="200000"
+                           value="@SmsCampaign.DefaultCap" dir="ltr" />
+                </div>
+            </div>
+
+            @* گیرنده و هزینه پیش از ساختن — نه بعدش. *@
+            <div class="alert2 ok" id="estimate" style="display:none;margin-top:10px"><i class="bi bi-calculator"></i><div class="grow" id="estimate-body"></div></div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn2 pri"><i class="bi bi-plus-circle"></i> ساخت کمپین</button>
+            </div>
+            <p class="muted small">
+                با این دکمه فقط صف ساخته می‌شود و <b>هیچ پیامکی ارسال نمی‌گردد</b>. در صفحهٔ بعد تعداد دقیق گیرنده را
+                می‌بینید، یک پیامک آزمایشی برای خودتان می‌فرستید و بعد تصمیم می‌گیرید.
+            </p>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // ⚠️ این شمارش باید *عیناً* همان چیزی باشد که سرور حساب می‌کند
+        // (Services/SmsSegments.cs). اگر دو تا شوند، صفحه عددی نشان می‌دهد که با
+        // صورتحساب نمی‌خواند — و آن بدتر از نشان‌ندادن است.
+        var RESERVE = @Model.Reserve, PRICE = @priceToman;
+        var body = document.getElementById('body'),
+            counter = document.getElementById('counter'),
+            tpl = document.getElementById('tpl'),
+            est = document.getElementById('estimate'),
+            estBody = document.getElementById('estimate-body');
+
+        function fa(n) {
+            return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; });
+        }
+        function money(n) {
+            return fa(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '٬'));
+        }
+        var GSM = "@@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?"
+                + "¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+        var GSMX = "^{}\\[~]|€";
+
+        function parts(s) {
+            if (!s.length) return 0;
+            var uni = false, i;
+            for (i = 0; i < s.length; i++)
+                if (GSM.indexOf(s[i]) < 0 && GSMX.indexOf(s[i]) < 0) { uni = true; break; }
+            var weight = s.length;
+            if (!uni) for (i = 0; i < s.length; i++) if (GSMX.indexOf(s[i]) >= 0) weight++;
+            var single = uni ? 70 : 160, multi = uni ? 67 : 153;
+            return weight <= single ? 1 : Math.ceil(weight / multi);
+        }
+
+        var lastCount = null;
+        function paint() {
+            var len = body.value.trim().length;
+            // بند لغو را موتور خودش می‌افزاید؛ پس در شمارش هست.
+            var p = len === 0 ? 0 : parts(body.value.trim() + new Array(RESERVE + 1).join('م'));
+            counter.textContent = fa(len) + ' نویسه — با بند لغو، هر گیرنده '
+                + fa(p) + ' پیامک حساب می‌شود.';
+            if (lastCount !== null && p > 0) {
+                var total = lastCount * p;
+                est.style.display = '';
+                estBody.innerHTML = '<b>' + fa(lastCount) + '</b> گیرنده با این فیلتر · '
+                    + '<b>' + fa(total) + '</b> پیامک · حدود <b>' + money(total * PRICE) + '</b> تومان';
+            }
+        }
+
+        function recount() {
+            var qs = new URLSearchParams({
+                cat: document.getElementById('f-cat').value,
+                province: document.getElementById('f-prov').value,
+                city: document.getElementById('f-city').value,
+                state: document.getElementById('f-state').value
+            });
+            fetch('@Url.Action("CountTargets")?' + qs.toString())
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    var cap = parseInt(document.getElementById('f-cap').value, 10) || 0;
+                    lastCount = cap > 0 ? Math.min(d.count, cap) : d.count;
+                    paint();
+                })
+                .catch(function () { /* برآورد نبودنش نباید جلوی ساخت را بگیرد */ });
+        }
+
+        if (tpl) tpl.addEventListener('change', function () {
+            if (tpl.value) { body.value = tpl.value; paint(); }
+        });
+        body.addEventListener('input', paint);
+        ['f-cat', 'f-prov', 'f-city', 'f-state', 'f-cap'].forEach(function (id) {
+            document.getElementById(id).addEventListener('change', recount);
+        });
+        paint(); recount();
+    </script>
+}

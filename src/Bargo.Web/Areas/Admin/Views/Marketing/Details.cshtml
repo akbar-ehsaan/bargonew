@@ -1,0 +1,246 @@
+@model CampaignDetailsVm
+@{
+    var c = Model.C;
+    var parts = SmsCampaign.Parts(c.Body);
+    var done = c.SentCount + c.FailedCount + Model.Skipped;
+    var pct = c.Total == 0 ? 0 : (int)Math.Round(done * 100.0 / c.Total);
+    var live = c.Status == CampaignStatus.Running;
+}
+
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-send"></i> @c.Title</h1>
+        <p>
+            گیرنده: <b>@Fa.N(c.Total)</b>
+            @if (!string.IsNullOrEmpty(c.FilterCategory)) { <span>· گروه: @c.FilterCategory</span> }
+            @if (!string.IsNullOrEmpty(c.FilterProvince)) { <span>· استان: @c.FilterProvince</span> }
+            @if (!string.IsNullOrEmpty(c.FilterCity)) { <span>· شهر: @c.FilterCity</span> }
+            · سقف: @Fa.N(c.Cap)
+        </p>
+    </div>
+    <div class="actions">
+        @Ui.Pill(CampaignStatus.Label(c.Status), CampaignStatus.Tone(c.Status))
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-clock-history"></i> فهرست کمپین‌ها</a>
+    </div>
+</div>
+
+@if (live && (!Model.SmsReal || !Model.CampaignOn))
+{
+    <div class="alert2 err"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">
+        این کمپین «در حال ارسال» است ولی
+        @(!Model.SmsReal ? "سرویس پیامک روی «log» است" : "کلید «کمپین پیامکی» در تنظیمات بسته است")
+        — تا درست نشود هیچ پیامک واقعی‌ای نمی‌رود.
+    </div></div>
+}
+
+<div class="card2">
+    <div class="bd">
+        <div class="fld">
+            <label>متن پیامک</label>
+            <div style="white-space:pre-wrap;border:1px solid var(--line,#e3e8ef);border-radius:8px;padding:10px">@c.Body</div>
+            @* ⚠️ «هر گیرنده N پیامک» با احتساب بند لغو است — همان چیزی که واقعاً
+               می‌رود. بدون آن، این عدد یکی کمتر بود و کل برآورد هزینه نصف واقعیت. *@
+            <span class="hint">@Fa.N(c.Body.Length) نویسه — با بند لغو، هر گیرنده @Fa.N(parts) پیامک.</span>
+        </div>
+
+        @* عدد گیرنده برای آدم حس ندارد؛ تومان دارد. *@
+        @if (c.Status is CampaignStatus.Draft or CampaignStatus.Paused && c.Total > 0)
+        {
+            <div class="alert2 ok"><i class="bi bi-calculator"></i><div class="grow">
+                این کمپین <b>@Fa.N(c.Total * parts)</b> پیامک است —
+                حدود <b>@Fa.Toman((long)c.Total * parts * Model.PriceRial)</b> با تعرفهٔ
+                @Fa.Toman(Model.PriceRial) برای هر پیامک.
+            </div></div>
+
+            @* ⚠️ هشدار تکرار، نه جلوگیری از آن: گاهی ارسال دوباره عمدی است (موج
+               دوم، گیرنده‌های تازه). تصمیم با مدیر است؛ کار برنامه این است که
+               نگذارد ناآگاهانه باشد. *@
+            @if (Model.Duplicates.Count > 0)
+            {
+                <div class="alert2 warn"><i class="bi bi-arrow-repeat"></i><div class="grow">
+                    <b>همین متن قبلاً فرستاده شده است.</b>
+                    <ul style="margin:.4rem 0 0;padding-inline-start:1.1rem">
+                        @foreach (var d in Model.Duplicates.Take(3))
+                        {
+                            <li>
+                                <a class="lnk" asp-action="Details" asp-route-id="@d.CampaignId">@d.Title</a>
+                                — @Fa.N(d.SentCount) ارسال
+                                @if (d.At is { } at) { <span>· @Fa.Stamp(at)</span> }
+                            </li>
+                        }
+                    </ul>
+                    اگر موج دوم است اشکالی ندارد؛ فقط مطمئن شوید گیرنده‌ها همان‌ها نیستند.
+                </div></div>
+            }
+
+            @if (Model.Budget.Capped)
+            {
+                var willToday = Math.Min(c.Total * parts, Model.Budget.Remaining);
+                <div class="alert2 @(Model.Budget.Exhausted ? "warn" : "ok")"><i class="bi bi-speedometer2"></i><div class="grow">
+                    سقف امروز: @Fa.N(Model.Budget.Cap) پیامک —
+                    @Fa.N(Model.Budget.SentToday) رفته، <b>@Fa.N(Model.Budget.Remaining)</b> مانده.
+                    @if (Model.Budget.Exhausted)
+                    {
+                        <text>امروز چیزی ارسال نمی‌شود؛ کمپین فردا خودش ادامه می‌یابد.</text>
+                    }
+                    else if (c.Total * parts > Model.Budget.Remaining)
+                    {
+                        <text>امروز @Fa.N(willToday) تای آن می‌رود و بقیه فردا — کمپین متوقف نمی‌شود.</text>
+                    }
+                </div></div>
+            }
+        }
+
+        <div style="margin-top:14px">
+            <div style="background:var(--line,#e3e8ef);border-radius:8px;height:10px;overflow:hidden">
+                <div style="width:@pct%;height:100%;background:var(--ok,#57d69b)"></div>
+            </div>
+            <p class="muted small" style="margin-top:8px">
+                @Fa.N(c.SentCount) ارسال‌شده ·
+                @Fa.N(c.FailedCount) ناموفق ·
+                @Fa.N(Model.Skipped) ردشده (لغو اشتراک) ·
+                @Fa.N(Model.Pending) در صف
+            </p>
+        </div>
+
+        @if (c.Status is CampaignStatus.Draft or CampaignStatus.Paused)
+        {
+            <hr style="margin:14px 0" />
+            <form method="post" asp-action="Test" class="row-actions" style="align-items:flex-end">
+                <input type="hidden" name="id" value="@c.SmsCampaignId" />
+                <div class="fld" style="margin:0">
+                    <label>اول یک پیامک آزمایشی برای خودتان</label>
+                    <input name="mobile" dir="ltr" placeholder="09121234567" required />
+                </div>
+                <button class="btn2 ghost">ارسال آزمایشی</button>
+            </form>
+
+            <form method="post" asp-action="Start" style="margin-top:14px"
+                  data-confirm="ارسال واقعی به @Fa.N(c.Total) شماره شروع شود؟">
+                <input type="hidden" name="id" value="@c.SmsCampaignId" />
+                <div class="fld">
+                    <label>
+                        برای شروع، عدد <b dir="ltr">@c.Total</b> را اینجا تایپ کنید —
+                        این یعنی @Fa.N(c.Total * parts) پیامک از اعتبار کم می‌شود.
+                    </label>
+                    <input name="confirm" type="number" dir="ltr" required placeholder="@c.Total" style="max-width:200px" />
+                </div>
+                <button class="btn2 pri"><i class="bi bi-play-fill"></i> شروع ارسال</button>
+            </form>
+        }
+
+        <div class="row-actions" style="margin-top:14px">
+            @if (live)
+            {
+                <form method="post" asp-action="Pause" style="display:inline">
+                    <input type="hidden" name="id" value="@c.SmsCampaignId" />
+                    <button class="btn2 ghost"><i class="bi bi-pause-fill"></i> توقف موقت</button>
+                </form>
+            }
+            @if (c.Status is CampaignStatus.Draft or CampaignStatus.Paused or CampaignStatus.Running)
+            {
+                <form method="post" asp-action="Cancel" style="display:inline"
+                      data-confirm="کمپین لغو شود؟ بقیهٔ صف هرگز ارسال نمی‌شود.">
+                    <input type="hidden" name="id" value="@c.SmsCampaignId" />
+                    <button class="btn2 ghost red">لغو کمپین</button>
+                </form>
+            }
+        </div>
+
+        @if (Model.Failures.Count > 0)
+        {
+            <div style="margin-top:14px">
+                <div class="hd" style="padding:0 0 8px">آخرین ناموفق‌ها</div>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead><tr><th>شماره</th><th>علت</th></tr></thead>
+                        <tbody>
+                        @foreach (var fRow in Model.Failures)
+                        {
+                            <tr><td class="num">@fRow.Mobile</td><td>@fRow.Error</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        @* ---------- به کجا رفت + اجراکننده — پروندهٔ کمپین ---------- *@
+        <div style="margin-top:14px">
+            <div class="hd" style="padding:0 0 8px"><i class="bi bi-geo-alt"></i> به این استان‌ها و شهرها رفت</div>
+            @if (Model.Places.Count == 0)
+            {
+                <p class="muted small">ردیف مقصد این گیرندگان دیگر در بانک نیست.</p>
+            }
+            else
+            {
+                <div class="row-actions" style="gap:7px;flex-wrap:wrap">
+                    @foreach (var p in Model.Places)
+                    {
+                        <span class="chip">@p.Province@(string.IsNullOrWhiteSpace(p.City) ? "" : " / " + p.City) — @Fa.N(p.Count)</span>
+                    }
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.By))
+            {
+                <p class="muted small" style="margin-top:8px">اجراکننده: <b>@Model.By</b></p>
+            }
+        </div>
+
+        @* ---------- ارسال دوباره — خودش نمی‌فرستد؛ به صفحهٔ نوشتن می‌برد ---------- *@
+        @if (c.Status is CampaignStatus.Done or CampaignStatus.Cancelled)
+        {
+            <form method="post" asp-action="Compose" style="display:inline;margin-top:14px">
+                <input type="hidden" name="cat" value="@c.FilterCategory" />
+                <input type="hidden" name="province" value="@c.FilterProvince" />
+                <input type="hidden" name="city" value="@c.FilterCity" />
+                <input type="hidden" name="excludeSent" value="false" />
+                <input type="hidden" name="text" value="@c.Body" />
+                <button class="btn2 ghost"><i class="bi bi-arrow-repeat"></i> ارسال دوباره با همین متن و فیلتر</button>
+            </form>
+            <p class="muted small">
+                «ارسال دوباره» چیزی نمی‌فرستد؛ به صفحهٔ نوشتن می‌برد و پیش از ارسال، تعداد و هزینه
+                را دوباره می‌بینید — و اگر همین متن باشد، هشدار تکرار هم می‌آید.
+            </p>
+        }
+
+        @* ---------- گیرندگان با وضعیت ---------- *@
+        @if (Model.Recipients.Count > 0)
+        {
+            <div style="margin-top:14px">
+                <div class="hd" style="padding:0 0 8px"><i class="bi bi-people"></i> گیرندگان (@Fa.N(Math.Min(300, c.Total)) از @Fa.N(c.Total))</div>
+                <div class="tbl-wrap" style="max-height:420px;overflow:auto">
+                    <table class="tbl">
+                        <thead><tr><th>نام</th><th>استان</th><th>شهر</th><th>موبایل</th><th>وضعیت</th></tr></thead>
+                        <tbody>
+                        @foreach (var r in Model.Recipients)
+                        {
+                            <tr>
+                                <td>@(string.IsNullOrWhiteSpace(r.Name) ? "—" : r.Name)</td>
+                                <td>@r.Province</td>
+                                <td>@(string.IsNullOrWhiteSpace(r.City) ? "—" : r.City)</td>
+                                <td class="num">@r.Mobile</td>
+                                <td>
+                                    @(r.Status == CampaignRecipientStatus.Failed && !string.IsNullOrWhiteSpace(r.Error)
+                                        ? $"{CampaignRecipientStatus.Label(r.Status)}؛ {r.Error}"
+                                        : CampaignRecipientStatus.Label(r.Status))
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (live)
+{
+    @section Scripts {
+        <script>
+            // صفحه هر ۱۵ ثانیه خودش را تازه می‌کند تا پیشرفت زنده دیده شود.
+            setTimeout(function () { location.reload(); }, 15000);
+        </script>
+    }
+}

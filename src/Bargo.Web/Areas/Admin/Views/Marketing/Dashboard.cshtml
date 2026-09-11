@@ -1,0 +1,145 @@
+@model MarketingDashboardVm
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-speedometer"></i> داشبورد پیامک</h1>
+        <p>بانک مخاطبان بازاریابی و کمپین‌های پیامکی — پیش از هر ارسالی، تصویر کامل را همین‌جا ببینید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 pri" asp-action="Sms"><i class="bi bi-send-plus"></i> ساخت کمپین</a>
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-clock-history"></i> کمپین‌ها</a>
+    </div>
+</div>
+
+@if (!Model.SmsReal)
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-triangle"></i><div class="grow">
+        سرویس پیامک روی «log» است — کمپین اجرا می‌شود ولی پیامک‌ها فقط در لاگ ثبت می‌شوند و چیزی به گیرنده نمی‌رسد.
+        برای ارسال واقعی از <a class="lnk" href="/Admin/Settings/Sms">تنظیمات پیامک</a> سرویس را «ictx» کنید.
+    </div></div>
+}
+@if (!Model.CampaignOn)
+{
+    <div class="alert2 warn"><i class="bi bi-toggle-off"></i><div class="grow">
+        کلید «کمپین پیامکی» در <a class="lnk" href="/Admin/Settings/Sms">تنظیمات پیامک</a> بسته است —
+        کمپین ساخته می‌شود ولی تا باز نشود هیچ پیامکی نمی‌رود. پیش‌فرضش عمداً خاموش است چون گیرنده‌ها
+        خودشان شماره‌شان را به ما نداده‌اند؛ روشن‌کردنش باید تصمیم آگاهانهٔ یک انسان باشد.
+    </div></div>
+}
+
+@* ---------- شمارهای اصلی: بانک و اعضا ---------- *@
+<div class="stats">
+    <a class="stat p" asp-action="Contacts"><div class="l"><i class="bi bi-person-lines-fill"></i> مخاطب در بانک</div><div class="v">@Fa.N(Model.Total)</div></a>
+    <a class="stat s" asp-action="Sms"><div class="l"><i class="bi bi-send"></i> قابل ارسال</div><div class="v">@Fa.N(Model.Sendable)</div></a>
+    <a class="stat i" href="/Admin/Users/Drivers"><div class="l"><i class="bi bi-person-badge"></i> رانندهٔ عضو بارگو</div><div class="v">@Fa.N(Model.Drivers)</div></a>
+    <a class="stat w" href="/Admin/Users/Shippers"><div class="l"><i class="bi bi-person-workspace"></i> صاحب بار عضو</div><div class="v">@Fa.N(Model.Shippers)</div></a>
+</div>
+
+<div class="grid2" style="margin-top:18px">
+    @* ---------- وضعیت بانک: چه کسی چه گرفته ---------- *@
+    <div class="card2">
+        <div class="hd"><i class="bi bi-bar-chart"></i> وضعیت بانک مخاطبان</div>
+        <div class="bd">
+            @* مدیر باید بداند «قابل ارسال» چرا از کل کمتر است، وگرنه عدد را خطای برنامه می‌فهمد. *@
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <tbody>
+                        <tr>
+                            <td>هنوز هیچ پیامکی نگرفته‌اند</td>
+                            <td class="num"><b>@Fa.N(Model.Untouched)</b></td>
+                            <td><a class="btn2 sm ghost" asp-action="Sms">کمپین برای همین‌ها</a></td>
+                        </tr>
+                        <tr>
+                            <td>دست‌کم یک پیامک گرفته‌اند</td>
+                            <td class="num"><b>@Fa.N(Model.Touched)</b></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td class="muted">«دیگر پیام نده» زده‌اند — هیچ کمپینی سراغشان نمی‌رود</td>
+                            <td class="num"><b>@Fa.N(Model.OptedOut)</b></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            @if (Model.Budget.Capped)
+            {
+                <div class="alert2 @(Model.Budget.Exhausted ? "warn" : "ok")" style="margin-top:12px"><i class="bi bi-speedometer2"></i><div class="grow">
+                    سقف امروز @Fa.N(Model.Budget.Cap) پیامک است —
+                    @Fa.N(Model.Budget.SentToday) رفته و <b>@Fa.N(Model.Budget.Remaining)</b> مانده.
+                    @if (Model.Budget.Exhausted)
+                    {
+                        <text>کمپین‌های در حال اجرا فردا خودشان ادامه می‌دهند.</text>
+                    }
+                </div></div>
+            }
+
+            @* این صفحه درِ ورود منوست؛ هر کار پیامکی باید از همین‌جا راه داشته باشد. *@
+            <div class="row-actions" style="margin-top:12px">
+                <a class="btn2 sm pri" asp-action="Sms"><i class="bi bi-send-plus"></i> ساخت کمپین</a>
+                <a class="btn2 sm ghost" asp-action="Contacts"><i class="bi bi-person-lines-fill"></i> بانک مخاطبان</a>
+                <a class="btn2 sm ghost" asp-action="Categories"><i class="bi bi-tags"></i> گروه‌ها</a>
+                <a class="btn2 sm ghost" asp-action="Import"><i class="bi bi-file-earmark-arrow-up"></i> ورود مخاطبان</a>
+                <a class="btn2 sm ghost" href="/Admin/Broadcast/Sms"><i class="bi bi-phone"></i> پیامک گروهی اعضا</a>
+                <a class="btn2 sm ghost" href="/Admin/Broadcast"><i class="bi bi-megaphone"></i> اعلان درون‌برنامه‌ای</a>
+            </div>
+        </div>
+    </div>
+
+    @* ---------- گروه‌ها ---------- *@
+    <div class="card2">
+        <div class="hd"><i class="bi bi-tags"></i> به تفکیک گروه</div>
+        <div class="tbl-wrap" style="max-height:340px;overflow-y:auto">
+            <table class="tbl">
+                <thead><tr><th>گروه</th><th>تعداد</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var c in Model.Categories)
+                {
+                    <tr>
+                        <td>@(string.IsNullOrWhiteSpace(c.Name) ? "(بدون گروه)" : c.Name)</td>
+                        <td class="num">@Fa.N(c.Count)</td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(c.Name))
+                            {
+                                <a class="btn2 sm ghost" asp-action="Sms" asp-route-cat="@c.Name">کمپین</a>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Categories.Count == 0)
+                {
+                    <tr><td colspan="3" class="empty"><i class="bi bi-tags"></i>بانک مخاطبان هنوز خالی است — از «ورود مخاطبان» شروع کنید.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@* ---------- کمپین‌های اخیر ---------- *@
+<div class="card2" style="margin-top:18px">
+    <div class="hd"><i class="bi bi-send"></i> کمپین‌های اخیر <span class="end"><a class="btn2 sm ghost" asp-action="Index">همهٔ کمپین‌ها</a></span></div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>عنوان</th><th>وضعیت</th><th>گیرنده</th><th>ارسال‌شده</th><th>ناموفق</th><th>هزینهٔ تقریبی</th></tr></thead>
+            <tbody>
+            @foreach (var c in Model.Campaigns)
+            {
+                var parts = SmsCampaign.Parts(c.Body);
+                <tr>
+                    <td><a class="lnk" asp-action="Details" asp-route-id="@c.SmsCampaignId">@c.Title</a></td>
+                    <td>@Ui.Pill(CampaignStatus.Label(c.Status), CampaignStatus.Tone(c.Status))</td>
+                    <td class="num">@Fa.N(c.Total)</td>
+                    <td class="num">@Fa.N(c.SentCount)</td>
+                    <td class="num">@(c.FailedCount > 0 ? Fa.N(c.FailedCount) : "—")</td>
+                    <td>@Fa.Toman((long)c.SentCount * parts * Model.PriceRial)</td>
+                </tr>
+            }
+            @if (Model.Campaigns.Count == 0)
+            {
+                <tr><td colspan="6" class="empty"><i class="bi bi-send"></i>هنوز کمپینی ساخته نشده است.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

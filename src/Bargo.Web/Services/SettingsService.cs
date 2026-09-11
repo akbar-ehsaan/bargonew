@@ -42,6 +42,13 @@ public class SettingsService(BargoDbContext db, IMemoryCache cache)
         public const string SmsUrl = "Sms.Url";
         public const string SmsUsername = "Sms.Username";
 
+        // کمپین پیامکی بانک مخاطبان (الگوی کارکور)
+        public const string SmsCampaignEnabled = "Sms.CampaignEnabled";
+        public const string SmsCampaignDailyCap = "Sms.CampaignDailyCap";
+        public const string SmsCampaignPriceRial = "Sms.CampaignPriceRial";
+        /// <summary>پیش‌نویس متن کمپین — عمداً در Defaults نیست تا در صفحهٔ تنظیمات دیده نشود.</summary>
+        public const string SmsCampaignDraft = "Sms.CampaignDraft";
+
         public const string GatewayProvider = "Gateway.Provider";
         public const string GatewayMerchant = "Gateway.MerchantId";
         public const string GatewaySandbox = "Gateway.Sandbox";
@@ -85,6 +92,11 @@ public class SettingsService(BargoDbContext db, IMemoryCache cache)
         [Keys.SmsLine] = new("", "شماره خط ارسال", "sms"),
         [Keys.SmsUrl] = new("https://sms.ictx.ir/api/rest/sms/send", "آدرس وب‌سرویس پیامک", "sms"),
         [Keys.SmsUsername] = new("", "نام کاربری پنل پیامک (اختیاری)", "sms"),
+        // پیش‌فرض کمپین عمداً خاموش است: گیرندهٔ این پیامک‌ها خودش چیزی نخواسته؛
+        // روشن‌کردنش باید تصمیم آگاهانهٔ یک انسان باشد.
+        [Keys.SmsCampaignEnabled] = new("false", "کمپین پیامکی بانک مخاطبان فعال باشد", "sms"),
+        [Keys.SmsCampaignDailyCap] = new("5000", "سقف روزانه پیامک کمپین (۰ = بی‌سقف)", "sms"),
+        [Keys.SmsCampaignPriceRial] = new("1500", "تعرفه هر بخش پیامک برای برآورد هزینه (ریال)", "sms"),
 
         [Keys.GatewayProvider] = new("demo", "درگاه پرداخت (demo = آزمایشی | zarinpal = زرین‌پال)", "gateway"),
         [Keys.GatewayMerchant] = new("", "شناسهٔ پذیرنده (Merchant ID)", "gateway"),

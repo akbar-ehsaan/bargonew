@@ -1,0 +1,63 @@
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-file-earmark-arrow-up"></i> ورود مخاطبان</h1>
+        <p>بانک مخاطبان از دو راه پر می‌شود: کاربران خود بارگو، یا فایل CSV فهرست‌های بیرونی.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Contacts"><i class="bi bi-person-lines-fill"></i> بانک مخاطبان</a>
+    </div>
+</div>
+
+<div class="grid2">
+    @* ---------- از کاربران بارگو ---------- *@
+    <div class="card2">
+        <div class="hd"><i class="bi bi-people"></i> ورود از کاربران بارگو</div>
+        <div class="bd">
+            <p class="muted small">
+                حساب‌های تأییدشده با گروه آماده وارد بانک می‌شوند تا کمپین بتواند مثل هر گروه دیگری
+                هدفشان بگیرد. ادغام روی شماره است و «دیگر پیام نده» هرگز بازنویسی نمی‌شود.
+            </p>
+            <form method="post" asp-action="ImportUsers" class="row-actions" style="margin-top:10px">
+                <input type="hidden" name="audience" value="drivers" />
+                <button class="btn2 sm ghost"><i class="bi bi-person-badge"></i> رانندگان</button>
+            </form>
+            <form method="post" asp-action="ImportUsers" class="row-actions" style="margin-top:8px">
+                <input type="hidden" name="audience" value="shippers" />
+                <button class="btn2 sm ghost"><i class="bi bi-person-workspace"></i> صاحبان بار</button>
+            </form>
+            <form method="post" asp-action="ImportUsers" class="row-actions" style="margin-top:8px">
+                <input type="hidden" name="audience" value="companies" />
+                <button class="btn2 sm ghost"><i class="bi bi-buildings"></i> شرکت‌های حمل‌ونقل</button>
+            </form>
+        </div>
+    </div>
+
+    @* ---------- از فایل ---------- *@
+    <div class="card2">
+        <div class="hd"><i class="bi bi-filetype-csv"></i> ورود از فایل CSV</div>
+        <div class="bd">
+            <form method="post" asp-action="Import" enctype="multipart/form-data">
+                <div class="fld">
+                    <label>فایل CSV</label>
+                    <input type="file" name="file" accept=".csv,text/csv" required />
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn2 pri"><i class="bi bi-upload"></i> بارگذاری</button>
+                </div>
+            </form>
+
+            <p class="muted small" style="margin-top:12px">
+                سطر اول باید نام ستون‌ها باشد. تنها ستون لازم <code dir="ltr">mobile</code> است؛
+                بقیه هرکدام بود خوانده می‌شود:
+            </p>
+            <pre dir="ltr" style="overflow-x:auto;font-size:12px">mobile,name,category,province,city,address,lat,lng,source
+09121234567,باربری الماس,شرکت‌های حمل‌ونقل,تهران,تهران,خیابان ولیعصر,35.73,51.42,list.xlsx</pre>
+            <ul class="muted small">
+                <li>ادغام روی <b>شمارهٔ موبایل</b> انجام می‌شود: ردیف تکراری اضافه نمی‌شود، فقط جاهای خالی‌اش پر می‌گردد.</li>
+                <li>شماره‌های نامعتبر و تکراریِ داخل فایل بی‌سروصدا رد می‌شوند و تعدادشان گزارش می‌شود.</li>
+                <li>«دیگر پیام نده» هرگز از فایل بازنویسی نمی‌شود — بارگذاری دوباره، لغو اشتراک‌ها را پاک نمی‌کند.</li>
+                <li>فایل باید UTF-8 باشد وگرنه فارسی به هم می‌ریزد. اکسل با «ذخیره به‌صورت CSV UTF-8» می‌دهدش.</li>
+            </ul>
+        </div>
+    </div>
+</div>

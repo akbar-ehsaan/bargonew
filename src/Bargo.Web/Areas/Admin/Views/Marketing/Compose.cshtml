@@ -1,0 +1,242 @@
+@model CampaignComposeVm
+@{
+    var f = Model.F;
+    int willSend = Math.Min(Model.Count, f.Cap);
+    var previewText = CampaignMessage.Render(Model.Text, Model.Sample?.Name, Model.Sample?.City, Model.Sample?.Province);
+    // تعرفه به تومان برای شمارندهٔ زندهٔ صفحه — Fa.Toman هم از ریال به تومان می‌رود.
+    long priceToman = f.PriceRial / 10;
+}
+
+<style>
+    .cp-ta { line-height: 2.1; resize: vertical; }
+    .cp-meter { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 9px; font-size: .8rem; }
+    .cp-meter b { font-size: 15px; font-weight: 900; }
+    .cp-meter .ok { color: var(--ok,#188a4f); } .cp-meter .warn { color: var(--wait,#d68a0c); } .cp-meter .bad { color: var(--no,#c0392b); }
+    .cp-tok { display: inline-flex; align-items: center; gap: 5px; border: 1px dashed var(--line,#e3e8ef);
+              border-radius: 9px; padding: 5px 10px; font: inherit; font-size: .75rem; font-weight: 700;
+              color: var(--muted,#7b8794); cursor: pointer; margin-inline-end: 6px; background: transparent; }
+    .cp-tok:hover { border-color: var(--pri,#1b6ec2); color: var(--pri,#1b6ec2); }
+    .cp-tpl-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 7px; }
+    .cp-tpl-b { text-align: right; border: 1px solid var(--line,#e3e8ef); background: transparent; border-radius: 10px;
+                padding: 8px 11px; cursor: pointer; font: inherit; display: block; }
+    .cp-tpl-b:hover { border-color: var(--pri,#1b6ec2); }
+    .cp-tpl-b b { display: block; font-size: .78rem; }
+    .cp-prev { background: #1f2937; color: #e2e8f0; border-radius: 12px; padding: 14px 16px;
+               font-size: .85rem; line-height: 2.1; white-space: pre-wrap; word-break: break-word; min-height: 60px; }
+    .cp-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 9px; }
+    .cp-sum > div { border: 1px solid var(--line,#e3e8ef); border-radius: 11px; padding: 9px 11px; font-size: .78rem; }
+    .cp-sum b { display: block; font-size: 19px; font-weight: 900; }
+    .cp-test { border: 1.5px dashed var(--wait,#d68a0c); border-radius: 12px; padding: 13px 15px; margin: 14px 0; }
+</style>
+
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-pencil-square"></i> نوشتن پیام برای گیرندگان</h1>
+        <p>گام ۲ از ۳ — متن را بنویسید، پیش‌نمایش و هزینه را ببینید و در صورت نیاز ارسال آزمایشی بزنید.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="@Url.Action("Sms", new { cat = f.Cat, province = f.Province, city = f.City, excludeSent = f.ExcludeSent })"><i class="bi bi-arrow-right"></i> بازگشت و تغییر فیلتر</a>
+        <a class="btn2 ghost" asp-action="Index"><i class="bi bi-clock-history"></i> کمپین‌ها</a>
+    </div>
+</div>
+
+@if (!f.SmsReal || !f.CampaignOn)
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-triangle"></i><div class="grow">
+        @(!f.SmsReal ? "سرویس پیامک روی «log» است" : "کلید کمپین بسته است") — کمپین ثبت می‌شود ولی
+        هیچ پیامکی به گیرنده نمی‌رسد.
+    </div></div>
+}
+
+<div class="grid2">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-people"></i> گیرندگان این پیام</div>
+        <div class="bd">
+            <div style="font-size:40px;font-weight:900;color:@(Model.Count > 0 ? "var(--ok,#188a4f)" : "var(--no,#c0392b)")">@Fa.N(Model.Count)</div>
+            <p class="muted small">همهٔ نتایج فیلتر که «دیگر پیام نده» نزده‌اند@(f.ExcludeSent ? " و قبلاً پیامکی نگرفته‌اند" : "").</p>
+            <div class="cp-sum">
+                <div><b>@Fa.N(willSend)</b><span>در این کمپین می‌گیرند</span></div>
+                @if (Model.Count > f.Cap)
+                {
+                    <div><b style="color:var(--wait,#d68a0c)">@Fa.N(Model.Count - f.Cap)</b><span>خارج از سقف کمپین می‌مانند</span></div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-speedometer2"></i> سقف‌ها و بودجهٔ امروز</div>
+        <div class="bd">
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <tbody>
+                        <tr><td>سقف هر کمپین</td><td class="num"><b>@Fa.N(f.Cap) گیرنده</b></td></tr>
+                        <tr><td>سقف امروز</td><td class="num"><b>@(f.Budget.Capped ? Fa.N(f.Budget.Cap) + " پیامک" : "بی‌سقف")</b></td></tr>
+                        <tr><td>امروز تا الان رفته</td><td class="num"><b>@Fa.N(f.Budget.SentToday)</b></td></tr>
+                        <tr>
+                            <td>ماندهٔ امروز</td>
+                            <td class="num"><b style="color:@(f.Budget.Exhausted ? "var(--no,#c0392b)" : "var(--ok,#188a4f)")">
+                                @(f.Budget.Capped ? Fa.N(f.Budget.Remaining) : "—")</b></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="muted small" style="margin-top:10px">
+                سقف روزانه روی <b>همهٔ</b> کمپین‌ها با هم اعمال می‌شود و جلوی «پنج بار همان کمپین»
+                را می‌گیرد. کمپینی که به سقف برسد متوقف نمی‌شود؛ فردا خودش ادامه می‌دهد.
+            </p>
+        </div>
+    </div>
+</div>
+
+@* یک فرم، دو مقصد: «ارسال آزمایشی» با formaction همان textarea را می‌برد —
+   اگر فرم جدا بود، چیزی را می‌آزمودیم که ارسال نمی‌شود. *@
+<div class="card2" style="margin-top:18px">
+    <div class="hd"><i class="bi bi-pencil-square"></i> متن پیام</div>
+    <div class="bd">
+        <form method="post" asp-action="SmsConfirm" id="cpForm">
+            <input type="hidden" name="cat" value="@f.Cat" />
+            <input type="hidden" name="province" value="@f.Province" />
+            <input type="hidden" name="city" value="@f.City" />
+            <input type="hidden" name="excludeSent" value="@(f.ExcludeSent ? "true" : "false")" />
+
+            <div style="margin-bottom:10px">
+                <span style="font-size:.78rem;font-weight:800;color:var(--muted,#7b8794);margin-inline-end:8px">جای‌نشان:</span>
+                @foreach (var (token, label) in CampaignMessage.Tokens)
+                {
+                    <button type="button" class="cp-tok" data-token="@token">@token <span style="font-weight:400">(@label)</span></button>
+                }
+            </div>
+
+            @if (Model.Templates.Count > 0)
+            {
+                <div class="fld">
+                    <label>متن آماده — نقطهٔ شروع، نه متنِ قفل‌شده</label>
+                    <div class="cp-tpl-list">
+                        @foreach (var t in Model.Templates)
+                        {
+                            <button type="button" class="cp-tpl-b" data-tpl="@t.Body"><b>@t.Title</b></button>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="fld">
+                <textarea id="cpText" name="text" class="cp-ta" rows="5" required minlength="10" maxlength="500"
+                          placeholder="مثلاً: {نام} گرامی، بار خود را رایگان در بارگو ثبت کنید.">@Model.Text</textarea>
+                <div class="cp-meter">
+                    <span><b id="cpChars">۰</b> نویسه</span>
+                    <span><b id="cpParts" class="ok">۰</b> بخش پیامک (<span id="cpEnc">فارسی</span>)</span>
+                    <span>هزینهٔ این کمپین: <b id="cpCost">۰</b> پیامک ≈ <b id="cpToman">۰</b> تومان</span>
+                </div>
+                <span class="hint">
+                    پیامک فارسی UCS-2 است: هر بخش <b>۷۰</b> نویسه و در پیام چندبخشی <b>۶۷</b> —
+                    یعنی متن ۱۴۰نویسه‌ای سه پیامک است نه دو.
+                    بند «لغو» را خودِ سامانه به هر پیامک می‌افزاید و در همین شمارش هست؛ لازم نیست بنویسیدش.
+                </span>
+            </div>
+
+            <div class="fld">
+                <label>پیش‌نمایش دقیق متن ارسالی</label>
+                <div class="cp-prev" id="cpPrev">@previewText</div>
+                @if (Model.Sample != null)
+                {
+                    <span class="hint">
+                        ساخته‌شده روی گیرندهٔ واقعیِ
+                        «<b>@(string.IsNullOrWhiteSpace(Model.Sample.Name) ? Model.Sample.Mobile : Model.Sample.Name)</b>»@(string.IsNullOrWhiteSpace(Model.Sample.City) ? "" : " — " + Model.Sample.City).
+                        جای‌نشان‌ها طول را برای هر گیرنده متفاوت می‌کنند؛ بدترین حالت در گام تأیید می‌آید.
+                    </span>
+                }
+            </div>
+
+            @* ── ارسال آزمایشی — یک پیامک واقعی ── *@
+            <div class="cp-test">
+                <label style="color:var(--wait,#d68a0c);font-weight:800;font-size:.8rem">ارسال آزمایشی به یک شماره</label>
+                <div class="row-actions" style="margin-top:8px">
+                    <input name="testMobile" dir="ltr" inputmode="tel" placeholder="09123456789"
+                           autocomplete="off" style="min-width:180px;max-width:220px" />
+                    <button type="submit" formaction="@Url.Action("TestSms")" formnovalidate
+                            class="btn2 sm ghost"
+                            onclick="return confirm('یک پیامک واقعی به این شماره ارسال می‌شود. ادامه؟')">
+                        ارسال یک پیامک آزمایشی
+                    </button>
+                </div>
+                <span class="hint" style="color:var(--wait,#d68a0c)">
+                    این <b>یک پیامک واقعی است و هزینه دارد</b> — همین متنِ پیش‌نمایش، با بند لغو.
+                </span>
+            </div>
+
+            <div class="row-actions">
+                <button type="submit" class="btn2 pri" disabled="@(Model.Count == 0)">
+                    ادامه: دیدن فهرست دقیق گیرندگان
+                </button>
+                <span class="muted small">
+                    این دکمه چیزی ارسال نمی‌کند؛ فقط گام تأیید را نشان می‌دهد. متن برای دفعهٔ بعد ذخیره می‌شود.
+                </span>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // قاعدهٔ بخش‌بندی عیناً همان Services/SmsSegments.cs است؛ اگر جدا بیفتند،
+        // مدیر یک عدد می‌بیند و عدد دیگری می‌پردازد.
+        var RESERVE = @Model.Reserve, PRICE = @priceToman, WILL = @willSend;
+        var SAMPLE = { name: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Sample?.Name ?? "")),
+                       city: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Sample?.City ?? "")),
+                       province: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Sample?.Province ?? "")) };
+        var GSM = String.fromCharCode(64)
+                + "£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?"
+                + "¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+        var GSMX = "^{}\\[~]|€";
+        function parts(s) {
+            if (!s.length) return { p: 0, uni: true };
+            var uni = false, i;
+            for (i = 0; i < s.length; i++)
+                if (GSM.indexOf(s[i]) < 0 && GSMX.indexOf(s[i]) < 0) { uni = true; break; }
+            var w = s.length;
+            if (!uni) { w = 0; for (i = 0; i < s.length; i++) w += GSMX.indexOf(s[i]) >= 0 ? 2 : 1; }
+            var single = uni ? 70 : 160, multi = uni ? 67 : 153;
+            return { p: w <= single ? 1 : Math.ceil(w / multi), uni: uni };
+        }
+        function fa(n) { return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
+        function money(n) { return fa(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '٬')); }
+        function render(tpl) {
+            var s = tpl.split('{نام}').join(SAMPLE.name).split('{شهر}').join(SAMPLE.city)
+                       .split('{استان}').join(SAMPLE.province);
+            while (s.indexOf('  ') >= 0) s = s.split('  ').join(' ');
+            return s.trim();
+        }
+        var ta = document.getElementById('cpText');
+        function paint() {
+            var body = render(ta.value || '');
+            var withReserve = body.length ? body + new Array(RESERVE + 1).join('م') : '';
+            var m = parts(withReserve);
+            document.getElementById('cpChars').textContent = fa(body.length);
+            var el = document.getElementById('cpParts');
+            el.textContent = fa(m.p || 0);
+            el.className = (m.p || 0) <= 1 ? 'ok' : (m.p === 2 ? 'warn' : 'bad');
+            document.getElementById('cpEnc').textContent = m.uni === false ? 'لاتین' : 'فارسی';
+            var total = (m.p || 0) * WILL;
+            document.getElementById('cpCost').textContent = fa(total);
+            document.getElementById('cpToman').textContent = money(total * PRICE);
+            document.getElementById('cpPrev').textContent = body;
+        }
+        ta.addEventListener('input', paint);
+        document.querySelectorAll('.cp-tok').forEach(function (b) {
+            b.addEventListener('click', function () {
+                var tok = b.dataset.token || '', at = ta.selectionStart || ta.value.length;
+                ta.value = ta.value.slice(0, at) + tok + ta.value.slice(ta.selectionEnd || at);
+                ta.focus(); ta.selectionStart = ta.selectionEnd = at + tok.length; paint();
+            });
+        });
+        document.querySelectorAll('.cp-tpl-b').forEach(function (b) {
+            b.addEventListener('click', function () {
+                if (ta.value.trim().length > 0 && !confirm('متن فعلی با این قالب جایگزین شود؟')) return;
+                ta.value = b.dataset.tpl || ''; ta.focus(); paint();
+            });
+        });
+        paint();
+    </script>
+}

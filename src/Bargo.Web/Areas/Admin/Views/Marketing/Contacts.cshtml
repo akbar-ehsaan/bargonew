@@ -1,0 +1,85 @@
+@model MarketingContactsVm
+@{
+    var here = Context.Request.Path + Context.Request.QueryString;
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-person-lines-fill"></i> بانک مخاطبان</h1>
+        <p>
+            روی هم @Fa.N(Model.All) مخاطب — @Fa.N(Model.OptedOut) نفرشان «دیگر پیام نده» زده‌اند و هیچ کمپینی سراغشان نمی‌رود.
+            این‌ها لزوماً عضو بارگو نیستند؛ شماره‌شان از فایل یا از بانک کاربران وارد شده.
+        </p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Categories"><i class="bi bi-tags"></i> گروه‌ها</a>
+        <a class="btn2 ghost" asp-action="Import"><i class="bi bi-file-earmark-arrow-up"></i> ورود مخاطبان</a>
+        <a class="btn2 pri" asp-action="Sms"><i class="bi bi-send-plus"></i> ساخت کمپین</a>
+    </div>
+</div>
+
+<div class="card2">
+    <div class="bd">
+        <form method="get" class="filters">
+            <input name="q" value="@Model.Q" placeholder="نام، شهر یا شماره" style="min-width:180px" />
+            <select name="cat">
+                <option value="">همهٔ گروه‌ها</option>
+                @foreach (var c in Model.Categories)
+                {
+                    <option value="@c" selected="@(c == Model.Cat)">@c</option>
+                }
+            </select>
+            <select name="province">
+                <option value="">همهٔ استان‌ها</option>
+                @foreach (var p in Model.Provinces)
+                {
+                    <option value="@p" selected="@(p == Model.Province)">@p</option>
+                }
+            </select>
+            <select name="state">
+                <option value="" selected="@(string.IsNullOrEmpty(Model.State))">هر وضعیتی</option>
+                <option value="untouched" selected="@(Model.State == "untouched")">هنوز پیامکی نگرفته</option>
+                <option value="sent" selected="@(Model.State == "sent")">قبلاً پیامک گرفته</option>
+                <option value="optedout" selected="@(Model.State == "optedout")">لغو اشتراک کرده</option>
+            </select>
+            <button type="submit" class="btn2 sm pri"><i class="bi bi-funnel"></i> فیلتر</button>
+        </form>
+
+        <p class="muted small" style="margin:10px 0 0"><b>@Fa.N(Model.Page.Total)</b> مخاطب با این فیلتر پیدا شد.</p>
+    </div>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead>
+                <tr>
+                    <th>نام</th><th>شماره</th><th>گروه</th><th>استان / شهر</th>
+                    <th>پیامک گرفته</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var r in Model.Page.Rows)
+            {
+                <tr style="@(r.OptedOut ? "opacity:.55" : "")">
+                    <td>@(string.IsNullOrWhiteSpace(r.Name) ? "—" : r.Name)</td>
+                    <td class="num">@r.Mobile</td>
+                    <td>@r.Category</td>
+                    <td>@r.Province @(string.IsNullOrWhiteSpace(r.City) ? "" : "— " + r.City)</td>
+                    <td>@(r.SentCount > 0 ? Fa.N(r.SentCount) + " بار" : "—")</td>
+                    <td>
+                        <form method="post" asp-action="ToggleOptOut" style="display:inline">
+                            <input type="hidden" name="id" value="@r.MarketingContactId" />
+                            <input type="hidden" name="back" value="@here" />
+                            <button class="btn2 sm ghost">
+                                @(r.OptedOut ? "بازگرداندن به فهرست" : "دیگر پیام نده")
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            @if (Model.Page.Total == 0)
+            {
+                <tr><td colspan="6" class="empty"><i class="bi bi-person-lines-fill"></i>چیزی پیدا نشد — از «ورود مخاطبان»، کاربران بارگو یا فایل CSV وارد کنید.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Page.Pager" />
+</div>

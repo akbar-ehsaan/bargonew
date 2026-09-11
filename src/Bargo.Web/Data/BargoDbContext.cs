@@ -57,6 +57,11 @@ public class BargoDbContext(DbContextOptions<BargoDbContext> options) : DbContex
     public DbSet<Broadcast> Broadcasts => Set<Broadcast>();
     public DbSet<SmsLog> SmsLogs => Set<SmsLog>();
 
+    // ---- کمپین پیامکی (بانک مخاطبان بازاریابی) ----
+    public DbSet<MarketingContact> MarketingContacts => Set<MarketingContact>();
+    public DbSet<SmsCampaign> SmsCampaigns => Set<SmsCampaign>();
+    public DbSet<SmsCampaignRecipient> SmsCampaignRecipients => Set<SmsCampaignRecipient>();
+
     // ---- داده پایه و سامانه ----
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<City> Cities => Set<City>();
@@ -185,6 +190,21 @@ public class BargoDbContext(DbContextOptions<BargoDbContext> options) : DbContex
         b.Entity<Message>().HasIndex(x => new { x.ThreadKey, x.CreatedAt });
         b.Entity<Message>().HasIndex(x => new { x.ToKind, x.ToId, x.ReadAt });
         b.Entity<SmsLog>().HasIndex(x => x.CreatedAt);
+
+        // ─── کمپین پیامکی ───
+        // موبایل یکتاست تا یک نفر از دو فهرست متفاوت دو بار پیامک نگیرد.
+        b.Entity<MarketingContact>().HasIndex(x => x.Mobile).IsUnique();
+        b.Entity<MarketingContact>().HasIndex(x => x.Category);
+        b.Entity<MarketingContact>().HasIndex(x => new { x.Province, x.City });
+        b.Entity<SmsCampaign>().HasIndex(x => x.Status);
+        // موتور ارسال: «شماره‌های در صفِ این کمپین» — هر دو ثانیه پرسیده می‌شود.
+        b.Entity<SmsCampaignRecipient>().HasIndex(x => new { x.CampaignId, x.Status });
+        // سقف روزانه: «چند ارسال موفق از ابتدای امروز».
+        b.Entity<SmsCampaignRecipient>().HasIndex(x => new { x.Status, x.SentAt });
+        b.Entity<SmsCampaignRecipient>().HasOne(r => r.Campaign).WithMany(c => c.Recipients)
+            .HasForeignKey(r => r.CampaignId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<SmsCampaignRecipient>().HasOne(r => r.Contact).WithMany()
+            .HasForeignKey(r => r.ContactId).OnDelete(DeleteBehavior.Restrict);
 
         // ─── داده پایه ───
         b.Entity<Province>().Property(p => p.ProvinceId).ValueGeneratedNever();

@@ -1,0 +1,41 @@
+@{
+    Layout = "~/Views/Home/_PublicLayout.cshtml";
+    ViewData["Title"] = "لغو پیامک تبلیغاتی بارگو";
+    bool done = ViewBag.Done ?? false;
+    bool already = ViewBag.Already ?? false;
+    string masked = ViewBag.Masked;
+}
+
+<div class="card2" style="max-width:520px;margin:24px auto">
+    <div class="hd"><i class="bi bi-bell-slash"></i> پیامک تبلیغاتی بارگو</div>
+    <div class="bd">
+        @if (done || already)
+        {
+            <p>دیگر پیامک تبلیغاتی برای <b dir="ltr">@masked</b> فرستاده نمی‌شود.</p>
+            <p class="muted small">
+                پیامک‌های مربوط به حساب خودتان — مثل کد ورود یا وضعیت سفر — پیامک
+                تبلیغاتی نیستند و به این لغو ربطی ندارند.
+            </p>
+        }
+        else
+        {
+            <p>
+                اگر دیگر نمی‌خواهید پیامک تبلیغاتی بارگو به <b dir="ltr">@masked</b>
+                برسد، همین‌جا قطعش کنید.
+            </p>
+            @* دکمه و نه لینک: نوشتن با GET یعنی پیش‌بارگیری مرورگر هم می‌تواند
+               این را انجام دهد. *@
+            <form method="post" action="/u/@ViewBag.Token">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn2 pri" style="width:100%">
+                    دیگر پیامک تبلیغاتی نفرست
+                </button>
+            </form>
+            <p class="muted small" style="margin-top:10px">
+                این کار روی پیامک‌های حساب شما (کد ورود، وضعیت سفر) اثری ندارد.
+            </p>
+        }
+
+        <a class="btn2 sm ghost" style="margin-top:10px" href="/?site=1">صفحهٔ اصلی بارگو</a>
+    </div>
+</div>

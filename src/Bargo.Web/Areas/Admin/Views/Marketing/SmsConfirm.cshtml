@@ -1,0 +1,156 @@
+@model CampaignConfirmVm
+@{
+    var f = Model.F;
+    var countFa = Fa.N(Model.Count);
+}
+
+<style>
+    .cf-big { font-size: 54px; font-weight: 900; line-height: 1.2; color: var(--no,#c0392b); }
+    .cf-msg { background: #1f2937; color: #e2e8f0; border-radius: 12px; padding: 14px 16px;
+              font-size: .85rem; line-height: 2.1; white-space: pre-wrap; word-break: break-word; }
+</style>
+
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-send-check"></i> تأیید ارسال پیامک</h1>
+        <p>گام ۳ از ۳ — این صفحه یک هدف دارد: عدد را چنان بزرگ نشان دهد که کسی اشتباهی تأیید نکند.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" href="@Url.Action("Sms", new { cat = f.Cat, province = f.Province, city = f.City, excludeSent = f.ExcludeSent })"><i class="bi bi-arrow-right"></i> بازگشت و ویرایش</a>
+    </div>
+</div>
+
+<div class="card2" style="border:1.5px solid var(--no,#c0392b);margin-bottom:18px">
+    <div class="bd">
+        <div class="row-actions" style="gap:20px;align-items:center;flex-wrap:wrap">
+            <div>
+                <div class="cf-big">@Fa.N(Model.Count)</div>
+                <div style="font-size:.82rem;font-weight:800;color:var(--no,#c0392b)">گیرنده</div>
+            </div>
+            <div style="flex:1;min-width:260px;font-size:.85rem;line-height:2">
+                با فشردن دکمهٔ پایین، به <b>@Fa.N(Model.Count) شماره موبایل</b> پیامک فرستاده می‌شود.
+                متن شما با بند لغو <b>@Fa.N(Model.Parts) بخش</b> پیامک است@(Model.HasTokens && Model.MaxParts > Model.Parts ? $" (برای بلندترین نام تا {Fa.N(Model.MaxParts)} بخش)" : "")
+                — یعنی هزینهٔ کل تا <b>@Fa.N(Model.TotalParts)</b> پیامک ≈ <b>@Fa.Toman(Model.TotalParts * f.PriceRial)</b>.
+                @if (f.Cap > 0 && Model.Count > f.Cap)
+                {
+                    <br /><text><b>سقف هر کمپین @Fa.N(f.Cap) است</b>، پس در عمل @Fa.N(Model.WillSend) نفر می‌گیرند و
+                    @Fa.N(Model.Count - Model.WillSend) نفر برای اجرای بعدی می‌مانند.</text>
+                }
+                @if (f.Budget.Capped && Model.WillSend > f.Budget.Remaining)
+                {
+                    <br /><text><b>ماندهٔ سقف امروز @Fa.N(f.Budget.Remaining) است</b> — امروز همین‌قدر می‌رود و
+                    بقیه فردا خودبه‌خود ادامه می‌یابد.</text>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.Duplicates.Count > 0)
+{
+    <div class="alert2 warn"><i class="bi bi-arrow-repeat"></i><div class="grow">
+        <b>همین متن قبلاً فرستاده شده است.</b>
+        @foreach (var d in Model.Duplicates.Take(2))
+        {
+            <div>«@d.Title» — @Fa.N(d.SentCount) ارسال@(d.At != null ? " · " + Fa.Stamp(d.At.Value) : "")</div>
+        }
+        اگر موج دوم است اشکالی ندارد؛ فقط مطمئن شوید گیرنده‌ها همان‌ها نیستند
+        (تیک «قبلاً گرفته‌اند را رد کن» همین کار را می‌کند).
+    </div></div>
+}
+
+@if (!f.SmsReal || !f.CampaignOn)
+{
+    <div class="alert2 err"><i class="bi bi-exclamation-triangle-fill"></i><div class="grow">
+        @(!f.SmsReal ? "سرویس پیامک روی «log» است" : "کلید کمپین بسته است") — با فشردن دکمه، کمپین ثبت می‌شود ولی
+        <b>هیچ پیامک واقعی‌ای ارسال نمی‌شود</b> تا در «تنظیمات پیامک» بازش کنید.
+    </div></div>
+}
+
+<div class="grid2" style="margin-top:18px">
+    <div class="card2">
+        <div class="hd"><i class="bi bi-chat-text"></i> متنی که فرستاده می‌شود</div>
+        <div class="bd">
+            <div class="cf-msg">@Model.Text</div>
+            <p class="muted small" style="margin-top:10px">
+                @Fa.N(Model.Text.Length) نویسه — با بند لغو @Fa.N(Model.Parts) بخش پیامک
+                (@(Model.Unicode ? "فارسی/UCS-2: هر بخش ۷۰، در چندبخشی ۶۷ نویسه" : "لاتین/GSM: هر بخش ۱۶۰ نویسه")).
+                @if (Model.HasTokens)
+                {
+                    <br /><text>این متن جای‌نشان دارد؛ برای هر گیرنده نامِ خودش می‌نشیند، پس طول و هزینه
+                    کمی فرق می‌کند. بیشترین حالت: <b>@Fa.N(Model.MaxParts) بخش</b>.</text>
+                }
+            </p>
+        </div>
+    </div>
+
+    <div class="card2">
+        <div class="hd"><i class="bi bi-funnel"></i> فیلتر این کمپین</div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <tbody>
+                    <tr><td>گروه</td><td><b>@(string.IsNullOrWhiteSpace(f.Cat) ? "همه" : f.Cat)</b></td></tr>
+                    <tr><td>استان</td><td><b>@(string.IsNullOrWhiteSpace(f.Province) ? "همه" : f.Province)</b></td></tr>
+                    <tr><td>شهر</td><td><b>@(string.IsNullOrWhiteSpace(f.City) ? "همه" : f.City)</b></td></tr>
+                    <tr><td>قبلاً پیامک‌گرفته‌ها</td><td><b>@(f.ExcludeSent ? "رد می‌شوند" : "دوباره می‌گیرند")</b></td></tr>
+                    <tr><td>سقف کمپین</td><td class="num"><b>@Fa.N(f.Cap) گیرنده</b></td></tr>
+                    <tr><td>ماندهٔ امروز</td>
+                        <td class="num"><b>@(f.Budget.Capped ? Fa.N(f.Budget.Remaining) + " از " + Fa.N(f.Budget.Cap) : "بی‌سقف")</b></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card2" style="margin-top:18px">
+    <div class="hd"><i class="bi bi-list-ol"></i> فهرست دقیق گیرندگان</div>
+    <div class="tbl-wrap" style="max-height:420px;overflow:auto">
+        <table class="tbl">
+            <thead><tr><th>#</th><th>گروه</th><th>استان / شهر</th><th>نام</th><th>موبایل</th></tr></thead>
+            <tbody>
+            @{ var i = 0; }
+            @foreach (var r in Model.Recipients)
+            {
+                i++;
+                var overCap = f.Cap > 0 && i > f.Cap;
+                <tr style="@(overCap ? "opacity:.45" : "")">
+                    <td class="num">@Fa.N(i)</td>
+                    <td>@r.Category</td>
+                    <td>@r.Province @(string.IsNullOrWhiteSpace(r.City) ? "" : " / " + r.City)</td>
+                    <td>@(string.IsNullOrWhiteSpace(r.Name) ? "—" : r.Name)</td>
+                    <td class="num">@r.Mobile @(overCap ? "· خارج از سقف" : "")</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.More > 0)
+    {
+        <div class="bd"><p class="muted small">… و @Fa.N(Model.More) گیرندهٔ دیگر با همین فیلتر — همه در صف می‌نشینند.</p></div>
+    }
+</div>
+
+<div class="card2" style="margin-top:18px;border:1.5px solid var(--no,#c0392b)">
+    <div class="bd">
+        <form method="post" asp-action="Send"
+              data-confirm="ارسال به @countFa شماره. این کار برگشت‌پذیر نیست. ادامه؟">
+            <input type="hidden" name="cat" value="@f.Cat" />
+            <input type="hidden" name="province" value="@f.Province" />
+            <input type="hidden" name="city" value="@f.City" />
+            <input type="hidden" name="excludeSent" value="@(f.ExcludeSent ? "true" : "false")" />
+            <input type="hidden" name="text" value="@Model.Text" />
+            @* عددی که همین حالا نشان داده شد. اگر تا لحظهٔ کلیک عوض شود (مثلاً
+               واردات تازه)، هیچ‌چیز ارسال نمی‌شود — تأیید «۱۲ گیرنده» نباید
+               بی‌صدا «۲۶۵ گیرنده» شود. *@
+            <input type="hidden" name="expected" value="@Model.Count" />
+            <div class="row-actions" style="justify-content:space-between;flex-wrap:wrap">
+                <span class="muted small">
+                    اگر شمار گیرندگان تا لحظهٔ کلیک تغییر کرده باشد، ارسال متوقف می‌شود و دوباره تأیید می‌گیرید.
+                </span>
+                <button type="submit" class="btn2 red" disabled="@(Model.WillSend == 0)">
+                    <i class="bi bi-send-check"></i> ارسال به @Fa.N(Model.WillSend) گیرنده
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

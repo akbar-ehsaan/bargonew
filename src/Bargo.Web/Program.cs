@@ -81,6 +81,10 @@ builder.Services.AddScoped<DriverReadiness>();
 // گردش کار بار ← سفر ← تحویل ← تسویه؛ تنها جایی که وضعیت‌ها عوض می‌شوند
 builder.Services.AddScoped<TripFlow>();
 builder.Services.AddHostedService<ExpiryAlertService>();
+// کمپین پیامکی: لینک امضاشدهٔ «دیگر پیام نده» (کلیدش کنار کلیدهای DataProtection
+// می‌ماند تا با انتشار پاک نشود) و موتور ارسال پس‌زمینه که صف کمپین را خالی می‌کند.
+builder.Services.AddSingleton(new OptOutLinks(keysDir));
+builder.Services.AddHostedService<CampaignSenderJob>();
 
 // ---------- MVC ----------
 // دروازهٔ تأیید سراسری است نه روی کنترلرها: هر Area تازه به‌طور پیش‌فرض بسته است.

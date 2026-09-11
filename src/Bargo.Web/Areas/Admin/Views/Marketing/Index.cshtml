@@ -1,0 +1,82 @@
+@model CampaignListVm
+@{
+    // «به کجا رفت» در یک خط — سه جای اول، بقیه شمرده.
+    string Places(int id)
+    {
+        if (!Model.Where.TryGetValue(id, out var list) || list.Count == 0) return "—";
+        var head = list.Take(3).Select(p =>
+            p.Province + (string.IsNullOrWhiteSpace(p.City) ? "" : " / " + p.City) + " (" + Fa.N(p.Count) + ")");
+        var rest = list.Count - 3;
+        return string.Join("، ", head) + (rest > 0 ? $" و {Fa.N(rest)} جای دیگر" : "");
+    }
+}
+<div class="page-head">
+    <div>
+        <h1><i class="bi bi-clock-history"></i> کمپین‌های پیامکی بانک مخاطبان</h1>
+        <p>هر کمپین صف خودش را دارد و وضعیت تک‌تک شماره‌ها ثبت می‌شود؛ ارسال در پس‌زمینه است.</p>
+    </div>
+    <div class="actions">
+        <a class="btn2 ghost" asp-action="Dashboard"><i class="bi bi-speedometer"></i> داشبورد پیامک</a>
+        <a class="btn2 pri" asp-action="Sms"><i class="bi bi-send-plus"></i> کمپین جدید</a>
+    </div>
+</div>
+
+@if (!Model.SmsReal)
+{
+    <div class="alert2 warn"><i class="bi bi-exclamation-triangle"></i><div class="grow">
+        سرویس پیامک روی «log» است — هیچ پیامک واقعی‌ای نمی‌رود و فقط در لاگ ثبت می‌شود.
+    </div></div>
+}
+else if (!Model.CampaignOn)
+{
+    <div class="alert2 warn"><i class="bi bi-toggle-off"></i><div class="grow">
+        کلید «کمپین پیامکی» بسته است. پیش‌فرضش عمداً خاموش است چون گیرنده‌ها خودشان
+        شماره‌شان را به ما نداده‌اند؛ برای ارسال باید در <a class="lnk" href="/Admin/Settings/Sms">تنظیمات پیامک</a> بازش کنید.
+    </div></div>
+}
+
+<div class="alert2 ok"><i class="bi bi-shield-check"></i><div class="grow">
+    هم‌اکنون <b>@Fa.N(Model.OptOutCount)</b> شماره «دیگر پیام نده» زده‌اند و در هیچ کمپینی —
+    حتی پس از بارگذاری دوبارهٔ فایل — شمرده نمی‌شوند. این ردّ در پایگاه‌داده می‌ماند و با انتشار از دست نمی‌رود.
+</div></div>
+
+<div class="card2">
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead>
+                <tr>
+                    <th>کمپین</th><th>وضعیت</th><th>زمان</th><th>اجراکننده</th>
+                    <th>به کجا رفت</th><th>گیرنده</th><th>ارسال موفق</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var c in Model.Rows)
+            {
+                <tr>
+                    <td><a class="lnk" asp-action="Details" asp-route-id="@c.SmsCampaignId">@c.Title</a></td>
+                    <td>@Ui.Pill(CampaignStatus.Label(c.Status), CampaignStatus.Tone(c.Status))</td>
+                    <td class="nowrap">@Fa.Stamp(c.StartedAt ?? c.CreatedAt)</td>
+                    <td>@(Model.By.TryGetValue(c.CreatedByAdminId, out var name) ? name : "—")</td>
+                    <td class="small">@Places(c.SmsCampaignId)</td>
+                    <td class="num">@Fa.N(c.Total)</td>
+                    <td class="num">
+                        @if (c.SentCount == c.Total && c.Total > 0)
+                        {
+                            <b style="color:var(--ok,#188a4f)">@Fa.N(c.SentCount)</b>
+                        }
+                        else
+                        {
+                            @* «۰ از ۱۲» تقریباً همیشه یعنی کلید کمپین بسته است، نه اینکه درگاه رد کرده باشد. *@
+                            <span>@Fa.N(c.SentCount) از @Fa.N(c.Total)</span>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Rows.Count == 0)
+            {
+                <tr><td colspan="7" class="empty"><i class="bi bi-send"></i>هنوز کمپینی اجرا نشده است — از «کمپین جدید» شروع کنید؛ پیش از ارسال، شمار دقیق گیرندگان و هزینه نشان داده می‌شود.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
