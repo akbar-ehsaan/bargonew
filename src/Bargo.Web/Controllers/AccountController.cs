@@ -349,6 +349,8 @@ public class AccountController(
         }
 
         var gender = vm.Gender is "male" or "female" ? vm.Gender : null;
+        var referral = string.IsNullOrWhiteSpace(vm.ReferralCode) ? null : Fa.Latin(vm.ReferralCode.Trim());
+        if (referral is { Length: > 20 }) referral = referral[..20];
         var hash = PasswordHasher.Hash(vm.Password!);
         switch (vm.Type)
         {
@@ -358,7 +360,7 @@ public class AccountController(
                 var d = new Driver
                 {
                     Mobile = mobile, PassHash = hash, FirstName = vm.FirstName!.Trim(), LastName = vm.LastName!.Trim(),
-                    Gender = gender,
+                    Gender = gender, ReferralCode = referral,
                     NationalCode = Fa.Latin(vm.NationalCode), CityId = vm.CityId, LicenseNo = Fa.Latin(vm.LicenseNo), SmartCardNo = Fa.Latin(vm.SmartCardNo)
                 };
                 db.Drivers.Add(d);
@@ -375,7 +377,7 @@ public class AccountController(
                 var s = new Shipper
                 {
                     Mobile = mobile, PassHash = hash, Kind = vm.ShipperKind == "business" ? "business" : "person",
-                    Gender = vm.ShipperKind == "business" ? null : gender,
+                    Gender = vm.ShipperKind == "business" ? null : gender, ReferralCode = referral,
                     FullName = vm.FullName!.Trim(), BusinessName = vm.BusinessName?.Trim(), CityId = vm.CityId
                 };
                 db.Shippers.Add(s);

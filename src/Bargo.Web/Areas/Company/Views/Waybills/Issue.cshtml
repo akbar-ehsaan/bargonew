@@ -50,7 +50,9 @@ else
                             <dt>گیرنده</dt><dd>@(l.Shipper is not null && !t.Revealed ? Privacy.HiddenName : l.ReceiverName ?? "—") <span class="num">@(l.Shipper is not null && !t.Revealed ? "" : Fa.Digits(l.ReceiverMobile))</span></dd>
                             <dt>راننده</dt><dd>@(t.Driver?.FullName ?? "—")@if (t.Vehicle is not null) { <text> · </text><partial name="_Plate" model="t.Vehicle.PlateNo" /> }</dd>
                             <dt>بارگیری</dt><dd>@Fa.Stamp(t.LoadedAt ?? l.LoadingFrom)</dd>
-                            <dt>کرایه</dt><dd class="num">@Fa.Toman(t.Fare)</dd>
+                            <dt>کرایه (پایه)</dt><dd class="num">@Fa.Toman(t.Fare)</dd>
+                            <dt>کمیسیون (@Fa.N(t.CommissionPercent, 1)٪)</dt><dd class="num">@Fa.Toman(t.Commission)</dd>
+                            <dt>روش پرداخت</dt><dd>@PayMethods.Label(t.PayMethod)</dd>
                             @if (l.DeclaredValue is long dv)
                             {
                                 <dt>ارزش اعلامی</dt><dd class="num">@Fa.Toman(dv)@(l.InsuranceRequested ? " · نیازمند بیمه" : "")</dd>

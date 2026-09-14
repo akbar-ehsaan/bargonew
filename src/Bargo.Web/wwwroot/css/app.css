@@ -119,6 +119,15 @@ h1,h2,h3{text-wrap:balance;line-height:1.4}
   width:auto;padding:0 14px;display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800}
 .topbar .tb-btn.out:hover{background:#b93436}
 .topbar .tb-clock{font-size:13.5px;font-weight:800;opacity:.95;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* چاپ بارنامه و رسیدها: فقط محتوای صفحه، بدون منو و نوارها و دکمه‌ها */
+@media print{
+  .sidebar,.topbar,.botnav,.footer,.overlay,.page-head .actions,.btn2,button,form{display:none !important}
+  .main{margin:0 !important}
+  .content{padding:0 !important;max-width:none !important}
+  body{background:#fff}
+  .card2{box-shadow:none;border:1px solid #000}
+}
 .topbar .tb-btn .dot{position:absolute;top:-5px;inset-inline-end:-5px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--signal);
   color:var(--ink);font-size:11px;font-weight:800;display:grid;place-items:center;font-variant-numeric:tabular-nums}
 .topbar .ttl{flex:1;min-width:0;font-weight:800;font-size:16.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

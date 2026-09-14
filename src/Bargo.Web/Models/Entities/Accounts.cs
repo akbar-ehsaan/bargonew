@@ -149,6 +149,8 @@ public class Driver
     [MaxLength(60)] public string LastName { get; set; } = "";
     /// <summary>male | female — از فرم ثبت‌نام، برای خطاب درست («آقای…»/«خانم…»).</summary>
     [MaxLength(6)] public string? Gender { get; set; }
+    /// <summary>کد معرف که هنگام ثبت‌نام وارد شده — برای کمپین‌های جذب (الگوی پت‌اوآیدی).</summary>
+    [MaxLength(20)] public string? ReferralCode { get; set; }
     [MaxLength(10)] public string NationalCode { get; set; } = "";
     public DateTime? BirthDate { get; set; }
     public int? CityId { get; set; }
@@ -202,6 +204,8 @@ public class Shipper
     [MaxLength(10)] public string Kind { get; set; } = "person";
     /// <summary>male | female — فقط برای شخص حقیقی.</summary>
     [MaxLength(6)] public string? Gender { get; set; }
+    /// <summary>کد معرف که هنگام ثبت‌نام وارد شده — برای کمپین‌های جذب (الگوی پت‌اوآیدی).</summary>
+    [MaxLength(20)] public string? ReferralCode { get; set; }
     [MaxLength(100)] public string FullName { get; set; } = "";
     [MaxLength(10)] public string? NationalCode { get; set; }
     [MaxLength(150)] public string? BusinessName { get; set; }

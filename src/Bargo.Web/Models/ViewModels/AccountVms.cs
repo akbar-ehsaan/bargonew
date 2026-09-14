@@ -36,6 +36,8 @@ public class RegisterVm
     public bool AcceptTerms { get; set; }
     /// <summary>پاسخ عبارت امنیتی حسابی.</summary>
     public string? Captcha { get; set; }
+    /// <summary>کد معرف — اختیاری، مثل پت‌اوآیدی.</summary>
+    public string? ReferralCode { get; set; }
 
     // راننده
     public string? FirstName { get; set; }

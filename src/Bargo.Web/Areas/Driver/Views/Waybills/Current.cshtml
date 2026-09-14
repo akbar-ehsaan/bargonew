@@ -12,6 +12,7 @@
     <div class="actions">
         @if (t is not null)
         {
+            <button type="button" class="btn2 soft" onclick="window.print()"><i class="bi bi-printer"></i> چاپ بارنامه</button>
             <a class="btn2 ghost" asp-controller="Trips" asp-action="Detail" asp-route-id="@t.TripId"><i class="bi bi-signpost-split"></i> صفحهٔ سفر</a>
             <a class="btn2 ghost" asp-controller="Operations" asp-action="Index"><i class="bi bi-joystick"></i> عملیات سفر</a>
         }
@@ -107,7 +108,9 @@ else
                                 <span class="muted">تعیین نشده</span>
                             }
                         </dd>
-                        <dt>کرایه</dt><dd>@Fa.Toman(t.Fare)</dd>
+                        <dt>کرایه (پایه)</dt><dd>@Fa.Toman(t.Fare)</dd>
+                        <dt>کمیسیون (@Fa.N(t.CommissionPercent, 1)٪)</dt><dd>@Fa.Toman(t.Commission)</dd>
+                        <dt>روش پرداخت</dt><dd>@PayMethods.Label(t.PayMethod)</dd>
                         @if (!string.IsNullOrEmpty(l.InsuranceType))
                         {
                             <dt>نوع بیمه</dt><dd>@l.InsuranceType</dd>
