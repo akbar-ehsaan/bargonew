@@ -177,6 +177,22 @@
         };
         tick();
     })();
+
+    // رفرش خودکار هر ۲ دقیقه تا داده‌های پنل (سفرها، اعلان‌ها، موقعیت‌ها) تازه بمانند.
+    // اگر کاربر مشغول تایپ در فرمی باشد رفرش نمی‌شود تا نوشته‌هایش از دست نرود؛
+    // تبِ پنهان هم رفرش نمی‌شود و به‌محض بازگشت به تب، اگر موعد گذشته باشد تازه می‌شود.
+    (function () {
+        var INTERVAL = 120000;
+        var dirty = false, due = Date.now() + INTERVAL;
+        document.addEventListener('input', function () { dirty = true; }, true);
+        var maybeReload = function () {
+            if (Date.now() < due || dirty) return;
+            if (document.visibilityState !== 'visible') return;
+            location.reload();
+        };
+        setInterval(maybeReload, 5000);
+        document.addEventListener('visibilitychange', maybeReload);
+    })();
 </script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
