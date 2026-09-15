@@ -1,53 +1,256 @@
+@using Bargo.Web.Controllers
+@model LandingVm
 @{
     Layout = "_PublicLayout";
-    var recent = (IEnumerable<dynamic>)ViewBag.Recent;
+    // هیرو و نوارهای رنگی باید تا لبهٔ صفحه برسند؛ ستون میانی را خود بخش‌ها می‌سازند.
+    ViewData["FullBleed"] = true;
+
+    // اگر بار واقعی داریم، کارت کنار هیرو مسیرِ همان را نشان می‌دهد تا «زنده بودن»
+    // بازار از اولین نگاه معلوم باشد؛ وگرنه یک نمونهٔ آشنا (تهران ← مشهد).
+    var demo = Model.Loads.FirstOrDefault();
+    var demoFrom = demo?.FromCity ?? "تهران";
+    var demoTo = demo?.ToCity ?? "مشهد";
+    var demoMeta = demo is null
+        ? "۱۲ تن · تریلی چادری"
+        : $"{Fa.N(demo.WeightTon, demo.WeightTon % 1 == 0 ? 0 : 1)} تن · {demo.Vehicle ?? "هر خودرو"}";
 }
-<section class="page-head" style="margin-bottom:24px">
-    <div>
-        <h1 style="font-size:28px">اعلام بار و مدیریت حمل، روی یک گردش کار</h1>
-        <p style="font-size:15px;max-width:60ch">صاحب بار ثبت می‌کند، رانندگان و شرکت‌ها پیشنهاد می‌دهند، سفر با بارنامه و GPS دنبال می‌شود و تحویل با کد گیرنده ثبت و کرایه تسویه می‌شود.</p>
+
+@* ================= هیرو ================= *@
+<section class="lp-hero">
+    <div class="lp-in lp-hero-grid">
+        <div>
+            <span class="lp-eyebrow"><i class="bi bi-broadcast"></i> بار و کامیون، بدون واسطه</span>
+            <h1>بارت را اعلام کن،<br /><span class="hl">راننده‌اش خودش می‌آید.</span></h1>
+            <p class="lp-lead">
+                بار داری؟ ثبتش کن و از میان پیشنهاد راننده‌ها انتخاب کن. کامیون داری؟ بارِ مسیرت را
+                پیدا کن و قیمت بده. گفتگو، بارنامه، رهگیری زنده و تسویه — همه داخل خود سامانه.
+            </p>
+            <div class="lp-cta">
+                <a class="btn2 pri lg" href="/account/register"><i class="bi bi-phone"></i> شروع با شماره موبایل</a>
+                <a class="btn2 ghost lg lp-ghost" href="#loads"><i class="bi bi-box-seam"></i> دیدن بارها</a>
+            </div>
+            <div class="lp-trust">
+                <span><i class="bi bi-shield-check"></i> بازیابی رمز با کد پیامکی</span>
+                <span><i class="bi bi-patch-check"></i> مدارک راننده و خودرو تأیید می‌شود</span>
+                <span><i class="bi bi-geo-alt"></i> رهگیری زنده تا لحظهٔ تحویل</span>
+            </div>
+        </div>
+
+        <div class="lp-hero-card">
+            <div class="lp-demo">
+                <div class="lp-demo-top">
+                    <span class="lp-live"><span class="dot"></span> بازار زنده</span>
+                    <span class="muted small">@demoMeta</span>
+                </div>
+                <div class="lp-road">
+                    <span class="pin from"></span>
+                    <span class="bar"><i class="bi bi-truck"></i></span>
+                    <span class="pin to"></span>
+                </div>
+                <div class="lp-demo-cities"><b>@demoFrom</b><b>@demoTo</b></div>
+            </div>
+            <div class="lp-mini"><span class="ic"><i class="bi bi-box-seam"></i></span> بار ثبت و در بازار منتشر می‌شود</div>
+            <div class="lp-mini"><span class="ic"><i class="bi bi-send"></i></span> راننده‌ها قیمت پیشنهاد می‌دهند</div>
+            <div class="lp-mini"><span class="ic"><i class="bi bi-chat-dots"></i></span> گفتگو و انتخاب بهترین پیشنهاد</div>
+            <div class="lp-mini"><span class="ic"><i class="bi bi-truck"></i></span> حمل با رهگیری زنده و تحویل با کد گیرنده</div>
+        </div>
     </div>
 </section>
 
-<div class="grid3" style="margin-bottom:24px">
-    <div class="card2"><div class="bd">
-        <h3 style="margin:0 0 6px"><i class="bi bi-box-seam" style="color:#1d5aa6"></i> صاحب بار هستم</h3>
-        <p class="muted">بار را ثبت کنید، پیشنهادها را مقایسه کنید و تا تحویل روی نقشه دنبالش کنید.</p>
-        <a class="btn2 pri" href="/account/register?type=shipper">ثبت‌نام صاحب بار</a>
-    </div></div>
-    <div class="card2 skin-driver" style="--primary:#0f6e5c"><div class="bd">
-        <h3 style="margin:0 0 6px"><i class="bi bi-truck" style="color:#0f6e5c"></i> راننده هستم</h3>
-        <p class="muted">بارهای نزدیک را ببینید، قیمت بدهید و درآمد هر سفر را در کیف پول بگیرید.</p>
-        <a class="btn2 pri" style="background:#0f6e5c" href="/account/register?type=driver">ثبت‌نام راننده</a>
-    </div></div>
-    <div class="card2"><div class="bd">
-        <h3 style="margin:0 0 6px"><i class="bi bi-buildings" style="color:#8a4b1c"></i> شرکت حمل‌ونقل</h3>
-        <p class="muted">رانندگان و ناوگان را مدیریت کنید، بار تخصیص دهید و سفرها را زنده کنترل کنید.</p>
-        <a class="btn2 pri" style="background:#8a4b1c" href="/account/register?type=company">درخواست عضویت</a>
-    </div></div>
-</div>
-
-<div class="card2">
-    <div class="hd"><i class="bi bi-lightning"></i> تازه‌ترین بارها <span class="end chip">@Fa.N((int)ViewBag.OpenLoads) بار باز</span></div>
-    <div class="tbl-wrap">
-        <table class="tbl">
-            <thead><tr><th>کد</th><th>مسیر</th><th>وزن</th><th>خودرو</th><th>بارگیری</th></tr></thead>
-            <tbody>
-            @foreach (var l in recent)
-            {
-                <tr>
-                    <td class="num">@l.Code</td>
-                    <td>@Ui.Route((string)l.From, (string)l.To)</td>
-                    <td>@Fa.N((decimal)l.WeightTon, 1) تن</td>
-                    <td>@l.Vehicle</td>
-                    <td>@Fa.Date((DateTime)l.LoadingFrom)</td>
-                </tr>
-            }
-            @if (!recent.Any())
-            {
-                <tr><td colspan="5" class="empty"><i class="bi bi-inbox"></i>در حال حاضر بار بازی نیست.</td></tr>
-            }
-            </tbody>
-        </table>
+@* ================= چطور کار می‌کند ================= *@
+<section class="lp-sec">
+    <div class="lp-in">
+        <div class="lp-head">
+            <h2>چطور کار می‌کند؟</h2>
+            <p>چهار قدم ساده — بدون واسطه و بدون کاغذبازی.</p>
+        </div>
+        <div class="lp-steps">
+            <div class="lp-step">
+                <span class="n">۱</span><i class="bi bi-box-seam"></i>
+                <h3>ثبت بار</h3>
+                <p>صاحب بار مبدأ، مقصد، وزن و خودروی موردنیاز را وارد می‌کند و بار در بازار منتشر می‌شود.</p>
+            </div>
+            <div class="lp-step">
+                <span class="n">۲</span><i class="bi bi-send"></i>
+                <h3>درخواست راننده‌ها</h3>
+                <p>راننده‌ها و شرکت‌ها بار را در بازار می‌بینند و با اعلام کرایه پیشنهاد حمل می‌دهند.</p>
+            </div>
+            <div class="lp-step">
+                <span class="n">۳</span><i class="bi bi-chat-dots"></i>
+                <h3>گفتگو و انتخاب</h3>
+                <p>صاحب بار پیشنهادها را مقایسه می‌کند، داخل سامانه گفتگو می‌کند و یکی را می‌پذیرد.</p>
+            </div>
+            <div class="lp-step">
+                <span class="n">۴</span><i class="bi bi-truck"></i>
+                <h3>حمل و تحویل</h3>
+                <p>سفر با بارنامه شروع می‌شود، مسیر زنده رهگیری می‌شود و تحویل با کد گیرنده ثبت و تسویه می‌شود.</p>
+            </div>
+        </div>
     </div>
-</div>
+</section>
+
+@* ================= تازه‌ترین بارها ================= *@
+<section class="lp-sec alt" id="loads">
+    <div class="lp-in">
+        <div class="lp-head">
+            <h2>تازه‌ترین بارها</h2>
+            <p>همین حالا در بازار منتظر راننده‌اند@(Model.ActiveLoads > 0 ? " — " + Fa.N(Model.ActiveLoads) + " بار فعال" : "").</p>
+        </div>
+        @if (Model.Loads.Count == 0)
+        {
+            <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <b>فعلاً بار بازی در بازار نیست</b>
+                اولین نفر باش: بارت را ثبت کن تا راننده‌ها پیشنهاد بدهند.
+            </div>
+        }
+        else
+        {
+            <div class="loads">
+                @foreach (var l in Model.Loads)
+                {
+                    @* بدون هویت صاحب بار — فقط مشخصات بار؛ جزئیات و پیشنهاد پشت ورود است *@
+                    <article class="load-card">
+                        <div class="top">
+                            <span class="rt">@Ui.Route(l.FromCity, l.ToCity)</span>
+                            <span class="chip num">@l.Code</span>
+                        </div>
+                        <div class="small muted">@l.FromProvince ← @l.ToProvince</div>
+                        <div class="meta">
+                            <span class="chip"><i class="bi bi-box-seam"></i> @l.Cargo</span>
+                            <span class="chip"><i class="bi bi-truck"></i> @(l.Vehicle ?? "هر خودرو")</span>
+                            <span class="chip">@Fa.N(l.WeightTon, l.WeightTon % 1 == 0 ? 0 : 1) تن</span>
+                            <span class="chip"><i class="bi bi-calendar-event"></i> بارگیری @Fa.Date(l.LoadingFrom)</span>
+                        </div>
+                        <div class="foot">
+                            @if (l.PriceMode == PriceMode.Fixed && l.Price > 0)
+                            {
+                                <span class="price">@Fa.Toman(l.Price)</span>
+                            }
+                            else
+                            {
+                                <span class="muted"><i class="bi bi-chat-dots"></i> کرایه توافقی</span>
+                            }
+                            <span class="small muted">@Fa.Ago(l.PublishedAt)</span>
+                        </div>
+                    </article>
+                }
+            </div>
+            <div class="lp-more">
+                <a class="btn2 soft" href="/account/register?type=driver"><i class="bi bi-truck"></i> راننده‌ای؟ ثبت‌نام کن و پیشنهاد بده</a>
+            </div>
+        }
+    </div>
+</section>
+
+@* ================= چرا بارگو ================= *@
+<section class="lp-sec">
+    <div class="lp-in lp-why">
+        <div>
+            <div class="lp-head start">
+                <h2>چرا بارگو؟</h2>
+                <p>هرچه برای یک حملِ بی‌دردسر لازم است، یک‌جا.</p>
+            </div>
+            @* «یک حساب دو نقش» سایت قدیم اینجا معنا ندارد: بارگوی جدید برای هر نقش
+               حساب و پنل جدا دارد؛ پس همان مزیت با زبانِ این سامانه گفته می‌شود. *@
+            <div class="lp-feat">
+                <span class="ic"><i class="bi bi-person-check"></i></span>
+                <div>
+                    <strong>پنل مخصوص هر نقش</strong>
+                    <div class="muted small">راننده، صاحب بار و شرکت حمل‌ونقل هرکدام پنل خودشان را دارند — بدون سردرگمی.</div>
+                </div>
+            </div>
+            <div class="lp-feat">
+                <span class="ic"><i class="bi bi-chat-square-text"></i></span>
+                <div>
+                    <strong>پیام درون‌برنامه‌ای</strong>
+                    <div class="muted small">پیش از پذیرش پیشنهاد با طرف مقابل گفتگو کن؛ سابقهٔ گفتگو برای رسیدگی به اختلاف می‌ماند.</div>
+                </div>
+            </div>
+            <div class="lp-feat">
+                <span class="ic"><i class="bi bi-geo-alt"></i></span>
+                <div>
+                    <strong>رهگیری زندهٔ GPS</strong>
+                    <div class="muted small">موقعیت راننده در طول سفر ثبت می‌شود؛ گیرنده هم بدون ورود، با لینک اختصاصی بار را می‌بیند.</div>
+                </div>
+            </div>
+            <div class="lp-feat">
+                <span class="ic"><i class="bi bi-receipt"></i></span>
+                <div>
+                    <strong>فاکتور و تسویهٔ شفاف</strong>
+                    <div class="muted small">کرایه یا امانی در کیف پول می‌ماند یا نقدی در مقصد پرداخت می‌شود — کمیسیون و بارنامه از قبل معلوم است.</div>
+                </div>
+            </div>
+        </div>
+
+        @* ---- اپ اندروید راننده ---- *@
+        <div class="lp-app">
+            <div class="lp-app-head">
+                <i class="bi bi-android2"></i>
+                <div>
+                    <b>اپلیکیشن اندروید بارگو</b>
+                    <span>برای راننده‌ها: اعلان بار مسیر، رهگیری خودکار و ثبت تحویل از روی گوشی.</span>
+                </div>
+            </div>
+            <ul>
+                <li><i class="bi bi-bell"></i> خبردار شدن از بار تازه در مسیر</li>
+                <li><i class="bi bi-geo"></i> ارسال خودکار موقعیت در سفر</li>
+                <li><i class="bi bi-qr-code"></i> ثبت تحویل با کد گیرنده</li>
+            </ul>
+            <div class="lp-app-cta">
+                <a class="btn2 lg lp-app-btn" href="/account/register?type=driver"><i class="bi bi-truck"></i> ثبت‌نام راننده</a>
+                <a class="btn2 lg lp-app-ghost" href="tel:@Model.SupportPhone"><i class="bi bi-headset"></i> <span class="num" dir="ltr">@Fa.Digits(Model.SupportPhone)</span></a>
+            </div>
+        </div>
+    </div>
+</section>
+
+@* ================= آمار ================= *@
+<section class="lp-stats">
+    <div class="lp-in lp-stats-grid">
+        <div class="st"><b class="num" data-count="@Model.ActiveLoads">@Fa.N(Model.ActiveLoads)</b><span>بار فعال</span></div>
+        <div class="st"><b class="num" data-count="@Model.Vehicles">@Fa.N(Model.Vehicles)</b><span>خودروی ثبت‌شده</span></div>
+        <div class="st"><b class="num" data-count="@Model.Users">@Fa.N(Model.Users)</b><span>کاربر بارگو</span></div>
+        <div class="st"><b class="num" data-count="@Model.SettledTrips">@Fa.N(Model.SettledTrips)</b><span>حمل موفق</span></div>
+    </div>
+</section>
+
+@* ================= دعوت پایانی ================= *@
+<section class="lp-sec lp-final">
+    <div class="lp-in">
+        <h2>همین حالا شروع کن</h2>
+        <p>ثبت‌نام با شماره موبایل، چند دقیقه بیشتر وقت نمی‌گیرد.</p>
+        <div class="lp-cta center">
+            <a class="btn2 pri lg" href="/account/register"><i class="bi bi-person-plus"></i> ثبت‌نام رایگان</a>
+            <a class="btn2 ghost lg" href="/account/login"><i class="bi bi-box-arrow-in-left"></i> قبلاً حساب دارم</a>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+<script>
+// شمارندهٔ آمار: از صفر تا مقدار واقعی وقتی نوار آمار دیده شد. مقدار نهایی از
+// سرور داخل خود عنصر هست، پس بدون جاوااسکریپت هم عدد درست دیده می‌شود.
+(function () {
+    var els = document.querySelectorAll('[data-count]');
+    if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+            if (!en.isIntersecting) return;
+            io.unobserve(en.target);
+            var el = en.target, target = parseInt(el.dataset.count, 10) || 0, t0 = null;
+            if (target === 0) return;
+            function step(t) {
+                t0 = t0 || t;
+                var p = Math.min((t - t0) / 1200, 1);
+                p = 1 - Math.pow(1 - p, 3); // شتاب‌گیریِ نرم انتهای شمارش
+                el.textContent = Math.round(target * p).toLocaleString('fa-IR');
+                if (p < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        });
+    }, { threshold: .4 });
+    els.forEach(function (e) { io.observe(e); });
+})();
+</script>
+}

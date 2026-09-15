@@ -1,9 +1,27 @@
+@inject SettingsService Settings
+@{
+    var title = ViewData["Title"] as string;
+
+    // صفحهٔ فرود تمام‌عرض است (نوارهای رنگی از لبه تا لبه)؛ بقیهٔ صفحه‌های
+    // عمومی (قوانین، رهگیری، نتیجهٔ پرداخت…) در ستون میانی می‌مانند.
+    var fullBleed = ViewData["FullBleed"] as bool? == true;
+
+    var phone = await Settings.GetAsync(SettingsService.Keys.SupportPhone);
+
+    // نسخه + تاریخ نسخه‌گذاری — همان منطق صفحهٔ «نسخه» در پنل مدیر: زمانِ
+    // آخرین نوشتنِ فایل اسمبلی، چون Build واقعی همان است نه AssemblyVersion تنها.
+    var asm = typeof(Program).Assembly;
+    var ver = asm.GetName().Version?.ToString(3) ?? "—";
+    DateTime? builtAt = null;
+    try { builtAt = System.IO.File.GetLastWriteTimeUtc(asm.Location); } catch (Exception) { }
+}
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>@ViewData["Title"]</title>
+    <title>@(string.IsNullOrEmpty(title) ? "بارگو — سامانه اعلام بار و حمل‌ونقل" : title)</title>
+    <meta name="description" content="بارگو صاحب بار و راننده را بی‌واسطه به هم می‌رساند: ثبت بار، پیشنهاد راننده، گفتگو، رهگیری زنده و تسویهٔ شفاف." />
     <meta name="theme-color" content="#1b2a3a" />
     <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
     <link href="~/css/fonts.css" rel="stylesheet" asp-append-version="true" />
@@ -13,14 +31,43 @@
 <body class="skin-shipper">
 <header class="pub-head">
     <a class="brand" href="/?site=1"><img src="/img/logo.svg" alt="" />بارگو</a>
+    @* لینک‌های میانی فقط دسکتاپ — موبایل جا ندارد و فوتر همان‌ها را دارد *@
+    <nav class="pub-nav">
+        <a href="/?site=1#loads">تازه‌ترین بارها</a>
+        <a href="/home/terms">قوانین و مقررات</a>
+        <a href="tel:@phone"><i class="bi bi-headset"></i> <span class="num" dir="ltr">@Fa.Digits(phone)</span></a>
+    </nav>
     <nav class="row-actions">
         <a class="btn2 sm ghost" href="/account/login">ورود</a>
         <a class="btn2 sm pri" href="/account/register">ثبت‌نام</a>
     </nav>
 </header>
-<main class="pub-wrap">
+<main class="pub-wrap @(fullBleed ? "full" : "")">
     @RenderBody()
 </main>
+<footer class="pub-foot">
+    <div class="pf-in">
+        <div class="pf-col pf-brand">
+            <a class="brand" href="/?site=1"><img src="/img/logo.svg" alt="" />بارگو</a>
+            <p>سامانهٔ اعلام بار و حمل‌ونقل — صاحب بار و راننده را بی‌واسطه به هم می‌رساند: بار را ثبت کن، پیشنهاد بگیر، انتخاب کن، تحویل بده.</p>
+        </div>
+        <div class="pf-col">
+            <b>دسترسی سریع</b>
+            <a href="/?site=1#loads">تازه‌ترین بارها</a>
+            <a href="/account/register?type=shipper">ثبت‌نام صاحب بار</a>
+            <a href="/account/register?type=driver">ثبت‌نام راننده</a>
+            <a href="/account/register?type=company">عضویت شرکت حمل‌ونقل</a>
+            <a href="/home/terms">قوانین و مقررات</a>
+        </div>
+        <div class="pf-col">
+            <b>پشتیبانی</b>
+            <a href="tel:@phone"><i class="bi bi-telephone"></i> <span class="num" dir="ltr">@Fa.Digits(phone)</span></a>
+            <a href="/account/login?role=admin"><i class="bi bi-shield-lock"></i> ورود مدیر سامانه</a>
+            @* نسخه و تاریخ شمسی — تا پشتیبانی تلفنی بتواند بپرسد «پایین صفحه چه نوشته؟» *@
+            <span class="pf-ver">نسخهٔ @Fa.Digits(ver) — @Fa.Stamp(builtAt)</span>
+        </div>
+    </div>
+</footer>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
