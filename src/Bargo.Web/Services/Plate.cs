@@ -101,7 +101,8 @@ public static class Plate
         return new HtmlString(
             $"<span class=\"plate-ir\" dir=\"ltr\" title=\"{e.Encode(Pretty(plateNo))}\">" +
             "<span class=\"band\"><i></i></span>" +
-            $"<span class=\"main\"><span>{Fa.Digits(p.TwoDigits)}</span><b class=\"l\">{e.Encode(p.Letter)}</b><span>{Fa.Digits(p.ThreeDigits)}</span></span>" +
+            // نام کلاس «mid» و نه «main» — «main» کلاس پوستهٔ صفحه است (margin سایدبار) و پلاک را کش می‌داد
+            $"<span class=\"mid\"><span>{Fa.Digits(p.TwoDigits)}</span><b class=\"l\">{e.Encode(p.Letter)}</b><span>{Fa.Digits(p.ThreeDigits)}</span></span>" +
             $"<span class=\"ir\"><small>ایران</small><b>{Fa.Digits(p.Iran)}</b></span>" +
             "</span>");
     }

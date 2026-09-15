@@ -1,4 +1,4 @@
-/* ===================== بارگو — پنل‌ها =====================
+﻿/* ===================== بارگو — پنل‌ها =====================
    ساختار همان رنگیو است (سایدبار راست، نوار بالا، کارت، جدول واکنش‌گرا، نوار پایین
    موبایل)؛ هویت بصری مال بارگوست:
 
@@ -211,13 +211,13 @@ tr.row-link{cursor:pointer}
 
 /* پلاک واقعی: چیدمان مثل خود پلاک چپ‌به‌راست است (نوار آبی، دو رقم/حرف/سه رقم، خانهٔ ایران)؛
    dir=ltr روی خود نشان می‌آید تا وسط متن RTL آینه نشود. tabular-nums برای هم‌عرضی ارقام در جدول‌ها. */
-.plate-ir{direction:ltr;display:inline-flex;align-items:stretch;height:26px;vertical-align:middle;background:#fff;color:#111;
+.plate-ir{direction:ltr;display:inline-flex;align-items:stretch;height:26px;width:max-content;vertical-align:middle;background:#fff;color:#111;
   border:1.5px solid #1b2a3a;border-radius:6px;overflow:hidden;white-space:nowrap;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
 .plate-ir .band{flex:none;width:11px;background:#1d4f9e;display:flex;justify-content:center;padding-top:3px}
 .plate-ir .band i{width:5px;height:9px;border-radius:1px; /* پرچم سه‌رنگ، فقط با CSS */
   background:linear-gradient(180deg,#2eaf5f 0 33%,#fff 33% 66%,#e03131 66% 100%)}
-.plate-ir .main{display:flex;align-items:center;gap:5px;padding:0 8px;font-size:13.5px}
-.plate-ir .main .l{font-weight:800;font-size:13px}
+.plate-ir .mid{display:flex;align-items:center;gap:5px;padding:0 8px;font-size:13.5px}
+.plate-ir .mid .l{font-weight:800;font-size:13px}
 .plate-ir .ir{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:26px;
   padding:1px 5px 0;border-left:1.5px solid #1b2a3a;background:#f6f8fb}
 .plate-ir .ir small{font-size:7px;font-weight:700;line-height:1;color:#33415c}

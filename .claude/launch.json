@@ -6,6 +6,13 @@
       "runtimeExecutable": "dotnet",
       "runtimeArgs": ["run", "--project", "src/Bargo.Web", "--urls", "http://localhost:5810"],
       "port": 5810
+    },
+    {
+      "name": "hammasir",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "D:/hammasir/src/HamMasir.Web", "--no-launch-profile", "--urls", "http://localhost:5820"],
+      "env": { "ASPNETCORE_ENVIRONMENT": "Development" },
+      "port": 5820
     }
   ]
 }
