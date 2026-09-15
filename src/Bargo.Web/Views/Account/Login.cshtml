@@ -3,12 +3,15 @@
     Layout = "_AuthLayout";
     ViewData["Skin"] = Model.Role switch { Roles.Driver => "skin-driver", Roles.Company => "skin-company", Roles.Admin => "skin-admin", _ => "skin-shipper" };
     var isAdmin = Model.Role == Roles.Admin;
-    var otpMode = (ViewBag.Mode as string) == "otp" && !isAdmin;
+    var otpTab = (ViewBag.Mode as string) == "otp" && !isAdmin;
     var otpMobile = ViewBag.OtpMobile as string;
+    var codeStep = otpTab && !string.IsNullOrEmpty(otpMobile);
     var devOtp = ViewBag.DevOtp as string;
     var forgot = ViewBag.Forgot as bool? == true;
     var returnQs = string.IsNullOrEmpty(Model.ReturnUrl) ? "" : "&returnUrl=" + Uri.EscapeDataString(Model.ReturnUrl);
     var version = typeof(Program).Assembly.GetName().Version?.ToString(3);
+    // «۰۹۱۲۱۲۳۴۵۶۷» → «۰۹۱۲***۴۵۶۷» — شماره فقط برای اطمینان کاربر است، نه نمایش کامل
+    string MaskMobile(string m) => m.Length < 8 ? Fa.Digits(m) : Fa.Digits(m[..4]) + "***" + Fa.Digits(m[^4..]);
 }
 
 <style>
@@ -18,7 +21,6 @@
     .login-logo b{font-size:21px}
     .login-logo span{font-size:12.5px;color:var(--ink-faint)}
     .biginput{font-size:19px !important;text-align:center;letter-spacing:2px;height:50px}
-    .code-input{font-size:26px !important;text-align:center;letter-spacing:14px;height:56px;font-variant-numeric:tabular-nums}
     .pass-wrap{position:relative}
     .pass-wrap input{padding-inline-end:44px}
     .pass-eye{position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);border:0;background:none;cursor:pointer;
@@ -26,6 +28,16 @@
     .pass-eye:hover{background:var(--line-soft, #eee)}
     .linkrow{text-align:center}
     .login-ver{margin-top:14px;text-align:center;font-size:11.5px;color:var(--ink-faint)}
+    /* گام کد — الگوی رنگیو */
+    .step2{margin:4px 0 18px;text-align:center}
+    .step2 .s2-ic{width:56px;height:56px;margin:0 auto 10px;border-radius:18px;display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;font-size:26px}
+    .step2 .s2-t{font-size:13.5px;color:var(--ink-soft)}
+    .step2 .s2-m{font-size:18px;font-weight:900;margin-top:4px;letter-spacing:1px;direction:ltr}
+    .codebox{text-align:center;font-size:26px !important;font-weight:900;letter-spacing:12px;height:56px;font-variant-numeric:tabular-nums}
+    .linkbtn{background:none;border:none;font-family:inherit;font-size:13px;font-weight:800;
+      color:var(--primary);cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:0}
+    .linkbtn:hover{text-decoration:underline}
 </style>
 
 <a class="lnk login-back" href="/"><i class="bi bi-arrow-right"></i> بازگشت به صفحهٔ اصلی</a>
@@ -38,9 +50,9 @@
         {
             <text>این صفحه مخصوص مدیران بارگوست.</text>
         }
-        else if (otpMode)
+        else if (codeStep)
         {
-            <text>ورود با کد پیامکی — شماره را وارد کنید.</text>
+            <text>کد پیامک‌شده را وارد کنید.</text>
         }
         else
         {
@@ -49,10 +61,120 @@
     </span>
 </div>
 
-@if (!otpMode)
+@if (codeStep)
 {
-    @* ---------------- ورود: فقط موبایل و گذرواژه ---------------- *@
-    <form method="post" action="/account/login">
+    @* ---------------- گام ۲: کد پیامکی (الگوی رنگیو) ---------------- *@
+    <div class="step2">
+        <div class="s2-ic"><i class="bi bi-chat-left-dots-fill"></i></div>
+        <div class="s2-t">کد ۵ رقمی به شمارهٔ زیر پیامک شد</div>
+        <div class="s2-m num">@MaskMobile(otpMobile!)</div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(devOtp))
+    {
+        <div class="alert2 warn"><i class="bi bi-bug"></i><div class="grow">فقط حالت توسعه — پیامکی ارسال نشد. کد: <b class="num" dir="ltr">@devOtp</b></div></div>
+    }
+
+    <form method="post" action="/account/otp/verify" id="otpForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="mobile" value="@otpMobile" />
+        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+        <div class="fld">
+            <label for="otpInput">کد تأیید</label>
+            <input name="code" id="otpInput" class="codebox" inputmode="numeric" autocomplete="one-time-code" maxlength="5"
+                   placeholder="•••••" dir="ltr" autofocus required />
+            <span class="hint">کد تا ۳ دقیقه معتبر است.</span>
+        </div>
+        <button type="submit" class="btn2 pri lg block"><i class="bi bi-check2-circle"></i> تأیید و ورود</button>
+    </form>
+
+    <div class="linkrow" style="margin-top:14px">
+        <span id="cdWrap">ارسال دوباره تا <b class="num" id="cd">۶۰</b> ثانیهٔ دیگر</span>
+        <form method="post" action="/account/otp/send" id="resendForm" style="display:none">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="mobile" value="@otpMobile" />
+            <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+            <button type="submit" class="linkbtn"><i class="bi bi-arrow-clockwise"></i> ارسال دوبارهٔ کد</button>
+        </form>
+    </div>
+    <div class="linkrow" style="margin-top:8px">
+        <a class="lnk" href="/account/login?mode=otp@(returnQs)"><i class="bi bi-pencil"></i> ویرایش شماره</a> ·
+        <a class="lnk" href="/account/login@(returnQs.Length > 0 ? "?" + returnQs[1..] : "")">ورود با گذرواژه</a>
+    </div>
+
+    <script>
+        // پرکردن و ارسال خودکار کد — الگوی رنگیو: WebOTP روی اندروید + ارسال خودکار
+        // پس از کامل شدن پنج رقم (روی iOS پیشنهاد بالای صفحه‌کلید همین را کامل می‌کند)
+        (function () {
+            var f = document.getElementById('otpForm');
+            var i = document.getElementById('otpInput');
+            if (!f || !i) return;
+            var sent = false;
+            var go = function () {
+                if (sent) return;
+                sent = true;
+                // requestSubmit و نه submit — تا رویداد submit شلیک شود و «کنش کاربر» حفظ بماند
+                if (f.requestSubmit) f.requestSubmit();
+                else { var b = f.querySelector('button[type=submit]'); if (b) b.click(); else f.submit(); }
+            };
+            var ascii = function (s) {
+                return String(s).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+                                .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); })
+                                .replace(/\D/g, '');
+            };
+            i.addEventListener('input', function () {
+                var v = ascii(i.value);
+                if (v !== i.value) i.value = v;
+                if (v.length === 5) go();
+            });
+            if ('OTPCredential' in window && navigator.credentials) {
+                var ac = new AbortController();
+                f.addEventListener('submit', function () { ac.abort(); });
+                navigator.credentials.get({ otp: { transport: ['sms'] }, signal: ac.signal })
+                    .then(function (c) {
+                        if (!c || !c.code) return;
+                        i.value = ascii(c.code);
+                        if (i.value.length === 5) go();
+                    })
+                    .catch(function () { /* نبود پشتیبانی یا رد کاربر مشکلی نیست */ });
+            }
+        })();
+
+        // شمارش معکوس «ارسال دوباره» — پس از ۶۰ ثانیه دکمه ظاهر می‌شود
+        (function () {
+            var left = 60;
+            var cd = document.getElementById('cd'), wrap = document.getElementById('cdWrap'), form = document.getElementById('resendForm');
+            var fa = function (n) { return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); };
+            var t = setInterval(function () {
+                left--;
+                if (left <= 0) { clearInterval(t); wrap.style.display = 'none'; form.style.display = 'inline-block'; return; }
+                cd.textContent = fa(left);
+            }, 1000);
+        })();
+    </script>
+}
+else
+{
+    @if (forgot)
+    {
+        <div class="alert2 info"><i class="bi bi-info-circle"></i><div class="grow">با کد پیامکی وارد شوید و سپس از «پروفایل» گذرواژهٔ تازه بگذارید.</div></div>
+    }
+
+    @if (!isAdmin)
+    {
+        @*
+            یکی از دو راه، نه هر دو با هم — الگوی رنگیو: هر حالت فرم مستقل خودش را
+            دارد و فقط یکی فعال است؛ ورودی‌های فرمِ پنهان disabled می‌شوند تا required
+            آن‌ها جلوی ارسالِ فرمِ دیگر را نگیرد. بدون جاوااسکریپت هر دو فرم زیر هم
+            دیده می‌شوند و کار می‌کنند.
+        *@
+        <div class="tabs" role="tablist" style="margin-bottom:14px">
+            <button type="button" class="@(otpTab ? "" : "on")" data-tab="pw" role="tab" aria-selected="@(!otpTab)"><i class="bi bi-key"></i> با گذرواژه</button>
+            <button type="button" class="@(otpTab ? "on" : "")" data-tab="sms" role="tab" aria-selected="@otpTab"><i class="bi bi-chat-dots"></i> با کد پیامکی</button>
+        </div>
+    }
+
+    <form method="post" action="/account/login" data-pane="pw" hidden="@(otpTab && !isAdmin)">
         @Html.AntiForgeryToken()
         <input type="hidden" asp-for="ReturnUrl" />
         @if (isAdmin)
@@ -79,6 +201,37 @@
 
     @if (!isAdmin)
     {
+        <form method="post" action="/account/otp/send" data-pane="sms" hidden="@(!otpTab)">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+            <div class="fld">
+                <label for="smsMobile">شمارهٔ موبایل</label>
+                <input id="smsMobile" name="mobile" class="biginput" inputmode="tel" autocomplete="tel" maxlength="11"
+                       placeholder="۰۹۱۲۳۴۵۶۷۸۹" dir="ltr" required />
+            </div>
+            <p class="muted small" style="margin:-2px 0 12px">کد ورود به همین شماره پیامک می‌شود؛ گذرواژه لازم نیست.</p>
+            <button type="submit" class="btn2 pri lg block"><i class="bi bi-send"></i> ارسال کد ورود</button>
+        </form>
+
+        <script>
+            // زبانه‌ها — الگوی رنگیو: پنهان + disabled کردن ورودی‌های فرم غیرفعال
+            (function () {
+                var tabs = document.querySelectorAll('.tabs [data-tab]');
+                var panes = document.querySelectorAll('[data-pane]');
+                var sync = function (name) {
+                    tabs.forEach(function (x) { x.classList.toggle('on', x.dataset.tab === name); x.setAttribute('aria-selected', x.dataset.tab === name); });
+                    panes.forEach(function (p) {
+                        var show = p.dataset.pane === name;
+                        p.hidden = !show;
+                        p.querySelectorAll('input').forEach(function (i) { i.disabled = !show; });
+                        if (show) { var f = p.querySelector('input:not([type=hidden])'); if (f) f.focus(); }
+                    });
+                };
+                tabs.forEach(function (t) { t.addEventListener('click', function () { sync(t.dataset.tab); }); });
+                panes.forEach(function (p) { if (p.hidden) p.querySelectorAll('input').forEach(function (i) { i.disabled = true; }); });
+            })();
+        </script>
+
         <div class="linkrow" style="margin-top:12px">
             <a class="lnk" href="/account/login?mode=otp&forgot=1@(returnQs)">رمز عبور را فراموش کرده‌اید؟</a>
         </div>
@@ -89,76 +242,6 @@
             <a class="lnk" href="/account/register?type=company">شرکت</a>
         </div>
     }
-}
-else if (string.IsNullOrEmpty(otpMobile))
-{
-    @* ---------------- کد پیامکی، گام یک: شماره ---------------- *@
-    @if (forgot)
-    {
-        <div class="alert2 info"><i class="bi bi-info-circle"></i><div class="grow">با کد پیامکی وارد شوید و سپس از «پروفایل» گذرواژهٔ تازه بگذارید.</div></div>
-    }
-    <form method="post" action="/account/otp/send">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
-        <div class="fld">
-            <label for="Mobile">شمارهٔ موبایل</label>
-            <input id="Mobile" name="mobile" class="biginput" inputmode="tel" autocomplete="username" maxlength="11"
-                   placeholder="۰۹۱۲۳۴۵۶۷۸۹" dir="ltr" autofocus required />
-        </div>
-        <button type="submit" class="btn2 pri lg block"><i class="bi bi-send"></i> دریافت کد ورود</button>
-    </form>
-
-    <div class="linkrow" style="margin-top:10px">
-        <a class="lnk" href="/account/login?role=@Model.Role@returnQs"><i class="bi bi-arrow-right"></i> بازگشت به ورود</a>
-    </div>
-}
-else
-{
-    @* ---------------- کد پیامکی، گام دو: کد ---------------- *@
-    @if (!string.IsNullOrEmpty(devOtp))
-    {
-        <div class="alert2 warn"><i class="bi bi-bug"></i><div class="grow">فقط حالت توسعه (پیامک ارسال نمی‌شود) — کد ورود: <b class="num" dir="ltr">@devOtp</b></div></div>
-    }
-    <form method="post" action="/account/otp/verify">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="mobile" value="@otpMobile" />
-        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
-
-        <div class="fld">
-            <label for="Code">کد پیامک‌شده به <span class="num" dir="ltr">@Fa.Digits(otpMobile)</span></label>
-            <input id="Code" name="code" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="5"
-                   placeholder="•••••" dir="ltr" autofocus required />
-            <span class="hint">کد ۵ رقمی تا ۳ دقیقه معتبر است.</span>
-        </div>
-        <button type="submit" class="btn2 pri lg block"><i class="bi bi-box-arrow-in-left"></i> ورود</button>
-    </form>
-
-    <form method="post" action="/account/otp/send" style="margin-top:10px">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="mobile" value="@otpMobile" />
-        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
-        <button type="submit" class="btn2 ghost block" id="resendBtn" disabled>
-            <i class="bi bi-arrow-repeat"></i> ارسال دوبارهٔ کد <span id="resendTimer" class="num"></span>
-        </button>
-    </form>
-
-    <div class="linkrow">
-        <a class="lnk" href="/account/login?mode=otp@(returnQs)"><i class="bi bi-pencil"></i> ویرایش شماره</a> ·
-        <a class="lnk" href="/account/login?role=@Model.Role@returnQs">ورود با گذرواژه</a>
-    </div>
-
-    <script>
-        // شمارش معکوس ۶۰ ثانیه‌ای دکمهٔ «ارسال دوباره»
-        (function () {
-            var left = 60, btn = document.getElementById('resendBtn'), t = document.getElementById('resendTimer');
-            var fa = function (n) { return String(n).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; }); };
-            var tick = function () {
-                if (left <= 0) { btn.disabled = false; t.textContent = ''; return; }
-                t.textContent = '(' + fa(left) + ')'; left--; setTimeout(tick, 1000);
-            };
-            tick();
-        })();
-    </script>
 }
 
 <div class="login-ver">نسخهٔ @Fa.Digits(version ?? "0.1.0")</div>
